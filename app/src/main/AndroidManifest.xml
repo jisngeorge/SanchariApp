@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Added Internet permission for OkHttp -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -10,6 +13,27 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.SanchariApp" />
+        android:theme="@style/Theme.SanchariApp"
+        tools:targetApi="31">
+
+        <!-- Added MainActivity declaration so the app can launch -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Add the new UserInfoActivity registration -->
+        <activity
+            android:name=".UserInfoActivity"
+            android:exported="false"
+            android:label="Your Information"
+            android:theme="@style/Theme.SanchariApp" />
+
+    </application>
 
 </manifest>
+
