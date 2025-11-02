@@ -3,36 +3,38 @@ package com.sanchari.bus
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import android.util.Log
 
 /**
- * A "helper" to open the read-only TimetableDatabase.db.
- *
- * This class DOES NOT create or upgrade the database.
- * Its only job is to provide a connection to the pre-packaged
- * database file that we will copy from /assets or download.
+ * This is a read-only helper for the Timetable Database.
+ * It does NOT create or upgrade the database. Its only job is to open
+ * the database file that is downloaded or copied from assets.
  */
 class TimetableDatabaseHelper(context: Context) :
-    SQLiteOpenHelper(
-        context,
-        DatabaseConstants.TIMETABLE_DATABASE_NAME,
-        null,
-        1 // The version number here is a dummy, as we don't manage it
-    ) {
+    SQLiteOpenHelper(context, DatabaseConstants.TIMETABLE_DATABASE_NAME, null, 1) {
 
-    /**
-     * This is INTENTIONALLY blank.
-     * The database is pre-packaged and copied.
-     * We do not create tables manually.
-     */
-    override fun onCreate(db: SQLiteDatabase?) {
-        // Do nothing. Database is pre-built.
+    companion object {
+        private const val TAG = "TimetableDbHelper"
     }
 
-    /**
-     * This is INTENTIONALLY blank.
-     * We do not upgrade the schema. We replace the entire file.
-     */
+    override fun onCreate(db: SQLiteDatabase?) {
+        // Not used, as this is a pre-packaged database.
+        // We can add the schema here for reference, but it won't be executed
+        // unless the database file is missing AND this helper is asked to create it.
+        Log.w(TAG, "onCreate called, but this should be a pre-packaged database.")
+        // For safety, we can add the schema
+        db?.execSQL(DatabaseConstants.BusStopTable.CREATE_TABLE)
+        // Add create table for BusServiceTable if needed
+    }
+
     override fun onUpgrade(db: SQLiteDatabase?, oldVersion: Int, newVersion: Int) {
-        // Do nothing. Database is pre-built.
+        // Not used. The database is replaced by DatabaseManager.
+        Log.w(TAG, "onUpgrade called, but database should be replaced, not upgraded.")
+    }
+
+    override fun onDowngrade(db: SQLiteDatabase?, oldVersion: Int, newVersion: Int) {
+        // Not used.
+        Log.w(TAG, "onDowngrade called, but database should be replaced, not upgraded.")
     }
 }
+
