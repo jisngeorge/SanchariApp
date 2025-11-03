@@ -2,6 +2,7 @@ package com.sanchari.bus
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build // Import for version check
 import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
@@ -42,7 +43,14 @@ class BusDetailsActivity : AppCompatActivity() {
         supportActionBar?.title = "Bus Stops"
 
         // Get the bus service details
-        busService = intent.getParcelableExtra(EXTRA_BUS_SERVICE)
+        // --- UPDATED: Replaced deprecated getParcelableExtra ---
+        busService = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra(EXTRA_BUS_SERVICE, BusService::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra(EXTRA_BUS_SERVICE)
+        }
+        // --- End of update ---
 
         if (busService == null) {
             Toast.makeText(this, "Error: Bus details not found.", Toast.LENGTH_LONG).show()

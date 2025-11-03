@@ -22,21 +22,27 @@ class BusStopAdapter(
         holder.bind(stops[position])
     }
 
-    override fun getItemCount(): Int = stops.size
-
-    fun updateStops(newStops: List<BusStop>) {
-        stops = newStops
-        notifyDataSetChanged()
-    }
+    override fun getItemCount() = stops.size
 
     inner class BusStopViewHolder(private val binding: ItemBusStopBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(stop: BusStop) {
+            // Corrected binding IDs
             binding.textViewStopName.text = stop.locationName
             binding.textViewScheduledTime.text = stop.scheduledTime
-            // Here you could add logic to tint the icon based on stopOrder (e.g., first/last)
+
+            // You can add logic here to show/hide icons or change views
+            // based on the stop's position (e.g., first or last stop)
         }
+    }
+
+    /**
+     * Updates the list of stops and notifies the adapter.
+     */
+    fun updateStops(newStops: List<BusStop>) {
+        this.stops = newStops
+        notifyDataSetChanged()
     }
 }
 

@@ -44,13 +44,10 @@ class SearchResultsActivity : AppCompatActivity() {
         adapter = BusServiceAdapter(results) { service ->
             // Handle click on a bus service
             Log.i("SearchResults", "Clicked on service: ${service.name} (ID: ${service.serviceId})")
-            // TODO: Launch BusDetailsActivity here
-            Toast.makeText(this, "Opening details for ${service.name}", Toast.LENGTH_SHORT).show()
 
-            // TODO: Save this to recent views in UserDatabase
-            // lifecycleScope.launch(Dispatchers.IO) {
-            //    UserDataManager.addRecentView(applicationContext, service.serviceId, service.name)
-            // }
+            // Launch BusDetailsActivity
+            val intent = BusDetailsActivity.newIntent(this, service)
+            startActivity(intent)
         }
         binding.searchResultsRecyclerView.layoutManager = LinearLayoutManager(this)
         binding.searchResultsRecyclerView.adapter = adapter
@@ -68,3 +65,4 @@ class SearchResultsActivity : AppCompatActivity() {
         }
     }
 }
+

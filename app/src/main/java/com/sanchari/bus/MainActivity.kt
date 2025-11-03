@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.sanchari.bus.databinding.ActivityMainBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -18,19 +19,23 @@ import kotlinx.coroutines.withContext
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var recentSearchAdapter: RecentSearchAdapter
 
-    // Register for the UserInfoActivity result
+    companion object {
+        private const val TAG = "MainActivity"
+    }
+
+    // Launcher for UserInfoActivity
     private val userInfoLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            // User saved info, now we can load app data.
-            // This will re-check user info, find it, and then trigger checkForUpdates().
+            Log.i(TAG, "UserInfoActivity finished. Loading app data.")
             loadAppData()
         } else {
-            // User backed out. We must ask them again as user info is required.
-            Toast.makeText(this, "User information is required to proceed.", Toast.LENGTH_LONG).show()
-            loadAppData() // This will re-trigger the check and launch UserInfoActivity again
+            Log.w(TAG, "UserInfoActivity cancelled. User info is still incomplete.")
+            Toast.makeText(this, "Please complete your user info to use the app.", Toast.LENGTH_LONG).show()
+            loadAppData()
         }
     }
 
@@ -39,209 +44,97 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // 1. Initialize DBs from assets on first run.
-        //    This is the start of our sequential loading chain.
-        lifecycleScope.launch(Dispatchers.IO) {
-            DatabaseManager.initializeDatabases(applicationContext)
-
-            // After init, proceed to check for user info on the main thread
-            withContext(Dispatchers.Main) {
-                // 2. Check for user info. This will, in turn, trigger checkForUpdates()
-                //    if the user is found.
-                loadAppData()
-            }
-        }
-
-        // 4. Set up listeners
-        // FIX: The ID from activity_main.xml is "search_button", so binding is "searchButton"
+        // --- Setup UI ---
         binding.searchButton.setOnClickListener {
             handleSearch()
         }
+        setupRecentSearchesRecyclerView()
 
-        // 5. Load suggestions (auto-complete for 'from'/'to')
-        // We will implement this later
-        loadStopSuggestions()
-    }
-
-    /**
-     * Checks if user info exists.
-     * If YES: Proceeds to check for updates.
-     * If NO: Launches UserInfoActivity to get it.
-     */
-    private fun loadAppData() {
+        // --- Background Initialization ---
         lifecycleScope.launch(Dispatchers.IO) {
-            val user = UserDataManager.getUser(applicationContext)
-            if (user == null || user.name.isBlank() || user.email.isBlank()) {
-                // No user data. Launch UserInfoActivity to get it.
-                withContext(Dispatchers.Main) {
-                    val intent = Intent(this@MainActivity, UserInfoActivity::class.java)
-                    userInfoLauncher.launch(intent)
-                }
-            } else {
-                // User exists. Now we can proceed to check for updates.
-                withContext(Dispatchers.Main) {
-                    Log.d(TAG, "User info found for ${user.name}. Checking for updates.")
-                    // 3. Check for updates (Now called sequentially after user is confirmed)
-                    checkForUpdates()
-                }
-                // TODO: Load recent searches and populate RecyclerView
-                // val recents = UserDataManager.getRecentSearches(applicationContext)
-                // withContext(Dispatchers.Main) {
-                //    binding.recyclerViewRecents.adapter = RecentSearchAdapter(recents)
-                // }
-            }
-        }
-    }
+            Log.i(TAG, "Initializing databases...")
+            DatabaseManager.initializeDatabases(applicationContext)
 
-    /**
-     * Fetches version.json, compares with local, and prompts user if needed.
-     */
-    private fun checkForUpdates() {
-        // Show a simple loading indicator (we'll make this better later)
-        // binding.textView.text = "Checking for updates..."
+            Log.i(TAG, "Loading stop suggestions...")
+            loadStopSuggestions()
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val serverInfo = NetworkManager.fetchVersionInfo()
-                if (serverInfo == null) {
-                    withContext(Dispatchers.Main) {
-                        Log.e(TAG, "Failed to fetch version info.")
-                        // binding.textView.text = "" // Hide loading
-                    }
-                    return@launch
-                }
-
-                // 2. Get local versions
-                val localTimetableVersion = LocalVersionManager.getTimetableDbVersion(applicationContext)
-                val localCommunityVersion = LocalVersionManager.getCommunityDbVersion(applicationContext)
-
-                val isTimetableUpdateAvailable = serverInfo.timetable.version > localTimetableVersion
-                val isCommunityUpdateAvailable = serverInfo.community.version > localCommunityVersion
-
-                if (isTimetableUpdateAvailable || isCommunityUpdateAvailable) {
-                    // 3. Prompt user
-                    withContext(Dispatchers.Main) {
-                        promptForUpdate(
-                            isTimetableUpdateAvailable,
-                            isCommunityUpdateAvailable,
-                            serverInfo
-                        )
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Log.d(TAG, "App is up to date.")
-                        // binding.textView.text = "" // Hide loading
-                    }
-                }
-
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Log.e(TAG, "Error checking for updates", e)
-                    // binding.textView.text = "Update check failed."
-                }
-            }
-        }
-    }
-
-    private fun promptForUpdate(
-        isTimetableUpdateAvailable: Boolean,
-        isCommunityUpdateAvailable: Boolean,
-        serverInfo: ServerVersionInfo
-    ) {
-        val message = buildString {
-            append("New updates are available:\n")
-            if (isTimetableUpdateAvailable) {
-                append("- Bus Timetables\n")
-            }
-            if (isCommunityUpdateAvailable) {
-                append("- Community Ratings & Comments\n")
-            }
-            append("\nDownload now?")
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle("Update Available")
-            .setMessage(message)
-            .setPositiveButton("Download") { dialog, _ ->
-                startDatabaseDownload(
-                    isTimetableUpdateAvailable,
-                    isCommunityUpdateAvailable,
-                    serverInfo
-                )
-                dialog.dismiss()
-            }
-            .setNegativeButton("Later") { dialog, _ ->
-                dialog.dismiss()
-            }
-            .show()
-    }
-
-    private fun startDatabaseDownload(
-        isTimetableUpdateAvailable: Boolean,
-        isCommunityUpdateAvailable: Boolean,
-        serverInfo: ServerVersionInfo
-    ) {
-        // Show loading state
-        // binding.textView.text = "Downloading updates..." // Simple progress
-        Toast.makeText(this, "Downloading updates...", Toast.LENGTH_SHORT).show()
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            var timetableSuccess = true
-            var communitySuccess = true
-
-            if (isTimetableUpdateAvailable) {
-                // FIX: Correct function name
-                timetableSuccess = DatabaseManager.downloadAndReplaceDatabase(
-                    applicationContext,
-                    DatabaseConstants.TIMETABLE_DATABASE_NAME,
-                    serverInfo.timetable.version,
-                    serverInfo.timetable.url
-                )
-            }
-
-            if (isCommunityUpdateAvailable) {
-                // FIX: Correct function name
-                communitySuccess = DatabaseManager.downloadAndReplaceDatabase(
-                    applicationContext,
-                    DatabaseConstants.COMMUNITY_DATABASE_NAME,
-                    serverInfo.community.version,
-                    serverInfo.community.url
-                )
-            }
-
-            // Report result on main thread
+            Log.i(TAG, "Loading app data...")
             withContext(Dispatchers.Main) {
-                // binding.textView.text = "" // Hide progress
-                if (timetableSuccess && communitySuccess) {
-                    Toast.makeText(this@MainActivity, "App updated successfully!", Toast.LENGTH_LONG).show()
-                } else {
-                    Toast.makeText(this@MainActivity, "Error updating one or more files.", Toast.LENGTH_LONG).show()
-                }
+                loadAppData()
             }
         }
     }
 
+    /**
+     * Sets up the RecyclerView for recent searches with an empty adapter.
+     */
+    private fun setupRecentSearchesRecyclerView() {
+        // Initialize adapter with an empty list
+        recentSearchAdapter = RecentSearchAdapter(emptyList()) { recentSearch ->
+            // Handle click on a recent search item
+            Log.i(TAG, "Clicked recent search: ${recentSearch.serviceName}")
+
+            // We need a full BusService object to launch BusDetailsActivity
+            // We only have a RecentSearch object. We must fetch the full service.
+            lifecycleScope.launch(Dispatchers.IO) {
+                val service = SearchManager.getBusServiceById(applicationContext, recentSearch.serviceId)
+
+                withContext(Dispatchers.Main) {
+                    if (service != null) {
+                        // Now we have the full service object, we can launch the activity
+                        val intent = BusDetailsActivity.newIntent(this@MainActivity, service)
+                        startActivity(intent)
+                    } else {
+                        // This should ideally not happen if DB is consistent
+                        Toast.makeText(this@MainActivity, "Could not find details for this service.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+
+        binding.recentSearchesRecyclerView.layoutManager = LinearLayoutManager(this)
+        binding.recentSearchesRecyclerView.adapter = recentSearchAdapter
+    }
+
+    /**
+     * Loads stop suggestions into the autocomplete fields.
+     */
+    private suspend fun loadStopSuggestions() {
+        val suggestions = SearchManager.getStopSuggestions(applicationContext)
+        withContext(Dispatchers.Main) {
+            val adapter = ArrayAdapter(
+                this@MainActivity,
+                android.R.layout.simple_dropdown_item_1line,
+                suggestions
+            )
+            binding.fromAutocomplete.setAdapter(adapter)
+            binding.toAutocomplete.setAdapter(adapter)
+        }
+    }
+
+    /**
+     * Handles the search button click.
+     */
     private fun handleSearch() {
-        // Use the correct IDs: fromAutocomplete and toAutocomplete
         val from = binding.fromAutocomplete.text.toString().trim()
         val to = binding.toAutocomplete.text.toString().trim()
 
-        if (from.isBlank() || to.isBlank()) {
-            Toast.makeText(this, "Please enter 'From' and 'To' locations.", Toast.LENGTH_SHORT).show()
+        if (from.isEmpty() || to.isEmpty()) {
+            Toast.makeText(this, "Please enter both 'From' and 'To' locations.", Toast.LENGTH_SHORT).show()
             return
         }
 
+        Log.i(TAG, "Searching for routes from '$from' to '$to'")
+
         lifecycleScope.launch(Dispatchers.IO) {
-            // Corrected function name
             val results = SearchManager.findBusServices(applicationContext, from, to)
 
             withContext(Dispatchers.Main) {
                 if (results.isEmpty()) {
-                    Toast.makeText(this@MainActivity, "No routes found.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "No routes found.", Toast.LENGTH_LONG).show()
                 } else {
-                    // Launch SearchResultsActivity
+                    Log.i(TAG, "Found ${results.size} routes. Launching SearchResultsActivity.")
                     val intent = Intent(this@MainActivity, SearchResultsActivity::class.java).apply {
-                        // FIX: Use the correct constant from your SearchResultsActivity
                         putParcelableArrayListExtra(SearchResultsActivity.EXTRA_SEARCH_RESULTS, ArrayList(results))
                     }
                     startActivity(intent)
@@ -250,26 +143,172 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadStopSuggestions() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            // This function is not implemented in SearchManager yet
-            // val suggestions = SearchManager.getStopSuggestions(applicationContext)
-            val suggestions = listOf<String>() // Placeholder
+    /**
+     * Main data loading function. Checks for user info, then loads recent searches,
+     * and finally checks for updates.
+     */
+    private fun loadAppData() {
+        Log.i(TAG, "loadAppData: Checking for user info...")
 
-            withContext(Dispatchers.Main) {
-                val adapter = ArrayAdapter(
-                    this@MainActivity,
-                    android.R.layout.simple_dropdown_item_1line,
-                    suggestions
-                )
-                // Use the correct IDs: fromAutocomplete and toAutocomplete
-                binding.fromAutocomplete.setAdapter(adapter)
-                binding.toAutocomplete.setAdapter(adapter)
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val user = UserDataManager.getUser(applicationContext)
+
+                if (user.name.isBlank() || user.email.isBlank() || user.phone.isBlank()) {
+                    Log.i(TAG, "User info incomplete. Launching UserInfoActivity.")
+                    withContext(Dispatchers.Main) { // Corrected Dispatchers.Main
+                        val intent = Intent(this@MainActivity, UserInfoActivity::class.java)
+                        userInfoLauncher.launch(intent)
+                    }
+                } else {
+                    Log.i(TAG, "User info found for ${user.name}. Loading recent searches.")
+
+                    // User info exists, load recent searches
+                    val recentSearches = UserDataManager.getRecentViews(applicationContext)
+                    withContext(Dispatchers.Main) {
+                        recentSearchAdapter.updateData(recentSearches)
+                        // TODO: Show/hide a "No recent searches" text view
+                    }
+
+                    // Now check for DB updates
+                    checkForUpdates()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading app data", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "Error loading app data", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
 
-    companion object {
-        private const val TAG = "MainActivity"
+    /**
+     * Fetches version info from the server and compares it with local versions.
+     */
+    private fun checkForUpdates() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                Log.i(TAG, "Checking for updates...")
+                val serverInfo = NetworkManager.fetchVersionInfo()
+                if (serverInfo == null) {
+                    Log.w(TAG, "Could not fetch server version info. Skipping update.")
+                    return@launch
+                }
+
+                val localTimetableVersion = LocalVersionManager.getTimetableDbVersion(applicationContext)
+                val localCommunityVersion = LocalVersionManager.getCommunityDbVersion(applicationContext)
+
+                Log.i(TAG, "Server versions: Timetable=${serverInfo.timetable.version}, Community=${serverInfo.community.version}")
+                Log.i(TAG, "Local versions: Timetable=$localTimetableVersion, Community=$localCommunityVersion")
+
+                val isTimetableUpdateAvailable = serverInfo.timetable.version > localTimetableVersion
+                val isCommunityUpdateAvailable = serverInfo.community.version > localCommunityVersion
+
+                if (isTimetableUpdateAvailable || isCommunityUpdateAvailable) {
+                    Log.i(TAG, "Updates available. Prompting user.")
+                    withContext(Dispatchers.Main) {
+                        promptForUpdate(
+                            isTimetableUpdateAvailable,
+                            isCommunityUpdateAvailable,
+                            serverInfo
+                        )
+                    }
+                } else {
+                    Log.i(TAG, "No new updates.")
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in checkForUpdates", e)
+            }
+        }
+    }
+
+    /**
+     * Shows an AlertDialog to the user asking for permission to download updates.
+     */
+    private fun promptForUpdate(
+        timetable: Boolean,
+        community: Boolean,
+        serverInfo: ServerVersionInfo
+    ) {
+        val messages = mutableListOf<String>()
+        if (timetable) messages.add("New Bus Timetable")
+        if (community) messages.add("Updated Community Ratings")
+
+        val message = "New updates are available:\n\n" +
+                messages.joinToString("\n") { "• $it" } +
+                "\n\nWould you like to download them now?"
+
+        AlertDialog.Builder(this@MainActivity)
+            .setTitle("Updates Available")
+            .setMessage(message)
+            .setPositiveButton("Download") { dialog, _ ->
+                Log.i(TAG, "User accepted update. Starting download...")
+                startDatabaseDownload(serverInfo, timetable, community)
+                dialog.dismiss()
+            }
+            .setNegativeButton("Later") { dialog, _ ->
+                Log.i(TAG, "User declined update.")
+                dialog.dismiss()
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    /**
+     * Kicks off the database download process.
+     */
+    private fun startDatabaseDownload(
+        serverInfo: ServerVersionInfo,
+        downloadTimetable: Boolean,
+        downloadCommunity: Boolean
+    ) {
+        Log.i(TAG, "Starting download coroutine...")
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            var timetableSuccess = true
+            var communitySuccess = true
+
+            if (downloadTimetable) {
+                Log.i(TAG, "Downloading Timetable DB...")
+                timetableSuccess = DatabaseManager.downloadAndReplaceDatabase(
+                    applicationContext,
+                    DatabaseConstants.TIMETABLE_DATABASE_NAME, // Corrected constant
+                    serverInfo.timetable.version,
+                    serverInfo.timetable.url
+                )
+            }
+
+            if (downloadCommunity) {
+                Log.i(TAG, "Downloading Community DB...")
+                communitySuccess = DatabaseManager.downloadAndReplaceDatabase(
+                    applicationContext,
+                    DatabaseConstants.COMMUNITY_DATABASE_NAME,
+                    serverInfo.community.version,
+                    serverInfo.community.url
+                )
+            }
+
+            if (timetableSuccess && communitySuccess) {
+                Log.i(TAG, "All databases updated successfully.")
+                withContext(Dispatchers.Main) {
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle("Update Complete")
+                        .setMessage("Your bus timetables and community data are now up to date.")
+                        .setPositiveButton("OK", null)
+                        .show()
+                }
+            } else {
+                Log.e(TAG, "One or more database downloads failed.")
+                withContext(Dispatchers.Main) {
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle("Update Failed")
+                        .setMessage("Could not download all updates. The app will use the existing data. Please try again later.")
+                        .setPositiveButton("OK", null)
+                        .show()
+                }
+            }
+        }
     }
 }
+
