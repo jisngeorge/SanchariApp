@@ -5,8 +5,11 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.sanchari.bus.databinding.ActivitySearchResultsBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class SearchResultsActivity : AppCompatActivity() {
 
@@ -44,6 +47,18 @@ class SearchResultsActivity : AppCompatActivity() {
         adapter = BusServiceAdapter(results) { service ->
             // Handle click on a bus service
             Log.i("SearchResults", "Clicked on service: ${service.name} (ID: ${service.serviceId})")
+
+            // --- ADDED THIS BLOCK ---
+            // Save this to recent views in the background
+            // This is tied to the Activity's lifecycle
+            lifecycleScope.launch(Dispatchers.IO) {
+                UserDataManager.addRecentView(
+                    applicationContext, // Get context from the activity
+                    service.serviceId,
+                    service.name
+                )
+            }
+            // --- END OF BLOCK ---
 
             // Launch BusDetailsActivity
             val intent = BusDetailsActivity.newIntent(this, service)

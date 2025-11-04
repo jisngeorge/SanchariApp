@@ -16,7 +16,6 @@
         android:theme="@style/Theme.SanchariApp"
         tools:targetApi="31">
 
-        <!-- Added MainActivity declaration so the app can launch -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -27,11 +26,38 @@
             </intent-filter>
         </activity>
 
-        <!-- Add the new UserInfoActivity registration -->
         <activity
             android:name=".UserInfoActivity"
             android:exported="false"
             android:label="Your Information"
+            android:theme="@style/Theme.SanchariApp" />
+
+        <activity
+            android:name=".SearchResultsActivity"
+            android:exported="false"
+            android:label="Search Results"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.SanchariApp" />
+
+        <activity
+            android:name=".BusDetailsActivity"
+            android:exported="false"
+            android:label="Bus Details"
+            android:parentActivityName=".SearchResultsActivity"
+            android:theme="@style/Theme.SanchariApp" />
+
+        <activity
+            android:name=".SuggestEditActivity"
+            android:exported="false"
+            android:label="Suggest Edit"
+            android:parentActivityName=".BusDetailsActivity"
+            android:theme="@style/Theme.SanchariApp" />
+
+        <activity
+            android:name=".ConfirmationActivity"
+            android:exported="false"
+            android:label="Confirm Suggestion"
+            android:parentActivityName=".SuggestEditActivity"
             android:theme="@style/Theme.SanchariApp" />
 
     </application>

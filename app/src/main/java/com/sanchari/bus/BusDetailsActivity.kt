@@ -84,6 +84,15 @@ class BusDetailsActivity : AppCompatActivity() {
         binding.buttonAddComment.setOnClickListener {
             openGoogleForm("comment")
         }
+
+        // --- ADDED NEW CLICK LISTENER ---
+        binding.buttonSuggestEdit.setOnClickListener {
+            busService?.let {
+                val intent = SuggestEditActivity.newIntentForEdit(this, it)
+                startActivity(intent)
+            }
+        }
+        // --- END OF ADDITION ---
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -129,9 +138,11 @@ class BusDetailsActivity : AppCompatActivity() {
                 if (stops.isEmpty()) {
                     // Show error in the *stops* section
                     binding.recyclerViewBusStops.visibility = View.GONE
-                    // You could add a specific textViewError for stops if you want
+                    binding.textViewError.visibility = View.VISIBLE
+                    binding.textViewError.text = "No stops found for this service."
                 } else {
                     binding.recyclerViewBusStops.visibility = View.VISIBLE
+                    binding.textViewError.visibility = View.GONE
                     busStopAdapter.updateStops(stops)
                 }
             }

@@ -48,6 +48,15 @@ class MainActivity : AppCompatActivity() {
         binding.searchButton.setOnClickListener {
             handleSearch()
         }
+
+        // --- ADDED NEW CLICK LISTENER ---
+        binding.buttonAddNewBus.setOnClickListener {
+            // Launch SuggestEditActivity in "Add New" mode
+            val intent = SuggestEditActivity.newIntentForNew(this)
+            startActivity(intent)
+        }
+        // --- END OF ADDITION ---
+
         setupRecentSearchesRecyclerView()
 
         // --- Background Initialization ---
