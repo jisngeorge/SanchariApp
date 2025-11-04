@@ -8,7 +8,6 @@
     android:gravity="center_vertical"
     android:background="?attr/selectableItemBackground">
 
-    <!-- Simple icon placeholder -->
     <ImageView
         android:id="@+id/serviceIcon"
         android:layout_width="40dp"
@@ -39,13 +38,30 @@
             tools:text="Limited Stop" />
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/runningStatus"
+    <!-- NEW: Added a layout for From and To times -->
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
-        android:textStyle="bold"
-        tools:text="Running"
-        tools:textColor="@android:color/holo_green_dark" />
+        android:orientation="vertical"
+        android:gravity="end"
+        android:layout_marginStart="8dp">
+
+        <TextView
+            android:id="@+id/fromTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle1"
+            android:textStyle="bold"
+            android:textColor="?attr/colorPrimary"
+            tools:text="08:30" />
+
+        <TextView
+            android:id="@+id/toTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+            tools:text="10:15" />
+    </LinearLayout>
 
 </LinearLayout>
+

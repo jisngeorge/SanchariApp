@@ -4,41 +4,65 @@ import android.content.Context
 import android.database.sqlite.SQLiteException
 import android.util.Log
 
+
 object SearchManager {
 
     private const val TAG = "SearchManager"
 
     /**
-     * Finds bus services that have stops at both 'from' and 'to' locations.
+     * Finds bus services that travel from 'from' to 'to'.
+     *
+     * This query now:
+     * 1. Finds the departure time from the 'from' stop (T2).
+     * 2. Finds the arrival time at the 'to' stop (T3).
+     * 3. Ensures the 'from' stop (T2) comes *before* the 'to' stop (T3) in the route.
+     * 4. Sorts the results by the 'from' departure time (T2.scheduledTime).
      */
     fun findBusServices(context: Context, from: String, to: String): List<BusService> {
         val results = mutableListOf<BusService>()
         val dbHelper = TimetableDatabaseHelper(context)
         val db = dbHelper.readableDatabase
 
-        // This query finds serviceId, name, and type for services that have
-        // stops at both the 'from' and 'to' locations.
+        // This is the new, more complex query
         val query = """
-            SELECT T1.serviceId, T1.name, T1.type
-            FROM ${DatabaseConstants.BusServiceTable.TABLE_NAME} AS T1
-            INNER JOIN ${DatabaseConstants.BusStopTable.TABLE_NAME} AS T2 ON T1.serviceId = T2.serviceId
-            INNER JOIN ${DatabaseConstants.BusStopTable.TABLE_NAME} AS T3 ON T1.serviceId = T3.serviceId
-            WHERE T2.locationName = ? AND T3.locationName = ?
-            GROUP BY T1.serviceId
+            SELECT 
+                T1.${DatabaseConstants.BusServiceTable.COLUMN_SERVICE_ID}, 
+                T1.${DatabaseConstants.BusServiceTable.COLUMN_NAME}, 
+                T1.${DatabaseConstants.BusServiceTable.COLUMN_TYPE},
+                T2.${DatabaseConstants.BusStopTable.COLUMN_SCHEDULED_TIME} AS fromTime,
+                T3.${DatabaseConstants.BusStopTable.COLUMN_SCHEDULED_TIME} AS toTime
+            FROM 
+                ${DatabaseConstants.BusServiceTable.TABLE_NAME} AS T1
+            INNER JOIN 
+                ${DatabaseConstants.BusStopTable.TABLE_NAME} AS T2 ON T1.serviceId = T2.serviceId
+            INNER JOIN 
+                ${DatabaseConstants.BusStopTable.TABLE_NAME} AS T3 ON T1.serviceId = T3.serviceId
+            WHERE 
+                T2.locationName = ? 
+                AND T3.locationName = ?
+                AND T2.stopOrder < T3.stopOrder
+            GROUP BY 
+                T1.serviceId
+            ORDER BY 
+                fromTime ASC
         """.trimIndent()
 
         try {
             db.rawQuery(query, arrayOf(from, to)).use { cursor ->
                 if (cursor.moveToFirst()) {
-                    val serviceIdIndex = cursor.getColumnIndex("serviceId")
-                    val nameIndex = cursor.getColumnIndex("name")
-                    val typeIndex = cursor.getColumnIndex("type")
+                    val serviceIdIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_SERVICE_ID)
+                    val nameIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_NAME)
+                    val typeIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_TYPE)
+                    val fromTimeIndex = cursor.getColumnIndex("fromTime")
+                    val toTimeIndex = cursor.getColumnIndex("toTime")
 
                     do {
-                        if (serviceIdIndex != -1 && nameIndex != -1 && typeIndex != -1) {
+                        if (serviceIdIndex != -1 && nameIndex != -1 && typeIndex != -1 && fromTimeIndex != -1 && toTimeIndex != -1) {
                             val serviceId = cursor.getString(serviceIdIndex)
                             val name = cursor.getString(nameIndex)
                             val type = cursor.getString(typeIndex)
+                            val fromTime = cursor.getString(fromTimeIndex)
+                            val toTime = cursor.getString(toTimeIndex)
 
                             results.add(
                                 BusService(
@@ -46,7 +70,9 @@ object SearchManager {
                                     name = name,
                                     type = type,
                                     isRunning = true, // Placeholder
-                                    lastReportedTime = 0L // Placeholder
+                                    lastReportedTime = 0L, // Placeholder
+                                    fromTime = fromTime, // Added new field
+                                    toTime = toTime      // Added new field
                                 )
                             )
                         }
@@ -80,7 +106,6 @@ object SearchManager {
                     val serviceIdIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_SERVICE_ID)
                     val nameIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_NAME)
                     val typeIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_TYPE)
-                    // Add isRunning and lastReportedTime if they are in the DB, otherwise use placeholders
                     val isRunningIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_IS_RUNNING)
                     val lastReportedTimeIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_LAST_REPORTED_TIME)
 
@@ -89,7 +114,9 @@ object SearchManager {
                         name = if (nameIndex != -1) cursor.getString(nameIndex) else "Unknown",
                         type = if (typeIndex != -1) cursor.getString(typeIndex) else "Unknown",
                         isRunning = if (isRunningIndex != -1) cursor.getInt(isRunningIndex) == 1 else true,
-                        lastReportedTime = if (lastReportedTimeIndex != -1) cursor.getLong(lastReportedTimeIndex) else 0L
+                        lastReportedTime = if (lastReportedTimeIndex != -1) cursor.getLong(lastReportedTimeIndex) else 0L,
+                        fromTime = "--:--", // Placeholder, not relevant here
+                        toTime = "--:--"    // Placeholder, not relevant here
                     )
                 }
             }

@@ -39,6 +39,7 @@
                 android:text="Suggest an Edit for this Bus"
                 app:icon="@drawable/ic_add" />
 
+            <!-- BUS STOPS SECTION -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -72,6 +73,7 @@
                 android:nestedScrollingEnabled="false"
                 tools:listitem="@layout/item_bus_stop" />
 
+            <!-- RATINGS SECTION -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/ratingsCard"
                 android:layout_width="match_parent"
@@ -201,7 +203,7 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-
+            <!-- COMMENTS SECTION (MOVED TO LAST) -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

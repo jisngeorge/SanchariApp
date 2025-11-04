@@ -34,6 +34,12 @@ class BusServiceAdapter(
 
         fun bind(service: BusService) {
             binding.serviceName.text = service.name
+
+            // --- NEW: Set the from and to times ---
+            binding.fromTime.text = service.fromTime
+            binding.toTime.text = service.toTime
+            // --- End of new code ---
+
             // Set the icon based on the service type
             when (service.type.uppercase()) {
                 "FAST" -> {
@@ -49,22 +55,14 @@ class BusServiceAdapter(
                     binding.serviceType.text = "Ordinary"
                 }
             }
-            // You can add more fields here, e.g., service.isRunning
 
             // Set the click listener for the whole item
             binding.root.setOnClickListener {
-                // Launch a coroutine to save this click to the UserDatabase
-                // Use GlobalScope + Dispatchers.IO for a quick background task
-                // This is safe because UserDataManager is a singleton object
-                GlobalScope.launch(Dispatchers.IO) {
-                    UserDataManager.addRecentView(
-                        binding.root.context.applicationContext,
-                        service.serviceId,
-                        service.name
-                    )
-                }
+                // --- REMOVED: GlobalScope.launch ---
+                // The database save is now handled in SearchResultsActivity
+                // using lifecycleScope, which is a safer practice.
 
-                // Notify the activity to handle the click (e.g., open BusDetailsActivity)
+                // Notify the activity to handle the click
                 onItemClick(service)
             }
         }
