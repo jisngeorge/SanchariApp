@@ -91,6 +91,7 @@ class ConfirmationActivity : AppCompatActivity() {
         }
 
         // --- 3. Check if user info changed and save if needed ---
+        var userSaveSuccess = true // Assume true if no changes
         if (user.name != newName || user.email != newEmail || user.phone != newPhone || user.place != newPlace) {
             val updatedUser = user.copy(
                 name = newName,
@@ -98,9 +99,10 @@ class ConfirmationActivity : AppCompatActivity() {
                 phone = newPhone,
                 place = newPlace
             )
+            // Launch this in a coroutine but we will wait for the result
             lifecycleScope.launch(Dispatchers.IO) {
-                val saveSuccess = UserDataManager.saveUser(applicationContext, updatedUser)
-                if (saveSuccess) {
+                userSaveSuccess = UserDataManager.saveUser(applicationContext, updatedUser)
+                if (userSaveSuccess) {
                     Log.i(TAG, "User info updated in local database.")
                 } else {
                     Log.e(TAG, "Failed to update user info.")
@@ -109,26 +111,50 @@ class ConfirmationActivity : AppCompatActivity() {
         }
 
         // --- 4. Handle the final JSON submission ---
-        // As per our design, we are not uploading this yet.
-        // We will just log it and show a success message.
-        Log.i(TAG, "Final Submission Payload:")
-        Log.i(TAG, "User: $newName, $newEmail, $newPhone")
-        Log.i(TAG, "JSON: $json")
-
-        // Show success dialog
-        AlertDialog.Builder(this)
-            .setTitle("Suggestion Sent")
-            .setMessage("Thank you! Your suggestion has been submitted for review.")
-            .setPositiveButton("OK") { dialog, _ ->
-                dialog.dismiss()
-                // Finish this activity and SuggestEditActivity
-                val intent = Intent(this, MainActivity::class.java)
-                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
-                startActivity(intent)
-                finish()
+        val finalPayloadJson = """
+            {
+              "submittedBy": {
+                "name": "$newName",
+                "email": "$newEmail",
+                "phone": "$newPhone",
+                "place": "$newPlace",
+                "uuid": "${user.uuid}"
+              },
+              "suggestion": $json
             }
-            .setCancelable(false)
-            .show()
+        """.trimIndent()
+
+        // --- 5. Save the JSON to local storage ---
+        lifecycleScope.launch(Dispatchers.IO) {
+            val fileSaveSuccess = SuggestionStorageManager.saveSuggestion(applicationContext, finalPayloadJson)
+
+            // --- 6. Show success/error dialog on the main thread ---
+            withContext(Dispatchers.Main) {
+                if (fileSaveSuccess && userSaveSuccess) {
+                    // Show success dialog
+                    AlertDialog.Builder(this@ConfirmationActivity)
+                        .setTitle("Suggestion Saved")
+                        .setMessage("Thank you! Your suggestion has been saved locally. It will be submitted later.")
+                        .setPositiveButton("OK") { dialog, _ ->
+                            dialog.dismiss()
+                            // Finish this activity and SuggestEditActivity
+                            val intent = Intent(this@ConfirmationActivity, MainActivity::class.java)
+                            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                            startActivity(intent)
+                            finish()
+                        }
+                        .setCancelable(false)
+                        .show()
+                } else {
+                    // Show error dialog
+                    AlertDialog.Builder(this@ConfirmationActivity)
+                        .setTitle("Error")
+                        .setMessage("Could not save your suggestion. Please try again.")
+                        .setPositiveButton("OK", null)
+                        .show()
+                }
+            }
+        }
     }
 }
 
