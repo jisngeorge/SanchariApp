@@ -6,23 +6,24 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.view.LayoutInflater // NEW Import
+import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
-import android.widget.EditText // NEW Import
+import android.widget.EditText
+import android.widget.RatingBar // Ensure this import is here
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog // NEW Import
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.android.material.checkbox.MaterialCheckBox // NEW Import
+import com.google.android.material.checkbox.MaterialCheckBox
 import com.sanchari.bus.databinding.ActivityBusDetailsBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject // NEW Import
-import java.time.Instant // NEW Import
+import org.json.JSONObject
+import java.time.Instant
 
 class BusDetailsActivity : AppCompatActivity() {
 
@@ -38,7 +39,7 @@ class BusDetailsActivity : AppCompatActivity() {
         private const val EXTRA_BUS_SERVICE = "EXTRA_BUS_SERVICE"
         private const val TAG = "BusDetailsActivity"
 
-        // REMOVED Google Form URLs
+        // --- REMOVED GOOGLE FORM URLS ---
 
         fun newIntent(context: Context, service: BusService): Intent {
             return Intent(context, BusDetailsActivity::class.java).apply {
@@ -83,12 +84,11 @@ class BusDetailsActivity : AppCompatActivity() {
 
         // Setup button listeners
         binding.buttonAddRating.setOnClickListener {
-            // openGoogleForm("rating")
-            // TODO: Implement in-app rating dialog
-            Toast.makeText(this, "Add Rating feature coming soon.", Toast.LENGTH_SHORT).show()
+            // --- UPDATED ---
+            showAddRatingDialog() // NEW Method
         }
         binding.buttonAddComment.setOnClickListener {
-            // openGoogleForm("comment")
+            // --- UPDATED ---
             showAddCommentDialog() // NEW Method
         }
 
@@ -205,10 +205,38 @@ class BusDetailsActivity : AppCompatActivity() {
     }
 
     /**
-     * REMOVED openGoogleForm(...) method
+     * --- REMOVED openGoogleForm(...) method ---
      */
 
     // --- NEW METHOD ---
+    /**
+     * Shows a dialog for the user to add a new rating.
+     */
+    private fun showAddRatingDialog() {
+        // Inflate the custom dialog layout
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_rating, null)
+        val ratingPunctuality = dialogView.findViewById<RatingBar>(R.id.ratingBarPunctualitySubmit)
+        val ratingDrive = dialogView.findViewById<RatingBar>(R.id.ratingBarDriveSubmit)
+        val ratingBehaviour = dialogView.findViewById<RatingBar>(R.id.ratingBarBehaviourSubmit)
+
+        AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setPositiveButton("Submit") { dialog, _ ->
+                val punctuality = ratingPunctuality.rating
+                val drive = ratingDrive.rating
+                val behaviour = ratingBehaviour.rating
+
+                if (punctuality == 0f && drive == 0f && behaviour == 0f) {
+                    Toast.makeText(this, "Please provide at least one rating.", Toast.LENGTH_SHORT).show()
+                } else {
+                    generateRatingJson(punctuality, drive, behaviour)
+                    dialog.dismiss()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
     /**
      * Shows a dialog for the user to add a new comment.
      */
@@ -236,6 +264,36 @@ class BusDetailsActivity : AppCompatActivity() {
 
     // --- NEW METHOD ---
     /**
+     * Generates the JSON payload for a new rating and launches ConfirmationActivity.
+     */
+    private fun generateRatingJson(punctuality: Float, drive: Float, behaviour: Float) {
+        val serviceId = busService?.serviceId ?: return
+
+        // --- ADDED: Timestamp logic ---
+        val timestamp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Instant.now().toString()
+        } else {
+            android.text.format.DateFormat.format("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Date()).toString()
+        }
+
+        val ratingJson = JSONObject().apply {
+            put("type", "rating")
+            put("serviceId", serviceId)
+            put("ratingDate", timestamp) // --- ADDED: This line ---
+            put("punctuality_10", punctuality) // Scaled to 10
+            put("drive_10", drive)         // Scaled to 10
+            put("behaviour_10", behaviour)   // Scaled to 10
+        }
+
+        val jsonPayload = ratingJson.toString(2)
+        Log.d(TAG, "Generated Rating JSON: $jsonPayload")
+
+        // Launch the same ConfirmationActivity
+        val intent = ConfirmationActivity.newIntent(this, jsonPayload)
+        startActivity(intent)
+    }
+
+    /**
      * Generates the JSON payload for a new comment and launches ConfirmationActivity.
      */
     private fun generateCommentJson(commentText: String, showUsername: Boolean) {
@@ -257,7 +315,7 @@ class BusDetailsActivity : AppCompatActivity() {
             put("commentDate", timestamp)
         }
 
-        val jsonPayload = commentJson.toString(2) // Indent for readability
+        val jsonPayload = commentJson.toString(2) // Indent by 2 spaces
         Log.d(TAG, "Generated Comment JSON: $jsonPayload")
 
         // Launch the same ConfirmationActivity
