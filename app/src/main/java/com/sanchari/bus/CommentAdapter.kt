@@ -33,7 +33,13 @@ class CommentAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(comment: UserComment) {
-            binding.textViewUsername.text = comment.username.ifEmpty { "Anonymous" }
+            // NEW: Check whether to show the username or "Anonymous"
+            if (comment.showUsername) {
+                binding.textViewUsername.text = comment.username.ifEmpty { "Anonymous" }
+            } else {
+                binding.textViewUsername.text = "Anonymous"
+            }
+
             binding.textViewCommentDate.text = comment.commentDate // You could format this date later
             binding.textViewCommentText.text = comment.commentText
         }

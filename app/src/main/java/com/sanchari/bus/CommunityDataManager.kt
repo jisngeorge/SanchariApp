@@ -67,13 +67,22 @@ object CommunityDataManager {
                 null, null,
                 "${DatabaseConstants.UserCommentTable.COLUMN_COMMENT_DATE} DESC" // Order by newest first
             ).use { cursor ->
+                // Get column indices once
+                val commentIdIndex = cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_COMMENT_ID)
+                val serviceIdIndex = cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_SERVICE_ID)
+                val usernameIndex = cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_USERNAME)
+                val commentTextIndex = cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_COMMENT_TEXT)
+                val commentDateIndex = cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_COMMENT_DATE)
+                val showUsernameIndex = cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_SHOW_USERNAME) // NEW
+
                 while (cursor.moveToNext()) {
                     val comment = UserComment(
-                        commentId = cursor.getInt(cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_COMMENT_ID)),
-                        serviceId = cursor.getString(cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_SERVICE_ID)),
-                        username = cursor.getString(cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_USERNAME)),
-                        commentText = cursor.getString(cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_COMMENT_TEXT)),
-                        commentDate = cursor.getString(cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_COMMENT_DATE))
+                        commentId = cursor.getInt(commentIdIndex),
+                        serviceId = cursor.getString(serviceIdIndex),
+                        username = cursor.getString(usernameIndex),
+                        commentText = cursor.getString(commentTextIndex),
+                        commentDate = cursor.getString(commentDateIndex),
+                        showUsername = cursor.getInt(showUsernameIndex) == 1 // NEW
                     )
                     comments.add(comment)
                 }

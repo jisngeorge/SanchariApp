@@ -6,17 +6,23 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.LayoutInflater // NEW Import
 import android.view.MenuItem
 import android.view.View
+import android.widget.EditText // NEW Import
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog // NEW Import
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.checkbox.MaterialCheckBox // NEW Import
 import com.sanchari.bus.databinding.ActivityBusDetailsBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject // NEW Import
+import java.time.Instant // NEW Import
 
 class BusDetailsActivity : AppCompatActivity() {
 
@@ -32,9 +38,7 @@ class BusDetailsActivity : AppCompatActivity() {
         private const val EXTRA_BUS_SERVICE = "EXTRA_BUS_SERVICE"
         private const val TAG = "BusDetailsActivity"
 
-        // TODO: Replace with your actual Google Form URLs
-        private const val GOOGLE_FORM_URL_RATING = "https://docs.google.com/forms/..."
-        private const val GOOGLE_FORM_URL_COMMENT = "https://docs.google.com/forms/..."
+        // REMOVED Google Form URLs
 
         fun newIntent(context: Context, service: BusService): Intent {
             return Intent(context, BusDetailsActivity::class.java).apply {
@@ -79,10 +83,13 @@ class BusDetailsActivity : AppCompatActivity() {
 
         // Setup button listeners
         binding.buttonAddRating.setOnClickListener {
-            openGoogleForm("rating")
+            // openGoogleForm("rating")
+            // TODO: Implement in-app rating dialog
+            Toast.makeText(this, "Add Rating feature coming soon.", Toast.LENGTH_SHORT).show()
         }
         binding.buttonAddComment.setOnClickListener {
-            openGoogleForm("comment")
+            // openGoogleForm("comment")
+            showAddCommentDialog() // NEW Method
         }
 
         // --- ADDED NEW CLICK LISTENER ---
@@ -198,32 +205,66 @@ class BusDetailsActivity : AppCompatActivity() {
     }
 
     /**
-     * Opens the Google Form in a browser, pre-filled with user and service data.
+     * REMOVED openGoogleForm(...) method
      */
-    private fun openGoogleForm(formType: String) {
-        val serviceId = busService?.serviceId ?: return
-        val user = currentUser // Get the loaded user data
 
-        // Build the URL with pre-filled parameters
-        // Example for Google Forms:
-        // .../viewform?entry.12345=ServiceIdValue&entry.67890=EmailValue
-        val baseUrl = if (formType == "rating") GOOGLE_FORM_URL_RATING else GOOGLE_FORM_URL_COMMENT
+    // --- NEW METHOD ---
+    /**
+     * Shows a dialog for the user to add a new comment.
+     */
+    private fun showAddCommentDialog() {
+        // Inflate the custom dialog layout
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_comment, null)
+        val editTextComment = dialogView.findViewById<EditText>(R.id.editTextComment)
+        val checkboxAnonymous = dialogView.findViewById<MaterialCheckBox>(R.id.checkboxAnonymous)
 
-        // TODO: Replace 'entry.XXXXX' with your actual entry IDs from Google Forms
-        val preFillServiceId = "entry.100001=${Uri.encode(serviceId)}"
-        val preFillEmail = "entry.100002=${Uri.encode(user?.email ?: "")}"
-        val preFillPhone = "entry.100003=${Uri.encode(user?.phone ?: "")}"
-
-        val fullUrl = "$baseUrl?$preFillServiceId&$preFillEmail&$preFillPhone"
-
-        try {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl))
-            startActivity(intent)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error opening Google Form", e)
-            Toast.makeText(this, "Error opening form. Please try again.", Toast.LENGTH_SHORT).show()
-        }
+        AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setPositiveButton("Submit") { dialog, _ ->
+                val commentText = editTextComment.text.toString().trim()
+                if (commentText.isEmpty()) {
+                    Toast.makeText(this, "Please enter a comment.", Toast.LENGTH_SHORT).show()
+                } else {
+                    val showUsername = !checkboxAnonymous.isChecked
+                    generateCommentJson(commentText, showUsername)
+                    dialog.dismiss()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
+
+    // --- NEW METHOD ---
+    /**
+     * Generates the JSON payload for a new comment and launches ConfirmationActivity.
+     */
+    private fun generateCommentJson(commentText: String, showUsername: Boolean) {
+        val serviceId = busService?.serviceId ?: return
+
+        // Get current timestamp in ISO 8601 format (e.g., "2025-11-06T08:40:00Z")
+        val timestamp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Instant.now().toString()
+        } else {
+            // Fallback for older APIs
+            android.text.format.DateFormat.format("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Date()).toString()
+        }
+
+        val commentJson = JSONObject().apply {
+            put("type", "comment") // To distinguish from "edit" or "rating"
+            put("serviceId", serviceId)
+            put("commentText", commentText)
+            put("showUsername", showUsername)
+            put("commentDate", timestamp)
+        }
+
+        val jsonPayload = commentJson.toString(2) // Indent for readability
+        Log.d(TAG, "Generated Comment JSON: $jsonPayload")
+
+        // Launch the same ConfirmationActivity
+        val intent = ConfirmationActivity.newIntent(this, jsonPayload)
+        startActivity(intent)
+    }
+
 
     private fun showLoading(isLoading: Boolean) {
         // This now only controls the *main* spinner.
@@ -242,4 +283,3 @@ class BusDetailsActivity : AppCompatActivity() {
         binding.textViewError.text = message
     }
 }
-
