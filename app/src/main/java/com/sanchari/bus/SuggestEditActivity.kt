@@ -8,7 +8,11 @@ import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+// --- NEW IMPORT ---
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+// --- END NEW IMPORT ---
 import com.sanchari.bus.databinding.ActivitySuggestEditBinding
 // --- NEW IMPORTS ---
 import com.google.android.material.timepicker.MaterialTimePicker
@@ -29,6 +33,8 @@ class SuggestEditActivity : AppCompatActivity() {
     private lateinit var adapter: StopEditAdapter
     private val editableStops = mutableListOf<EditableStop>()
     private var originalService: BusService? = null
+    // --- NEW: ItemTouchHelper ---
+    private var itemTouchHelper: ItemTouchHelper? = null
 
     companion object {
         private const val TAG = "SuggestEditActivity"
@@ -84,9 +90,48 @@ class SuggestEditActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        // --- MODIFIED: Added onTimeClicked lambda ---
+        // --- NEW: Setup ItemTouchHelper Callback ---
+        val dragCallback = object : ItemTouchHelper.SimpleCallback(
+            ItemTouchHelper.UP or ItemTouchHelper.DOWN, // Enable dragging up and down
+            0 // We don't want swiping
+        ) {
+            override fun onMove(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                target: RecyclerView.ViewHolder
+            ): Boolean {
+                // Notify the adapter of the move
+                adapter.onItemMove(viewHolder.adapterPosition, target.adapterPosition)
+                return true
+            }
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                // Not used
+            }
+
+            // Optional: Change UI on drag start/end
+            override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+                super.onSelectedChanged(viewHolder, actionState)
+                if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
+                    viewHolder?.itemView?.alpha = 0.7f // Make it semi-transparent
+                }
+            }
+
+            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                super.clearView(recyclerView, viewHolder)
+                viewHolder.itemView.alpha = 1.0f // Restore full opacity
+            }
+        }
+
+        // Create the ItemTouchHelper
+        itemTouchHelper = ItemTouchHelper(dragCallback)
+        // --- END OF NEW ---
+
+
+        // --- MODIFIED: Pass ItemTouchHelper to adapter ---
         adapter = StopEditAdapter(
             editableStops,
+            itemTouchHelper!!, // Pass the helper
             onRemoveClicked = { position ->
                 // Handle remove click
                 editableStops.removeAt(position)
@@ -101,6 +146,10 @@ class SuggestEditActivity : AppCompatActivity() {
         // --- END MODIFICATION ---
         binding.recyclerViewStopsEditor.layoutManager = LinearLayoutManager(this)
         binding.recyclerViewStopsEditor.adapter = adapter
+
+        // --- NEW: Attach helper to RecyclerView ---
+        itemTouchHelper?.attachToRecyclerView(binding.recyclerViewStopsEditor)
+        // --- END OF NEW ---
     }
 
     private fun preFillData(service: BusService) {
@@ -208,12 +257,14 @@ class SuggestEditActivity : AppCompatActivity() {
         service.put("lastReport_edTime", 0L)
 
         val stopsArray = JSONArray()
+        // --- MODIFIED: Use the (now reordered) stops list ---
         stops.forEachIndexed { index, stop ->
             val stopJson = JSONObject()
             // We can't know the real stopId, so we generate a placeholder
             stopJson.put("stopId", "NEW-${index + 1}")
             stopJson.put("locationName", stop.stopName)
             stopJson.put("scheduledTime", stop.scheduledTime) // This now comes from the time picker
+            // --- CRITICAL: Save the stopOrder based on the new index ---
             stopJson.put("stopOrder", index + 1)
             // Add placeholder lat/lng
             stopJson.put("latitude", 0.0)

@@ -1,11 +1,15 @@
 package com.sanchari.bus
 
+import android.annotation.SuppressLint
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.ViewGroup
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.sanchari.bus.databinding.ItemEditStopBinding
+import java.util.Collections
 
 /**
  * Adapter for the editable list of bus stops in SuggestEditActivity.
@@ -13,8 +17,10 @@ import com.sanchari.bus.databinding.ItemEditStopBinding
  */
 class StopEditAdapter(
     private val stops: MutableList<EditableStop>,
+    // --- MODIFIED: Added ItemTouchHelper ---
+    private val itemTouchHelper: ItemTouchHelper,
     private val onRemoveClicked: (position: Int) -> Unit,
-    private val onTimeClicked: (position: Int) -> Unit // --- NEW: Click listener for time ---
+    private val onTimeClicked: (position: Int) -> Unit
 ) : RecyclerView.Adapter<StopEditAdapter.StopEditViewHolder>() {
 
     // This is crucial to prevent TextWatchers from causing crashes
@@ -31,6 +37,7 @@ class StopEditAdapter(
         return StopEditViewHolder(binding)
     }
 
+    @SuppressLint("ClickableViewAccessibility") // For the drag handle
     override fun onBindViewHolder(holder: StopEditViewHolder, position: Int) {
         // Remove any existing watchers from the recycled view
         textWatchers[holder.adapterPosition]?.let {
@@ -70,6 +77,16 @@ class StopEditAdapter(
                 onTimeClicked(holder.adapterPosition)
             }
         }
+
+        // --- NEW: DRAG HANDLE LISTENER ---
+        holder.binding.dragHandle.setOnTouchListener { _, event ->
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                // Tell the ItemTouchHelper to start a drag
+                itemTouchHelper.startDrag(holder)
+            }
+            false
+        }
+        // --- END OF NEW ---
     }
 
     override fun getItemCount(): Int = stops.size
@@ -95,4 +112,19 @@ class StopEditAdapter(
             notifyItemChanged(position)
         }
     }
+
+    // --- NEW: Function to handle reordering ---
+    fun onItemMove(fromPosition: Int, toPosition: Int) {
+        if (fromPosition < toPosition) {
+            for (i in fromPosition until toPosition) {
+                Collections.swap(stops, i, i + 1)
+            }
+        } else {
+            for (i in fromPosition downTo toPosition + 1) {
+                Collections.swap(stops, i, i - 1)
+            }
+        }
+        notifyItemMoved(fromPosition, toPosition)
+    }
+    // --- END OF NEW ---
 }
