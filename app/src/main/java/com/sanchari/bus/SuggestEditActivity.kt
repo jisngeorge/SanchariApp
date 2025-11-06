@@ -10,12 +10,18 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.sanchari.bus.databinding.ActivitySuggestEditBinding
+// --- NEW IMPORTS ---
+import com.google.android.material.timepicker.MaterialTimePicker
+import com.google.android.material.timepicker.TimeFormat
+// --- END NEW IMPORTS ---
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Calendar
 import java.util.UUID
+import java.util.Locale // <-- ADD THIS IMPORT
 
 class SuggestEditActivity : AppCompatActivity() {
 
@@ -78,12 +84,21 @@ class SuggestEditActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        adapter = StopEditAdapter(editableStops) { position ->
-            // Handle remove click
-            editableStops.removeAt(position)
-            adapter.notifyItemRemoved(position)
-            adapter.notifyItemRangeChanged(position, editableStops.size)
-        }
+        // --- MODIFIED: Added onTimeClicked lambda ---
+        adapter = StopEditAdapter(
+            editableStops,
+            onRemoveClicked = { position ->
+                // Handle remove click
+                editableStops.removeAt(position)
+                adapter.notifyItemRemoved(position)
+                adapter.notifyItemRangeChanged(position, editableStops.size)
+            },
+            onTimeClicked = { position ->
+                // Handle time click
+                showTimePicker(position)
+            }
+        )
+        // --- END MODIFICATION ---
         binding.recyclerViewStopsEditor.layoutManager = LinearLayoutManager(this)
         binding.recyclerViewStopsEditor.adapter = adapter
     }
@@ -109,6 +124,46 @@ class SuggestEditActivity : AppCompatActivity() {
         adapter.notifyItemInserted(editableStops.size - 1)
     }
 
+    // --- NEW FUNCTION ---
+    /**
+     * Shows a 24-hour MaterialTimePicker dialog.
+     */
+    private fun showTimePicker(position: Int) {
+        // Try to parse existing time, or default
+        val currentStop = editableStops[position]
+        val (initialHour, initialMinute) = try {
+            if (currentStop.scheduledTime.isNotBlank()) {
+                val parts = currentStop.scheduledTime.split(":")
+                parts[0].toInt() to parts[1].toInt()
+            } else {
+                9 to 0 // Default to 09:00
+            }
+        } catch (e: Exception) {
+            9 to 0 // Default on parse error
+        }
+
+        val picker = MaterialTimePicker.Builder()
+            .setTimeFormat(TimeFormat.CLOCK_24H)
+            .setHour(initialHour)
+            .setMinute(initialMinute)
+            .setTitleText("Select Stop Time")
+            .build()
+
+        picker.addOnPositiveButtonClickListener {
+            val hour = picker.hour
+            val minute = picker.minute
+
+            // Format to "HH:mm" (e.g., "08:30")
+            val formattedTime = String.format(Locale.getDefault(), "%02d:%02d", hour, minute)
+
+            // Update the adapter's data
+            adapter.updateTime(position, formattedTime)
+        }
+
+        picker.show(supportFragmentManager, "TimePicker")
+    }
+    // --- END NEW FUNCTION ---
+
     private fun applyChanges() {
         // --- 1. Validate Data ---
         val serviceName = binding.editTextServiceName.text.toString().trim()
@@ -123,10 +178,12 @@ class SuggestEditActivity : AppCompatActivity() {
             Toast.makeText(this, "Please add at least one stop.", Toast.LENGTH_SHORT).show()
             return
         }
+        // --- MODIFIED: Validation text changed to be more specific ---
         if (stopsData.any { it.stopName.isBlank() || it.scheduledTime.isBlank() }) {
             Toast.makeText(this, "Please fill in all stop names and times.", Toast.LENGTH_SHORT).show()
             return
         }
+        // --- END MODIFICATION ---
 
         // --- 2. Build JSON ---
         val json = buildJsonPayload(serviceName, serviceType, stopsData)
@@ -156,7 +213,7 @@ class SuggestEditActivity : AppCompatActivity() {
             // We can't know the real stopId, so we generate a placeholder
             stopJson.put("stopId", "NEW-${index + 1}")
             stopJson.put("locationName", stop.stopName)
-            stopJson.put("scheduledTime", stop.scheduledTime)
+            stopJson.put("scheduledTime", stop.scheduledTime) // This now comes from the time picker
             stopJson.put("stopOrder", index + 1)
             // Add placeholder lat/lng
             stopJson.put("latitude", 0.0)
@@ -169,4 +226,3 @@ class SuggestEditActivity : AppCompatActivity() {
         return root.toString(2) // Indent by 2 spaces for readability
     }
 }
-

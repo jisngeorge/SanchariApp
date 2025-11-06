@@ -30,13 +30,15 @@
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Scheduled Time (e.g., 08:30)">
+            android:hint="Scheduled Time (HH:mm)">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/editTextScheduledTime"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="time" />
+                android:inputType="none"
+                android:focusable="false"
+                android:clickable="true" />
 
         </com.google.android.material.textfield.TextInputLayout>
 

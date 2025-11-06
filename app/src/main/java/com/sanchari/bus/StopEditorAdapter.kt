@@ -5,7 +5,7 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.sanchari.bus.databinding.ItemEditableStopBinding
+import com.sanchari.bus.databinding.ItemEditStopBinding
 
 /**
  * Adapter for the editable list of bus stops in SuggestEditActivity.
@@ -13,15 +13,17 @@ import com.sanchari.bus.databinding.ItemEditableStopBinding
  */
 class StopEditAdapter(
     private val stops: MutableList<EditableStop>,
-    private val onRemoveClicked: (position: Int) -> Unit
+    private val onRemoveClicked: (position: Int) -> Unit,
+    private val onTimeClicked: (position: Int) -> Unit // --- NEW: Click listener for time ---
 ) : RecyclerView.Adapter<StopEditAdapter.StopEditViewHolder>() {
 
     // This is crucial to prevent TextWatchers from causing crashes
     // during view recycling.
-    private val textWatchers = mutableMapOf<Int, Pair<TextWatcher, TextWatcher>>()
+    // --- MODIFIED: Removed the time TextWatcher ---
+    private val textWatchers = mutableMapOf<Int, TextWatcher>()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): StopEditViewHolder {
-        val binding = ItemEditableStopBinding.inflate(
+        val binding = ItemEditStopBinding.inflate(
             LayoutInflater.from(parent.context),
             parent,
             false
@@ -32,9 +34,9 @@ class StopEditAdapter(
     override fun onBindViewHolder(holder: StopEditViewHolder, position: Int) {
         // Remove any existing watchers from the recycled view
         textWatchers[holder.adapterPosition]?.let {
-            holder.binding.editTextStopName.removeTextChangedListener(it.first)
-            holder.binding.editTextScheduledTime.removeTextChangedListener(it.second)
+            holder.binding.editTextStopName.removeTextChangedListener(it)
         }
+        // --- REMOVED: Time watcher logic ---
 
         holder.bind(stops[position])
 
@@ -43,20 +45,17 @@ class StopEditAdapter(
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                stops[holder.adapterPosition].stopName = s.toString()
+                // Check position to avoid crash on remove
+                if (holder.adapterPosition != RecyclerView.NO_POSITION) {
+                    stops[holder.adapterPosition].stopName = s.toString()
+                }
             }
         }
-        val timeWatcher = object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable?) {
-                stops[holder.adapterPosition].scheduledTime = s.toString()
-            }
-        }
+        // --- REMOVED: Time watcher logic ---
 
         holder.binding.editTextStopName.addTextChangedListener(stopNameWatcher)
-        holder.binding.editTextScheduledTime.addTextChangedListener(timeWatcher)
-        textWatchers[holder.adapterPosition] = (stopNameWatcher to timeWatcher)
+        // --- REMOVED: Time watcher logic ---
+        textWatchers[holder.adapterPosition] = stopNameWatcher
 
         holder.binding.buttonRemoveStop.setOnClickListener {
             // Check adapterPosition to be safe
@@ -64,11 +63,18 @@ class StopEditAdapter(
                 onRemoveClicked(holder.adapterPosition)
             }
         }
+
+        // --- NEW: Set click listener for the time field ---
+        holder.binding.editTextScheduledTime.setOnClickListener {
+            if (holder.adapterPosition != RecyclerView.NO_POSITION) {
+                onTimeClicked(holder.adapterPosition)
+            }
+        }
     }
 
     override fun getItemCount(): Int = stops.size
 
-    inner class StopEditViewHolder(val binding: ItemEditableStopBinding) :
+    inner class StopEditViewHolder(val binding: ItemEditStopBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(stop: EditableStop) {
@@ -80,5 +86,13 @@ class StopEditAdapter(
     // Helper to get all the data from the adapter
     fun getStopsData(): List<EditableStop> {
         return stops
+    }
+
+    // --- NEW: Helper to update time data from the dialog ---
+    fun updateTime(position: Int, time: String) {
+        if (position in stops.indices) {
+            stops[position].scheduledTime = time
+            notifyItemChanged(position)
+        }
     }
 }

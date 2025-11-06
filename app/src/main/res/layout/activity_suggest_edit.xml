@@ -70,7 +70,7 @@
                 android:layout_marginTop="8dp"
                 android:nestedScrollingEnabled="false"
                 tools:itemCount="2"
-                tools:listitem="@layout/item_editable_stop" />
+                tools:listitem="@layout/item_edit_stop" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonAddStop"
