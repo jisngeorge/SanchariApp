@@ -44,7 +44,7 @@
             android:exported="false"
             android:label="Bus Details"
             android:parentActivityName=".SearchResultsActivity"
-            android:theme="@style/Theme.SanchariApp" />
+            android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar" />
 
         <activity
             android:name=".SuggestEditActivity"
