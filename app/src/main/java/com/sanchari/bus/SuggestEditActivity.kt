@@ -25,7 +25,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Calendar
 import java.util.UUID
-import java.util.Locale // <-- ADD THIS IMPORT
+import java.util.Locale
 
 class SuggestEditActivity : AppCompatActivity() {
 
@@ -39,6 +39,12 @@ class SuggestEditActivity : AppCompatActivity() {
     companion object {
         private const val TAG = "SuggestEditActivity"
         private const val EXTRA_BUS_SERVICE = "EXTRA_BUS_SERVICE"
+
+        // --- NEW: Keys for saving instance state ---
+        private const val KEY_SERVICE_NAME = "KEY_SERVICE_NAME"
+        private const val KEY_SERVICE_TYPE = "KEY_SERVICE_TYPE"
+        private const val KEY_STOPS = "KEY_STOPS"
+        // --- END NEW ---
 
         // Use this to launch for "Suggest Edit"
         fun newIntentForEdit(context: Context, service: BusService): Intent {
@@ -61,24 +67,22 @@ class SuggestEditActivity : AppCompatActivity() {
         // Setup Toolbar
         binding.toolbar.setNavigationOnClickListener { finish() }
 
-        // Check if we are editing or creating new
-        originalService = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableExtra(EXTRA_BUS_SERVICE, BusService::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            intent.getParcelableExtra(EXTRA_BUS_SERVICE)
-        }
-
+        // --- THIS LOGIC IS NOW MOVED ---
+        // We set up the RecyclerView first, then populate it
+        // based on whether we have saved state or a new intent.
         setupRecyclerView()
 
-        if (originalService != null) {
-            binding.toolbar.title = "Suggest an Edit"
-            preFillData(originalService!!)
+        // --- NEW: Check for saved state ---
+        if (savedInstanceState != null) {
+            Log.i(TAG, "Restoring state from savedInstanceState")
+            restoreFromSavedState(savedInstanceState)
         } else {
-            binding.toolbar.title = "Add New Bus Service"
-            // Add one blank stop to start with
-            addNewStop()
+            // No saved state, so load from intent (edit or new)
+            Log.i(TAG, "Loading from intent (new or edit)")
+            loadFromIntent()
         }
+        // --- END NEW ---
+
 
         binding.buttonAddStop.setOnClickListener {
             addNewStop()
@@ -88,6 +92,62 @@ class SuggestEditActivity : AppCompatActivity() {
             applyChanges()
         }
     }
+
+    // --- NEW: Save the user's edits ---
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        Log.i(TAG, "onSaveInstanceState: Saving user edits...")
+        // Save the current state of the fields and the adapter
+        outState.putString(KEY_SERVICE_NAME, binding.editTextServiceName.text.toString())
+        outState.putString(KEY_SERVICE_TYPE, binding.editTextServiceType.text.toString())
+        // Get the current list from the adapter
+        outState.putParcelableArrayList(KEY_STOPS, ArrayList(adapter.getStopsData()))
+    }
+    // --- END NEW ---
+
+    // --- NEW: Restore data from the bundle ---
+    private fun restoreFromSavedState(savedInstanceState: Bundle) {
+        val serviceName = savedInstanceState.getString(KEY_SERVICE_NAME)
+        val serviceType = savedInstanceState.getString(KEY_SERVICE_TYPE)
+        val stops: ArrayList<EditableStop>? =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                savedInstanceState.getParcelableArrayList(KEY_STOPS, EditableStop::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                savedInstanceState.getParcelableArrayList(KEY_STOPS)
+            }
+
+        binding.editTextServiceName.setText(serviceName)
+        binding.editTextServiceType.setText(serviceType)
+
+        if (stops != null) {
+            editableStops.clear()
+            editableStops.addAll(stops)
+            adapter.notifyDataSetChanged()
+        }
+    }
+    // --- END NEW ---
+
+    // --- NEW: Renamed original logic ---
+    private fun loadFromIntent() {
+        // Check if we are editing or creating new
+        originalService = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra(EXTRA_BUS_SERVICE, BusService::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra(EXTRA_BUS_SERVICE)
+        }
+
+        if (originalService != null) {
+            binding.toolbar.title = "Suggest an Edit"
+            preFillData(originalService!!)
+        } else {
+            binding.toolbar.title = "Add New Bus Service"
+            // Add one blank stop to start with
+            addNewStop()
+        }
+    }
+    // --- END NEW ---
 
     private fun setupRecyclerView() {
         // --- NEW: Setup ItemTouchHelper Callback ---
@@ -254,7 +314,7 @@ class SuggestEditActivity : AppCompatActivity() {
         service.put("type", type)
         // Add placeholders for data not in this form
         service.put("isRunning", 1)
-        service.put("lastReport_edTime", 0L)
+        service.put("lastReportedTime", 0L)
 
         val stopsArray = JSONArray()
         // --- MODIFIED: Use the (now reordered) stops list ---

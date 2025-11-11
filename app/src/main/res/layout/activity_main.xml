@@ -8,6 +8,15 @@
     android:padding="16dp"
     tools:context=".MainActivity">
 
+    <TextView
+        android:id="@+id/textViewTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/app_name"
+        android:textAppearance="?attr/textAppearanceHeadline5"
+        android:gravity="center"
+        android:layout_marginBottom="16dp" />
+
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/fromInputLayout"
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"

@@ -45,7 +45,8 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:text="Bus Stops"
-                android:textAppearance="?attr/textAppearanceTitleMedium" />
+                android:textAppearance="?attr/textAppearanceTitleMedium"
+                android:textSize="18sp"/>
 
             <ProgressBar
                 android:id="@+id/progressBar"
@@ -91,13 +92,15 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Community Ratings"
-                        android:textAppearance="?attr/textAppearanceTitleMedium" />
+                        android:textAppearance="?attr/textAppearanceTitleMedium"
+                        android:textSize="18sp"/>
 
                     <TextView
                         android:id="@+id/textViewRatingCount"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textSize="14sp"
                         tools:text="Based on 5 ratings" />
 
                     <!-- Punctuality -->
@@ -208,6 +211,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
+                android:textSize="18sp"
                 android:text="Comments"
                 android:textAppearance="?attr/textAppearanceTitleMedium" />
 
@@ -226,6 +230,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
                 android:layout_marginTop="8dp"
+                android:textSize="14sp"
                 android:text="No comments yet."
                 android:textAppearance="?attr/textAppearanceBodySmall"
                 android:visibility="gone" />

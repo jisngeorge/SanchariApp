@@ -37,7 +37,7 @@
             android:exported="false"
             android:label="Search Results"
             android:parentActivityName=".MainActivity"
-            android:theme="@style/Theme.SanchariApp" />
+            android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar" />
 
         <activity
             android:name=".BusDetailsActivity"
@@ -57,7 +57,6 @@
             android:name=".ConfirmationActivity"
             android:exported="false"
             android:label="Confirm Suggestion"
-            android:parentActivityName=".SuggestEditActivity"
             android:theme="@style/Theme.SanchariApp" />
 
     </application>

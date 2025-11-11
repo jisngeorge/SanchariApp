@@ -32,6 +32,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:textSize="16sp"
                 android:text="Please confirm your details"
                 android:textAppearance="?attr/textAppearanceTitleMedium" />
 
@@ -95,6 +96,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
+                android:textSize="12sp"
                 android:text="Admin may contact you through the provided phone / email to clear any doubts; edits will go live within a week if it is approved."
                 android:textAppearance="?attr/textAppearanceBodySmall"
                 android:textStyle="italic" />

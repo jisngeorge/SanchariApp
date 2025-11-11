@@ -4,7 +4,6 @@ import android.content.Context
 import android.database.sqlite.SQLiteException
 import android.util.Log
 
-
 object SearchManager {
 
     private const val TAG = "SearchManager"
@@ -12,11 +11,15 @@ object SearchManager {
     /**
      * Finds bus services that travel from 'from' to 'to'.
      *
-     * This query now:
-     * 1. Finds the departure time from the 'from' stop (T2).
-     * 2. Finds the arrival time at the 'to' stop (T3).
-     * 3. Ensures the 'from' stop (T2) comes *before* the 'to' stop (T3) in the route.
-     * 4. Sorts the results by the 'from' departure time (T2.scheduledTime).
+     * --- UPDATED LOGIC (Based on your feedback) ---
+     * This query now correctly handles both SHUTTLES and HALTS.
+     * It finds *every* valid A -> B segment, even for the same serviceId.
+     *
+     * 1. Joins BusStop T2 (From) with BusStop T3 (To) on the same serviceId.
+     * 2. Ensures T2.stopOrder < T3.stopOrder (correct direction).
+     * 3. CRITICAL: Uses a NOT EXISTS subquery to ensure there is no *other*
+     * "From" stop (T_mid) between T2 and T3. This finds each distinct trip.
+     * 4. This logic automatically finds the departure time from a halt.
      */
     fun findBusServices(context: Context, from: String, to: String): List<BusService> {
         val results = mutableListOf<BusService>()
@@ -26,29 +29,36 @@ object SearchManager {
         // This is the new, more complex query
         val query = """
             SELECT 
-                T1.${DatabaseConstants.BusServiceTable.COLUMN_SERVICE_ID}, 
-                T1.${DatabaseConstants.BusServiceTable.COLUMN_NAME}, 
-                T1.${DatabaseConstants.BusServiceTable.COLUMN_TYPE},
+                bs.${DatabaseConstants.BusServiceTable.COLUMN_SERVICE_ID}, 
+                bs.${DatabaseConstants.BusServiceTable.COLUMN_NAME}, 
+                bs.${DatabaseConstants.BusServiceTable.COLUMN_TYPE}, 
                 T2.${DatabaseConstants.BusStopTable.COLUMN_SCHEDULED_TIME} AS fromTime,
                 T3.${DatabaseConstants.BusStopTable.COLUMN_SCHEDULED_TIME} AS toTime
             FROM 
-                ${DatabaseConstants.BusServiceTable.TABLE_NAME} AS T1
+                ${DatabaseConstants.BusStopTable.TABLE_NAME} AS T2
             INNER JOIN 
-                ${DatabaseConstants.BusStopTable.TABLE_NAME} AS T2 ON T1.serviceId = T2.serviceId
-            INNER JOIN 
-                ${DatabaseConstants.BusStopTable.TABLE_NAME} AS T3 ON T1.serviceId = T3.serviceId
+                ${DatabaseConstants.BusStopTable.TABLE_NAME} AS T3 ON T2.serviceId = T3.serviceId
+            INNER JOIN
+                ${DatabaseConstants.BusServiceTable.TABLE_NAME} AS bs ON T2.serviceId = bs.serviceId
             WHERE 
                 T2.locationName = ? 
-                AND T3.locationName = ?
+                AND T3.locationName = ? 
                 AND T2.stopOrder < T3.stopOrder
-            GROUP BY 
-                T1.serviceId
-            ORDER BY 
-                fromTime ASC
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM ${DatabaseConstants.BusStopTable.TABLE_NAME} AS T_mid
+                    WHERE T_mid.serviceId = T2.serviceId
+                      AND T_mid.locationName = ? 
+                      AND T_mid.stopOrder > T2.stopOrder
+                      AND T_mid.stopOrder < T3.stopOrder
+                )
+            ORDER BY
+                fromTime ASC;
         """.trimIndent()
 
         try {
-            db.rawQuery(query, arrayOf(from, to)).use { cursor ->
+            // Note: The "from" parameter is now used three times
+            db.rawQuery(query, arrayOf(from, to, from)).use { cursor ->
                 if (cursor.moveToFirst()) {
                     val serviceIdIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_SERVICE_ID)
                     val nameIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_NAME)
@@ -207,4 +217,3 @@ object SearchManager {
         return suggestions
     }
 }
-

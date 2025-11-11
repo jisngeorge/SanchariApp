@@ -135,12 +135,14 @@ object DatabaseConstants {
         const val COLUMN_SERVICE_NAME = "serviceName"
         const val COLUMN_VIEWED_TIMESTAMP = "viewedTimestamp" // Long
 
+        // --- THIS IS THE FIX ---
+        // Added "DEFAULT CURRENT_TIMESTAMP" to the timestamp column
         const val CREATE_TABLE = """
             CREATE TABLE IF NOT EXISTS $TABLE_NAME (
                 $COLUMN_RECENT_ID INTEGER PRIMARY KEY AUTOINCREMENT,
                 $COLUMN_SERVICE_ID TEXT NOT NULL,
                 $COLUMN_SERVICE_NAME TEXT,
-                $COLUMN_VIEWED_TIMESTAMP INTEGER NOT NULL
+                $COLUMN_VIEWED_TIMESTAMP INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
         """
     }
