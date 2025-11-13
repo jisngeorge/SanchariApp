@@ -39,29 +39,53 @@ object DatabaseConstants {
         """
     }
 
-    // --- Table: BusStop (TimetableDatabase) ---
-    object BusStopTable {
-        const val TABLE_NAME = "BusStop"
+    // --- (REMOVED) Old BusStopTable ---
+
+    // --- NEW TABLE: Stop (TimetableDatabase) ---
+    /**
+     * Stores unique stop locations.
+     */
+    object StopTable {
+        const val TABLE_NAME = "Stop"
         const val COLUMN_STOP_ID = "stopId" // PK, INTEGER
-        const val COLUMN_SERVICE_ID = "serviceId" // FK, TEXT
-        const val COLUMN_LOCATION_NAME = "locationName"
-        const val COLUMN_LATITUDE = "latitude"
-        const val COLUMN_LONGITUDE = "longitude"
+        const val COLUMN_LOCATION_NAME = "locationName" // TEXT
+        const val COLUMN_LATITUDE = "latitude" // REAL
+        const val COLUMN_LONGITUDE = "longitude" // REAL
+
+        const val CREATE_TABLE = """
+            CREATE TABLE IF NOT EXISTS $TABLE_NAME (
+                $COLUMN_STOP_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                $COLUMN_LOCATION_NAME TEXT NOT NULL,
+                $COLUMN_LATITUDE REAL NOT NULL,
+                $COLUMN_LONGITUDE REAL NOT NULL
+            )
+        """
+    }
+
+    // --- NEW TABLE: RouteStop (TimetableDatabase) ---
+    /**
+     * This is the "join table" that connects BusServices to Stops.
+     * It defines the actual route.
+     */
+    object RouteStopTable {
+        const val TABLE_NAME = "RouteStop"
+        const val COLUMN_ROUTE_STOP_ID = "routeStopId" // PK, INTEGER
+        const val COLUMN_SERVICE_ID = "serviceId" // FK (BusService), TEXT
+        const val COLUMN_STOP_ID = "stopId" // FK (Stop), INTEGER
         const val COLUMN_SCHEDULED_TIME = "scheduledTime" // TEXT, e.g., "08:30"
         const val COLUMN_STOP_ORDER = "stopOrder" // INTEGER
 
         const val CREATE_TABLE = """
             CREATE TABLE IF NOT EXISTS $TABLE_NAME (
-                $COLUMN_STOP_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                $COLUMN_ROUTE_STOP_ID INTEGER PRIMARY KEY AUTOINCREMENT,
                 $COLUMN_SERVICE_ID TEXT NOT NULL,
-                $COLUMN_LOCATION_NAME TEXT NOT NULL,
-                $COLUMN_LATITUDE REAL NOT NULL,
-                $COLUMN_LONGITUDE REAL NOT NULL,
+                $COLUMN_STOP_ID INTEGER NOT NULL,
                 $COLUMN_SCHEDULED_TIME TEXT,
                 $COLUMN_STOP_ORDER INTEGER NOT NULL
             )
         """
     }
+
 
     // --- Table: BusRating (CommunityDatabase) ---
     object BusRatingTable {

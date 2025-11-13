@@ -22,9 +22,17 @@ class TimetableDatabaseHelper(context: Context) :
         // We can add the schema here for reference, but it won't be executed
         // unless the database file is missing AND this helper is asked to create it.
         Log.w(TAG, "onCreate called, but this should be a pre-packaged database.")
-        // For safety, we can add the schema
-        db?.execSQL(DatabaseConstants.BusStopTable.CREATE_TABLE)
-        // Add create table for BusServiceTable if needed
+
+        // --- UPDATED: Added all tables from the new schema ---
+        try {
+            db?.execSQL(DatabaseConstants.BusServiceTable.CREATE_TABLE)
+            db?.execSQL(DatabaseConstants.StopTable.CREATE_TABLE)
+            db?.execSQL(DatabaseConstants.RouteStopTable.CREATE_TABLE)
+            Log.i(TAG, "TimetableDatabase safety tables created.")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating safety tables for TimetableDatabase", e)
+        }
+        // --- END OF UPDATE ---
     }
 
     override fun onUpgrade(db: SQLiteDatabase?, oldVersion: Int, newVersion: Int) {
@@ -37,4 +45,3 @@ class TimetableDatabaseHelper(context: Context) :
         Log.w(TAG, "onDowngrade called, but database should be replaced, not upgraded.")
     }
 }
-

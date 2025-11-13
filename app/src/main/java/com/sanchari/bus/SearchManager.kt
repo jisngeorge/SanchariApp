@@ -11,57 +11,56 @@ object SearchManager {
     /**
      * Finds bus services that travel from 'from' to 'to'.
      *
-     * --- UPDATED LOGIC (Based on your feedback) ---
-     * This query now correctly handles both SHUTTLES and HALTS.
-     * It finds *every* valid A -> B segment, even for the same serviceId.
-     *
-     * 1. Joins BusStop T2 (From) with BusStop T3 (To) on the same serviceId.
-     * 2. Ensures T2.stopOrder < T3.stopOrder (correct direction).
-     * 3. Subquery 1 (NOT EXISTS T_mid_A): Fixes shuttles by ensuring there is no
-     * *other* "From" stop between T2 and T3.
-     * 4. Subquery 2 (NOT EXISTS T_mid_B): Fixes halts at the destination by ensuring
-     * there is no *other* "To" stop between T2 and T3.
+     * --- UPDATED LOGIC (NORMALIZED) ---
+     * This query now joins the new Stop and RouteStop tables.
+     * It still handles Shuttles and Halts correctly.
      */
     fun findBusServices(context: Context, from: String, to: String): List<BusService> {
         val results = mutableListOf<BusService>()
         val dbHelper = TimetableDatabaseHelper(context)
         val db = dbHelper.readableDatabase
 
-        // This is the new, more complex query
+        // This is the new, more complex query for the normalized structure
         val query = """
             SELECT 
                 bs.${DatabaseConstants.BusServiceTable.COLUMN_SERVICE_ID}, 
                 bs.${DatabaseConstants.BusServiceTable.COLUMN_NAME}, 
                 bs.${DatabaseConstants.BusServiceTable.COLUMN_TYPE}, 
-                T2.${DatabaseConstants.BusStopTable.COLUMN_SCHEDULED_TIME} AS fromTime,
-                T3.${DatabaseConstants.BusStopTable.COLUMN_SCHEDULED_TIME} AS toTime
+                rs_from.${DatabaseConstants.RouteStopTable.COLUMN_SCHEDULED_TIME} AS fromTime,
+                rs_to.${DatabaseConstants.RouteStopTable.COLUMN_SCHEDULED_TIME} AS toTime
             FROM 
-                ${DatabaseConstants.BusStopTable.TABLE_NAME} AS T2
-            INNER JOIN 
-                ${DatabaseConstants.BusStopTable.TABLE_NAME} AS T3 ON T2.serviceId = T3.serviceId
+                ${DatabaseConstants.RouteStopTable.TABLE_NAME} AS rs_from
             INNER JOIN
-                ${DatabaseConstants.BusServiceTable.TABLE_NAME} AS bs ON T2.serviceId = bs.serviceId
+                ${DatabaseConstants.StopTable.TABLE_NAME} AS s_from ON rs_from.${DatabaseConstants.RouteStopTable.COLUMN_STOP_ID} = s_from.${DatabaseConstants.StopTable.COLUMN_STOP_ID}
+            INNER JOIN 
+                ${DatabaseConstants.RouteStopTable.TABLE_NAME} AS rs_to ON rs_from.${DatabaseConstants.RouteStopTable.COLUMN_SERVICE_ID} = rs_to.${DatabaseConstants.RouteStopTable.COLUMN_SERVICE_ID}
+            INNER JOIN
+                ${DatabaseConstants.StopTable.TABLE_NAME} AS s_to ON rs_to.${DatabaseConstants.RouteStopTable.COLUMN_STOP_ID} = s_to.${DatabaseConstants.StopTable.COLUMN_STOP_ID}
+            INNER JOIN
+                ${DatabaseConstants.BusServiceTable.TABLE_NAME} AS bs ON rs_from.${DatabaseConstants.RouteStopTable.COLUMN_SERVICE_ID} = bs.${DatabaseConstants.BusServiceTable.COLUMN_SERVICE_ID}
             WHERE 
-                T2.locationName = ? -- [param 1: from]
-                AND T3.locationName = ? -- [param 2: to]
-                AND T2.stopOrder < T3.stopOrder
-                -- This subquery handles SHUTTLES (prevents A->B->A->B from showing A1->B2)
+                s_from.${DatabaseConstants.StopTable.COLUMN_LOCATION_NAME} = ? -- [param 1: from]
+                AND s_to.${DatabaseConstants.StopTable.COLUMN_LOCATION_NAME} = ? -- [param 2: to]
+                AND rs_from.${DatabaseConstants.RouteStopTable.COLUMN_STOP_ORDER} < rs_to.${DatabaseConstants.RouteStopTable.COLUMN_STOP_ORDER}
+                -- This subquery handles SHUTTLES
                 AND NOT EXISTS (
                     SELECT 1
-                    FROM ${DatabaseConstants.BusStopTable.TABLE_NAME} AS T_mid_A
-                    WHERE T_mid_A.serviceId = T2.serviceId
-                      AND T_mid_A.locationName = ? -- [param 3: from]
-                      AND T_mid_A.stopOrder > T2.stopOrder
-                      AND T_mid_A.stopOrder < T3.stopOrder
+                    FROM ${DatabaseConstants.RouteStopTable.TABLE_NAME} AS rs_mid
+                    INNER JOIN ${DatabaseConstants.StopTable.TABLE_NAME} AS s_mid ON rs_mid.${DatabaseConstants.RouteStopTable.COLUMN_STOP_ID} = s_mid.${DatabaseConstants.StopTable.COLUMN_STOP_ID}
+                    WHERE rs_mid.${DatabaseConstants.RouteStopTable.COLUMN_SERVICE_ID} = rs_from.${DatabaseConstants.RouteStopTable.COLUMN_SERVICE_ID}
+                      AND s_mid.${DatabaseConstants.StopTable.COLUMN_LOCATION_NAME} = ? -- [param 3: from]
+                      AND rs_mid.${DatabaseConstants.RouteStopTable.COLUMN_STOP_ORDER} > rs_from.${DatabaseConstants.RouteStopTable.COLUMN_STOP_ORDER}
+                      AND rs_mid.${DatabaseConstants.RouteStopTable.COLUMN_STOP_ORDER} < rs_to.${DatabaseConstants.RouteStopTable.COLUMN_STOP_ORDER}
                 )
-                -- This NEW subquery handles HALTS at the destination
+                -- This subquery handles HALTS at the destination
                 AND NOT EXISTS (
                     SELECT 1
-                    FROM ${DatabaseConstants.BusStopTable.TABLE_NAME} AS T_mid_B
-                    WHERE T_mid_B.serviceId = T2.serviceId
-                      AND T_mid_B.locationName = ? -- [param 4: to]
-                      AND T_mid_B.stopOrder > T2.stopOrder
-                      AND T_mid_B.stopOrder < T3.stopOrder
+                    FROM ${DatabaseConstants.RouteStopTable.TABLE_NAME} AS rs_mid
+                    INNER JOIN ${DatabaseConstants.StopTable.TABLE_NAME} AS s_mid ON rs_mid.${DatabaseConstants.RouteStopTable.COLUMN_STOP_ID} = s_mid.${DatabaseConstants.StopTable.COLUMN_STOP_ID}
+                    WHERE rs_mid.${DatabaseConstants.RouteStopTable.COLUMN_SERVICE_ID} = rs_from.${DatabaseConstants.RouteStopTable.COLUMN_SERVICE_ID}
+                      AND s_mid.${DatabaseConstants.StopTable.COLUMN_LOCATION_NAME} = ? -- [param 4: to]
+                      AND rs_mid.${DatabaseConstants.RouteStopTable.COLUMN_STOP_ORDER} > rs_from.${DatabaseConstants.RouteStopTable.COLUMN_STOP_ORDER}
+                      AND rs_mid.${DatabaseConstants.RouteStopTable.COLUMN_STOP_ORDER} < rs_to.${DatabaseConstants.RouteStopTable.COLUMN_STOP_ORDER}
                 )
             ORDER BY
                 fromTime ASC;
@@ -115,6 +114,7 @@ object SearchManager {
      * This is needed to launch BusDetailsActivity from a recent search.
      */
     fun getBusServiceById(context: Context, serviceId: String): BusService? {
+        // This function logic does not need to change, as it only queries BusServiceTable
         val dbHelper = TimetableDatabaseHelper(context)
         val db = dbHelper.readableDatabase
         var busService: BusService? = null
@@ -152,25 +152,43 @@ object SearchManager {
 
     /**
      * Gets all stops for a specific bus service, ordered by stopOrder.
+     * --- UPDATED LOGIC (NORMALIZED) ---
      */
     fun getBusStops(context: Context, serviceId: String): List<BusStop> {
         val stops = mutableListOf<BusStop>()
         val dbHelper = TimetableDatabaseHelper(context)
         val db = dbHelper.readableDatabase
 
-        val query = "SELECT * FROM ${DatabaseConstants.BusStopTable.TABLE_NAME} " +
-                "WHERE ${DatabaseConstants.BusStopTable.COLUMN_SERVICE_ID} = ? " +
-                "ORDER BY ${DatabaseConstants.BusStopTable.COLUMN_STOP_ORDER} ASC"
+        // This query now joins RouteStop and Stop
+        val query = """
+            SELECT 
+                s.${DatabaseConstants.StopTable.COLUMN_STOP_ID},
+                rs.${DatabaseConstants.RouteStopTable.COLUMN_SERVICE_ID},
+                s.${DatabaseConstants.StopTable.COLUMN_LOCATION_NAME},
+                s.${DatabaseConstants.StopTable.COLUMN_LATITUDE},
+                s.${DatabaseConstants.StopTable.COLUMN_LONGITUDE},
+                rs.${DatabaseConstants.RouteStopTable.COLUMN_SCHEDULED_TIME},
+                rs.${DatabaseConstants.RouteStopTable.COLUMN_STOP_ORDER}
+            FROM
+                ${DatabaseConstants.RouteStopTable.TABLE_NAME} AS rs
+            INNER JOIN
+                ${DatabaseConstants.StopTable.TABLE_NAME} AS s ON rs.${DatabaseConstants.RouteStopTable.COLUMN_STOP_ID} = s.${DatabaseConstants.StopTable.COLUMN_STOP_ID}
+            WHERE
+                rs.${DatabaseConstants.RouteStopTable.COLUMN_SERVICE_ID} = ?
+            ORDER BY
+                rs.${DatabaseConstants.RouteStopTable.COLUMN_STOP_ORDER} ASC
+        """.trimIndent()
 
         try {
             db.rawQuery(query, arrayOf(serviceId)).use { cursor ->
                 if (cursor.moveToFirst()) {
-                    val stopIdIndex = cursor.getColumnIndex(DatabaseConstants.BusStopTable.COLUMN_STOP_ID)
-                    val locationNameIndex = cursor.getColumnIndex(DatabaseConstants.BusStopTable.COLUMN_LOCATION_NAME)
-                    val latitudeIndex = cursor.getColumnIndex(DatabaseConstants.BusStopTable.COLUMN_LATITUDE)
-                    val longitudeIndex = cursor.getColumnIndex(DatabaseConstants.BusStopTable.COLUMN_LONGITUDE)
-                    val scheduledTimeIndex = cursor.getColumnIndex(DatabaseConstants.BusStopTable.COLUMN_SCHEDULED_TIME)
-                    val stopOrderIndex = cursor.getColumnIndex(DatabaseConstants.BusStopTable.COLUMN_STOP_ORDER)
+                    // Get column indices from the new joined query
+                    val stopIdIndex = cursor.getColumnIndex(DatabaseConstants.StopTable.COLUMN_STOP_ID)
+                    val locationNameIndex = cursor.getColumnIndex(DatabaseConstants.StopTable.COLUMN_LOCATION_NAME)
+                    val latitudeIndex = cursor.getColumnIndex(DatabaseConstants.StopTable.COLUMN_LATITUDE)
+                    val longitudeIndex = cursor.getColumnIndex(DatabaseConstants.StopTable.COLUMN_LONGITUDE)
+                    val scheduledTimeIndex = cursor.getColumnIndex(DatabaseConstants.RouteStopTable.COLUMN_SCHEDULED_TIME)
+                    val stopOrderIndex = cursor.getColumnIndex(DatabaseConstants.RouteStopTable.COLUMN_STOP_ORDER)
 
                     do {
                         stops.add(
@@ -199,20 +217,22 @@ object SearchManager {
 
     /**
      * Gets a distinct list of all stop names for autocomplete.
+     * --- UPDATED LOGIC (NORMALIZED) ---
      */
     fun getStopSuggestions(context: Context): List<String> {
         val suggestions = mutableListOf<String>()
         val dbHelper = TimetableDatabaseHelper(context)
         val db = dbHelper.readableDatabase
 
-        val query = "SELECT DISTINCT ${DatabaseConstants.BusStopTable.COLUMN_LOCATION_NAME} " +
-                "FROM ${DatabaseConstants.BusStopTable.TABLE_NAME} " +
-                "ORDER BY ${DatabaseConstants.BusStopTable.COLUMN_LOCATION_NAME} ASC"
+        // This query is now simpler: just select from the new Stop table
+        val query = "SELECT DISTINCT ${DatabaseConstants.StopTable.COLUMN_LOCATION_NAME} " +
+                "FROM ${DatabaseConstants.StopTable.TABLE_NAME} " +
+                "ORDER BY ${DatabaseConstants.StopTable.COLUMN_LOCATION_NAME} ASC"
 
         try {
             db.rawQuery(query, null).use { cursor ->
                 if (cursor.moveToFirst()) {
-                    val locationNameIndex = cursor.getColumnIndex(DatabaseConstants.BusStopTable.COLUMN_LOCATION_NAME)
+                    val locationNameIndex = cursor.getColumnIndex(DatabaseConstants.StopTable.COLUMN_LOCATION_NAME)
                     do {
                         if (locationNameIndex != -1) {
                             suggestions.add(cursor.getString(locationNameIndex))
