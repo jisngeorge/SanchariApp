@@ -23,7 +23,12 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+// --- NEW IMPORTS ---
+import java.text.SimpleDateFormat
 import java.time.Instant
+import java.util.Date
+import java.util.Locale
+// --- END NEW IMPORTS ---
 
 class BusDetailsActivity : AppCompatActivity() {
 
@@ -77,6 +82,10 @@ class BusDetailsActivity : AppCompatActivity() {
 
         setupRecyclerViews()
 
+        // --- NEW: Setup the Running Status UI ---
+        setupRunningStatusUI()
+        // --- END OF NEW ---
+
         // Load all data
         loadBusStops()
         loadCommunityData()
@@ -129,6 +138,56 @@ class BusDetailsActivity : AppCompatActivity() {
             isNestedScrollingEnabled = false
         }
     }
+
+    // --- NEW FUNCTION ---
+    /**
+     * Sets up the "Is Running" toggle group based on the busService data.
+     */
+    private fun setupRunningStatusUI() {
+        val service = busService ?: return
+
+        // 1. Set the initial highlighted button
+        if (service.isRunning) {
+            binding.toggleGroupStatus.check(R.id.buttonStatusYes)
+        } else {
+            binding.toggleGroupStatus.check(R.id.buttonStatusNo)
+        }
+
+        // 2. Display the last reported time
+        if (service.lastReportedTime > 0) {
+            try {
+                // --- FIX: Multiply Unix time (seconds) by 1000L to get milliseconds ---
+                val date = Date(service.lastReportedTime * 1000L)
+                val sdf = SimpleDateFormat("dd-MMM-yyyy", Locale.getDefault())
+                binding.textViewLastReported.text = "Last reported: ${sdf.format(date)}"
+                binding.textViewLastReported.visibility = View.VISIBLE
+            } catch (e: Exception) {
+                Log.e(TAG, "Error formatting lastReportedTime", e)
+                binding.textViewLastReported.visibility = View.GONE
+            }
+        } else {
+            binding.textViewLastReported.visibility = View.GONE
+        }
+
+        // 3. Add the click listener
+        binding.toggleGroupStatus.addOnButtonCheckedListener { group, checkedId, isChecked ->
+            if (!isChecked) {
+                // This event fires when a button is *unchecked* (e.g., during a swap)
+                // We only care about the one that is *checked*
+                return@addOnButtonCheckedListener
+            }
+
+            val isNowRunning = checkedId == R.id.buttonStatusYes
+            val wasRunning = service.isRunning
+
+            // Only proceed if the user is suggesting a *change*
+            if (isNowRunning != wasRunning) {
+                // Show the warning popup
+                showRunningStatusWarningDialog(isNowRunning)
+            }
+        }
+    }
+    // --- END OF NEW FUNCTION ---
 
     /**
      * Loads the bus stops from TimetableDatabase.
@@ -261,6 +320,33 @@ class BusDetailsActivity : AppCompatActivity() {
 
     // --- NEW METHOD ---
     /**
+     * Shows the warning dialog before submitting a running status change.
+     */
+    private fun showRunningStatusWarningDialog(newStatusIsRunning: Boolean) {
+        val originalStatusWasRunning = busService?.isRunning ?: return
+
+        AlertDialog.Builder(this)
+            .setTitle("Confirm Report")
+            .setMessage("Please do not report a bus as 'Not Running' based on a single observation, holiday, or Sunday. This should only be reported if you have observed it is continuously not running on multiple working days.\n\nAre you sure you want to proceed?")
+            .setPositiveButton("Proceed") { dialog, _ ->
+                // User confirmed, generate the JSON
+                generateRunningStatusJson(newStatusIsRunning)
+            }
+            .setNegativeButton("Cancel") { dialog, _ ->
+                // User cancelled. Revert the toggle group to its original state.
+                if (originalStatusWasRunning) {
+                    binding.toggleGroupStatus.check(R.id.buttonStatusYes)
+                } else {
+                    binding.toggleGroupStatus.check(R.id.buttonStatusNo)
+                }
+                dialog.dismiss()
+            }
+            .show()
+    }
+    // --- END OF NEW FUNCTION ---
+
+    // --- NEW METHOD ---
+    /**
      * Generates the JSON payload for a new rating and launches ConfirmationActivity.
      */
     private fun generateRatingJson(punctuality: Float, drive: Float, behaviour: Float) {
@@ -289,6 +375,36 @@ class BusDetailsActivity : AppCompatActivity() {
         val intent = ConfirmationActivity.newIntent(this, jsonPayload)
         startActivity(intent)
     }
+
+    // --- NEW FUNCTION ---
+    /**
+     * Generates the JSON payload for a running status change and launches ConfirmationActivity.
+     */
+    private fun generateRunningStatusJson(newStatusIsRunning: Boolean) {
+        val serviceId = busService?.serviceId ?: return
+
+        val timestamp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Instant.now().toString()
+        } else {
+            android.text.format.DateFormat.format("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Date()).toString()
+        }
+
+        val statusJson = JSONObject().apply {
+            put("type", "running_status_suggestion")
+            put("serviceId", serviceId)
+            put("suggestionDate", timestamp)
+            put("suggestedStatus", if (newStatusIsRunning) "Running" else "Not Running")
+            put("suggestedStatusBoolean", newStatusIsRunning)
+        }
+
+        val jsonPayload = statusJson.toString(2)
+        Log.d(TAG, "Generated Status JSON: $jsonPayload")
+
+        // Launch the same ConfirmationActivity
+        val intent = ConfirmationActivity.newIntent(this, jsonPayload)
+        startActivity(intent)
+    }
+    // --- END OF NEW FUNCTION ---
 
     /**
      * Generates the JSON payload for a new comment and launches ConfirmationActivity.
