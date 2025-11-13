@@ -88,7 +88,7 @@ object DatabaseConstants {
         const val TABLE_NAME = "UserComment"
         const val COLUMN_COMMENT_ID = "commentId" // PK, INTEGER
         const val COLUMN_SERVICE_ID = "serviceId" // FK, TEXT
-        const val COLUMN_USERNAME = "username"
+        const val COLUMN_USERNAME = "userName"
         const val COLUMN_COMMENT_TEXT = "commentText"
         const val COLUMN_COMMENT_DATE = "commentDate" // TEXT (ISO 8601)
         const val COLUMN_SHOW_USERNAME = "showUsername" // NEW: INTEGER (0 or 1)

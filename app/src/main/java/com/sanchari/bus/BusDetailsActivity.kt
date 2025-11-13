@@ -204,9 +204,6 @@ class BusDetailsActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * --- REMOVED openGoogleForm(...) method ---
-     */
 
     // --- NEW METHOD ---
     /**
@@ -280,9 +277,9 @@ class BusDetailsActivity : AppCompatActivity() {
             put("type", "rating")
             put("serviceId", serviceId)
             put("ratingDate", timestamp) // --- ADDED: This line ---
-            put("punctuality_10", punctuality) // Scaled to 10
-            put("drive_10", drive)         // Scaled to 10
-            put("behaviour_10", behaviour)   // Scaled to 10
+            put("punctuality_5", punctuality) // Scaled to 5
+            put("drive_5", drive)         // Scaled to 5
+            put("behaviour_5", behaviour)   // Scaled to 5
         }
 
         val jsonPayload = ratingJson.toString(2)

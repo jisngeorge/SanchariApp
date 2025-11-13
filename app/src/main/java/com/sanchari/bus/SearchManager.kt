@@ -17,9 +17,10 @@ object SearchManager {
      *
      * 1. Joins BusStop T2 (From) with BusStop T3 (To) on the same serviceId.
      * 2. Ensures T2.stopOrder < T3.stopOrder (correct direction).
-     * 3. CRITICAL: Uses a NOT EXISTS subquery to ensure there is no *other*
-     * "From" stop (T_mid) between T2 and T3. This finds each distinct trip.
-     * 4. This logic automatically finds the departure time from a halt.
+     * 3. Subquery 1 (NOT EXISTS T_mid_A): Fixes shuttles by ensuring there is no
+     * *other* "From" stop between T2 and T3.
+     * 4. Subquery 2 (NOT EXISTS T_mid_B): Fixes halts at the destination by ensuring
+     * there is no *other* "To" stop between T2 and T3.
      */
     fun findBusServices(context: Context, from: String, to: String): List<BusService> {
         val results = mutableListOf<BusService>()
@@ -41,24 +42,34 @@ object SearchManager {
             INNER JOIN
                 ${DatabaseConstants.BusServiceTable.TABLE_NAME} AS bs ON T2.serviceId = bs.serviceId
             WHERE 
-                T2.locationName = ? 
-                AND T3.locationName = ? 
+                T2.locationName = ? -- [param 1: from]
+                AND T3.locationName = ? -- [param 2: to]
                 AND T2.stopOrder < T3.stopOrder
+                -- This subquery handles SHUTTLES (prevents A->B->A->B from showing A1->B2)
                 AND NOT EXISTS (
                     SELECT 1
-                    FROM ${DatabaseConstants.BusStopTable.TABLE_NAME} AS T_mid
-                    WHERE T_mid.serviceId = T2.serviceId
-                      AND T_mid.locationName = ? 
-                      AND T_mid.stopOrder > T2.stopOrder
-                      AND T_mid.stopOrder < T3.stopOrder
+                    FROM ${DatabaseConstants.BusStopTable.TABLE_NAME} AS T_mid_A
+                    WHERE T_mid_A.serviceId = T2.serviceId
+                      AND T_mid_A.locationName = ? -- [param 3: from]
+                      AND T_mid_A.stopOrder > T2.stopOrder
+                      AND T_mid_A.stopOrder < T3.stopOrder
+                )
+                -- This NEW subquery handles HALTS at the destination
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM ${DatabaseConstants.BusStopTable.TABLE_NAME} AS T_mid_B
+                    WHERE T_mid_B.serviceId = T2.serviceId
+                      AND T_mid_B.locationName = ? -- [param 4: to]
+                      AND T_mid_B.stopOrder > T2.stopOrder
+                      AND T_mid_B.stopOrder < T3.stopOrder
                 )
             ORDER BY
                 fromTime ASC;
         """.trimIndent()
 
         try {
-            // Note: The "from" parameter is now used three times
-            db.rawQuery(query, arrayOf(from, to, from)).use { cursor ->
+            // Note: The "from" and "to" parameters are now used multiple times
+            db.rawQuery(query, arrayOf(from, to, from, to)).use { cursor ->
                 if (cursor.moveToFirst()) {
                     val serviceIdIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_SERVICE_ID)
                     val nameIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_NAME)

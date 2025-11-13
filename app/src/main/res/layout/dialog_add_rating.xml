@@ -9,6 +9,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Add Your Rating"
+        android:textSize="18sp"
         android:textAppearance="?attr/textAppearanceTitleLarge" />
 
     <!-- Punctuality -->
@@ -16,7 +17,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="Punctuality (out of 10)"
+        android:text="Punctuality (out of 5)"
+        android:textSize="16sp"
         android:textAppearance="?attr/textAppearanceBodyMedium" />
 
     <RatingBar
@@ -25,7 +27,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:numStars="10"
+        android:numStars="5"
         android:stepSize="0.5" />
 
     <!-- Driving -->
@@ -33,7 +35,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Driving (out of 10)"
+        android:text="Driving (out of 5)"
+        android:textSize="16sp"
         android:textAppearance="?attr/textAppearanceBodyMedium" />
 
     <RatingBar
@@ -42,7 +45,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:numStars="10"
+        android:numStars="5"
         android:stepSize="0.5" />
 
     <!-- Behaviour -->
@@ -50,7 +53,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Behaviour (out of 10)"
+        android:text="Behaviour (out of 5)"
+        android:textSize="16sp"
         android:textAppearance="?attr/textAppearanceBodyMedium" />
 
     <RatingBar
@@ -59,7 +63,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:numStars="10"
+        android:numStars="5"
         android:stepSize="0.5" />
 
 </LinearLayout>

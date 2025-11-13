@@ -46,7 +46,7 @@
                 android:layout_marginTop="16dp"
                 android:text="Bus Stops"
                 android:textAppearance="?attr/textAppearanceTitleMedium"
-                android:textSize="18sp"/>
+                android:textSize="18sp"/> <!-- Restored manual text size -->
 
             <ProgressBar
                 android:id="@+id/progressBar"
@@ -193,18 +193,19 @@
                             android:stepSize="0.1" />
                     </LinearLayout>
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/buttonAddRating"
-                        style="@style/Widget.MaterialComponents.Button.TextButton"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="end"
-                        android:layout_marginTop="8dp"
-                        android:text="Add Your Rating" />
-
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonAddRating"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginTop="8dp"
+                android:text="Add Your Rating" />
+
 
             <!-- COMMENTS SECTION (MOVED TO LAST) -->
             <TextView
@@ -248,4 +249,3 @@
     </androidx.core.widget.NestedScrollView>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
-
