@@ -79,6 +79,7 @@ class BusDetailsActivity : AppCompatActivity() {
 
         // Set bus service name on toolbar
         supportActionBar?.title = busService?.name ?: "Bus Details"
+        supportActionBar?.subtitle = busService?.type
 
         setupRecyclerViews()
 
@@ -282,8 +283,8 @@ class BusDetailsActivity : AppCompatActivity() {
                 val drive = ratingDrive.rating
                 val behaviour = ratingBehaviour.rating
 
-                if (punctuality == 0f && drive == 0f && behaviour == 0f) {
-                    Toast.makeText(this, "Please provide at least one rating.", Toast.LENGTH_SHORT).show()
+                if (punctuality == 0f || drive == 0f || behaviour == 0f) {
+                    Toast.makeText(this, "Please provide all three ratings.", Toast.LENGTH_SHORT).show()
                 } else {
                     generateRatingJson(punctuality, drive, behaviour)
                     dialog.dismiss()

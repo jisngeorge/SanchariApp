@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
     tools:context=".SuggestEditActivity">
 
     <com.google.android.material.appbar.AppBarLayout
@@ -82,6 +83,22 @@
                 android:layout_marginTop="8dp"
                 android:text="Add Stop"
                 app:icon="@drawable/ic_add" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:hint="Notes for Admin (Optional)">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/editTextEditNotes"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:lines="3"
+                    android:gravity="top"/>
+            </com.google.android.material.textfield.TextInputLayout>
 
             <Button
                 android:id="@+id/buttonApplyChanges"

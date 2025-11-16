@@ -44,6 +44,7 @@ class SuggestEditActivity : AppCompatActivity() {
         private const val KEY_SERVICE_NAME = "KEY_SERVICE_NAME"
         private const val KEY_SERVICE_TYPE = "KEY_SERVICE_TYPE"
         private const val KEY_STOPS = "KEY_STOPS"
+        private const val KEY_EDIT_NOTES = "KEY_EDIT_NOTES"
         // --- END NEW ---
 
         // Use this to launch for "Suggest Edit"
@@ -102,6 +103,7 @@ class SuggestEditActivity : AppCompatActivity() {
         outState.putString(KEY_SERVICE_TYPE, binding.editTextServiceType.text.toString())
         // Get the current list from the adapter
         outState.putParcelableArrayList(KEY_STOPS, ArrayList(adapter.getStopsData()))
+        outState.putString(KEY_EDIT_NOTES, binding.editTextEditNotes.text.toString())
     }
     // --- END NEW ---
 
@@ -109,6 +111,7 @@ class SuggestEditActivity : AppCompatActivity() {
     private fun restoreFromSavedState(savedInstanceState: Bundle) {
         val serviceName = savedInstanceState.getString(KEY_SERVICE_NAME)
         val serviceType = savedInstanceState.getString(KEY_SERVICE_TYPE)
+        val editNotes = savedInstanceState.getString(KEY_EDIT_NOTES)
         val stops: ArrayList<EditableStop>? =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 savedInstanceState.getParcelableArrayList(KEY_STOPS, EditableStop::class.java)
@@ -119,6 +122,7 @@ class SuggestEditActivity : AppCompatActivity() {
 
         binding.editTextServiceName.setText(serviceName)
         binding.editTextServiceType.setText(serviceType)
+        binding.editTextEditNotes.setText(editNotes)
 
         if (stops != null) {
             editableStops.clear()
@@ -278,6 +282,7 @@ class SuggestEditActivity : AppCompatActivity() {
         val serviceName = binding.editTextServiceName.text.toString().trim()
         val serviceType = binding.editTextServiceType.text.toString().trim()
         val stopsData = adapter.getStopsData()
+        val editNotes = binding.editTextEditNotes.text.toString().trim()
 
         if (serviceName.isEmpty()) {
             Toast.makeText(this, "Please enter a bus service name.", Toast.LENGTH_SHORT).show()
@@ -295,7 +300,7 @@ class SuggestEditActivity : AppCompatActivity() {
         // --- END MODIFICATION ---
 
         // --- 2. Build JSON ---
-        val json = buildJsonPayload(serviceName, serviceType, stopsData)
+        val json = buildJsonPayload(serviceName, serviceType, stopsData, editNotes)
         Log.d(TAG, "Generated JSON: $json")
 
         // --- 3. Launch ConfirmationActivity ---
@@ -306,7 +311,7 @@ class SuggestEditActivity : AppCompatActivity() {
     /**
      * Creates the JSON string based on the user's edits.
      */
-    private fun buildJsonPayload(name: String, type: String, stops: List<EditableStop>): String {
+    private fun buildJsonPayload(name: String, type: String, stops: List<EditableStop>, editNotes: String): String {
         val root = JSONObject()
         val service = JSONObject()
         service.put("serviceId", originalService?.serviceId ?: "NEW-${UUID.randomUUID()}")
@@ -334,6 +339,7 @@ class SuggestEditActivity : AppCompatActivity() {
 
         root.put("service", service)
         root.put("stops", stopsArray)
+        root.put("editNotes", editNotes)
         return root.toString(2) // Indent by 2 spaces for readability
     }
 }

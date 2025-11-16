@@ -50,9 +50,17 @@ class BusServiceAdapter(
                     binding.serviceIcon.setImageResource(R.drawable.ic_bus_superfast)
                     binding.serviceType.text = "Superfast"
                 }
+                "LIMITED STOP" -> {
+                    binding.serviceIcon.setImageResource(R.drawable.ic_bus_limited_stop)
+                    binding.serviceType.text = "Limited Stop"
+                }
+                "ORDINARY" -> {
+                    binding.serviceIcon.setImageResource(R.drawable.ic_bus_ordinary)
+                    binding.serviceType.text = "Ordinary"
+                }
                 else -> {
                     binding.serviceIcon.setImageResource(R.drawable.ic_bus_placeholder)
-                    binding.serviceType.text = "Ordinary"
+                    binding.serviceType.text = "Unspecified type"
                 }
             }
 

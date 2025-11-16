@@ -51,13 +51,13 @@
             android:exported="false"
             android:label="Suggest Edit"
             android:parentActivityName=".BusDetailsActivity"
-            android:theme="@style/Theme.SanchariApp" />
+            android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar" />
 
         <activity
             android:name=".ConfirmationActivity"
             android:exported="false"
             android:label="Confirm Suggestion"
-            android:theme="@style/Theme.SanchariApp" />
+            android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar" />
 
     </application>
 

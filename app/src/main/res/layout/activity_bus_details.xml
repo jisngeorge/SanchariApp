@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
     tools:context=".BusDetailsActivity">
 
     <com.google.android.material.appbar.AppBarLayout
@@ -126,6 +127,7 @@
                 android:visibility="gone"
                 tools:visibility="visible" />
 
+            <!-- RATINGS SECTION -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recyclerViewBusStops"
                 android:layout_width="match_parent"
@@ -134,7 +136,6 @@
                 android:nestedScrollingEnabled="false"
                 tools:listitem="@layout/item_bus_stop" />
 
-            <!-- RATINGS SECTION -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/ratingsCard"
                 android:layout_width="match_parent"
