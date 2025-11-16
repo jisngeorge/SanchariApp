@@ -65,14 +65,29 @@
             android:padding="12dp"
             android:text="Find Bus" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/buttonAddNewBus"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="Add a New Bus Service"
-            app:icon="@drawable/ic_add" />
+            android:orientation="vertical" >
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonAddNewBus"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Add a New Bus Service"
+                app:icon="@drawable/ic_add" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonCheckForUpdates"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Check for DB Updates" />
+
+        </LinearLayout>
 
         <TextView
             android:id="@+id/recentSearchesTitle"

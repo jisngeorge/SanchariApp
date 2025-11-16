@@ -55,7 +55,11 @@ class MainActivity : AppCompatActivity() {
             val intent = SuggestEditActivity.newIntentForNew(this)
             startActivity(intent)
         }
-        // --- END OF ADDITION ---
+
+        binding.buttonCheckForUpdates.setOnClickListener {
+            Toast.makeText(this, "Checking for updates...", Toast.LENGTH_SHORT).show()
+            checkForUpdates()
+        }
 
         setupRecentSearchesRecyclerView()
 
@@ -178,9 +182,6 @@ class MainActivity : AppCompatActivity() {
                         recentSearchAdapter.updateData(recentSearches)
                         // TODO: Show/hide a "No recent searches" text view
                     }
-
-                    // Now check for DB updates
-                    checkForUpdates()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading app data", e)

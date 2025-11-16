@@ -28,7 +28,7 @@ object NetworkManager {
     private val jsonParser = Json { ignoreUnknownKeys = true }
 
     // TODO: Move this to a central configuration or build config
-    private const val VERSION_JSON_URL = "https://your-static-host.com/path/to/version.json"
+    private const val VERSION_JSON_URL = "https://jisngeorge.github.io/SanchariVersions/versions.json"
 
     /**
      * Fetches and parses the version.json file from the server.
