@@ -4,10 +4,15 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.sanchari.bus.databinding.ItemCommentBinding
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class CommentAdapter(
     private var comments: List<UserComment>
 ) : RecyclerView.Adapter<CommentAdapter.CommentViewHolder>() {
+
+    private val outputFormat = SimpleDateFormat("dd-MMM-yyyy", Locale.getDefault())
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CommentViewHolder {
         val binding = ItemCommentBinding.inflate(
@@ -33,14 +38,16 @@ class CommentAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(comment: UserComment) {
-            // NEW: Check whether to show the username or "Anonymous"
-            if (comment.showUsername) {
-                binding.textViewUsername.text = comment.username.ifEmpty { "Anonymous" }
-            } else {
-                binding.textViewUsername.text = "Anonymous"
-            }
+            binding.textViewUsername.text = comment.username.ifEmpty { "Anonymous" }
 
-            binding.textViewCommentDate.text = comment.commentDate // You could format this date later
+            try {
+                // Multiply Unix time (seconds) by 1000L to get milliseconds
+                val date = Date(comment.commentDate * 1000L)
+                binding.textViewCommentDate.text = outputFormat.format(date)
+            } catch (e: Exception) {
+                // Fallback if timestamp is invalid
+                binding.textViewCommentDate.text = "---"
+            }
             binding.textViewCommentText.text = comment.commentText
         }
     }

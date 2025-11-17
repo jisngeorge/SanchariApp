@@ -8,6 +8,5 @@ data class UserComment(
     val serviceId: String,
     val username: String,
     val commentText: String,
-    val commentDate: String,
-    val showUsername: Boolean // NEW
+    val commentDate: Long
 )

@@ -73,7 +73,6 @@ object CommunityDataManager {
                 val usernameIndex = cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_USERNAME)
                 val commentTextIndex = cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_COMMENT_TEXT)
                 val commentDateIndex = cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_COMMENT_DATE)
-                val showUsernameIndex = cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_SHOW_USERNAME) // NEW
 
                 while (cursor.moveToNext()) {
                     val comment = UserComment(
@@ -81,8 +80,7 @@ object CommunityDataManager {
                         serviceId = cursor.getString(serviceIdIndex),
                         username = cursor.getString(usernameIndex),
                         commentText = cursor.getString(commentTextIndex),
-                        commentDate = cursor.getString(commentDateIndex),
-                        showUsername = cursor.getInt(showUsernameIndex) == 1 // NEW
+                        commentDate = cursor.getLong(commentDateIndex)
                     )
                     comments.add(comment)
                 }

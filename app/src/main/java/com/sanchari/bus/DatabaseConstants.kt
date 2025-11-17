@@ -115,7 +115,6 @@ object DatabaseConstants {
         const val COLUMN_USERNAME = "userName"
         const val COLUMN_COMMENT_TEXT = "commentText"
         const val COLUMN_COMMENT_DATE = "commentDate" // TEXT (ISO 8601)
-        const val COLUMN_SHOW_USERNAME = "showUsername" // NEW: INTEGER (0 or 1)
 
         const val CREATE_TABLE = """
             CREATE TABLE IF NOT EXISTS $TABLE_NAME (
@@ -123,8 +122,7 @@ object DatabaseConstants {
                 $COLUMN_SERVICE_ID TEXT NOT NULL,
                 $COLUMN_USERNAME TEXT,
                 $COLUMN_COMMENT_TEXT TEXT,
-                $COLUMN_COMMENT_DATE TEXT,
-                $COLUMN_SHOW_USERNAME INTEGER DEFAULT 1
+                $COLUMN_COMMENT_DATE TEXT
             )
         """
     }
