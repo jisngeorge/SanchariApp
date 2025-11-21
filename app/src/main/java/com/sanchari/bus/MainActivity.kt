@@ -33,9 +33,11 @@ class MainActivity : AppCompatActivity() {
             Log.i(TAG, "UserInfoActivity finished. Loading app data.")
             loadAppData()
         } else {
+            // --- FIXED: Break the loop ---
+            // If user cancels the mandatory setup, show a message and close the app.
             Log.w(TAG, "UserInfoActivity cancelled. User info is still incomplete.")
-            Toast.makeText(this, "Please complete your user info to use the app.", Toast.LENGTH_LONG).show()
-            loadAppData()
+            Toast.makeText(this, "User information is required. Exiting app.", Toast.LENGTH_SHORT).show()
+            finish() // Close MainActivity
         }
     }
 
@@ -182,6 +184,8 @@ class MainActivity : AppCompatActivity() {
                         recentSearchAdapter.updateData(recentSearches)
                         // TODO: Show/hide a "No recent searches" text view
                     }
+
+                    // REMOVED: checkForUpdates() call to stop auto-update on launch
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading app data", e)
@@ -321,4 +325,3 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
-
