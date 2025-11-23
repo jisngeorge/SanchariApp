@@ -1,5 +1,6 @@
 package com.sanchari.bus
 
+import android.content.Context // Added import
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,33 +15,37 @@ import java.io.File
 import java.io.IOException
 
 /**
- * Manages all network operations, such as fetching the
- * version.json file and downloading new database files.
+ * Manages all network operations.
  */
 object NetworkManager {
 
     private const val TAG = "NetworkManager"
-
-    // A single, reusable OkHttp client instance
     private val client = OkHttpClient()
-
-    // A single, reusable JSON parser instance
     private val jsonParser = Json { ignoreUnknownKeys = true }
 
-    // TODO: Move this to a central configuration or build config
-    private const val VERSION_JSON_URL = "https://jisngeorge.github.io/SanchariVersions/versions.json"
+    // --- DEFAULT HARDCODED URL (Fallback) ---
+    // TODO: Replace this with your GitHub Pages URL
+    private const val DEFAULT_VERSION_JSON_URL = "https://your-github-username.github.io/your-repo/version.json"
 
     /**
-     * Fetches and parses the version.json file from the server.
-     * This is a suspending function and must be called from a coroutine.
-     *
-     * @return A ServerVersionInfo object if successful, or null if an error occurs.
+     * Fetches version.json.
+     * Checks LocalVersionManager for a dynamic URL first.
      */
-    suspend fun fetchVersionInfo(): ServerVersionInfo? {
-        // Ensure this runs on the IO dispatcher for network operations
+    suspend fun fetchVersionInfo(context: Context): ServerVersionInfo? {
         return withContext(Dispatchers.IO) {
+
+            // 1. Determine which URL to use
+            val dynamicUrl = LocalVersionManager.getVersionsUrl(context)
+            val targetUrl = if (!dynamicUrl.isNullOrBlank()) {
+                Log.d(TAG, "Using dynamic versions URL: $dynamicUrl")
+                dynamicUrl
+            } else {
+                Log.d(TAG, "Using default versions URL: $DEFAULT_VERSION_JSON_URL")
+                DEFAULT_VERSION_JSON_URL
+            }
+
             val request = Request.Builder()
-                .url(VERSION_JSON_URL)
+                .url(targetUrl)
                 .build()
 
             try {
@@ -56,15 +61,12 @@ object NetworkManager {
                         return@withContext null
                     }
 
-                    // Parse the JSON string into our data class
                     return@withContext parseJson(responseBody.string())
                 }
             } catch (e: IOException) {
-                // This catches network failures (no connection, DNS issues)
                 Log.e(TAG, "Network failure when fetching version.json", e)
                 return@withContext null
             } catch (e: Exception) {
-                // Catches any other unexpected errors
                 Log.e(TAG, "Unexpected error fetching version.json", e)
                 return@withContext null
             }
@@ -73,11 +75,6 @@ object NetworkManager {
 
     /**
      * Downloads a file from the given URL and saves it to the target file.
-     * This is a suspending function and must be called from a coroutine.
-     *
-     * @param url The URL to download from.
-     * @param targetFile The file to save the download to.
-     * @return True if download was successful, false otherwise.
      */
     suspend fun downloadFile(url: String, targetFile: File): Boolean {
         return withContext(Dispatchers.IO) {
@@ -95,7 +92,6 @@ object NetworkManager {
                         return@withContext false
                     }
 
-                    // Write the file to disk
                     try {
                         targetFile.sink().buffer().use { sink: BufferedSink ->
                             sink.writeAll(body.source())
@@ -104,7 +100,6 @@ object NetworkManager {
                         return@withContext true
                     } catch (e: IOException) {
                         Log.e(TAG, "Failed to write downloaded file to disk: ${targetFile.name}", e)
-                        // Clean up the potentially corrupted temp file
                         if (targetFile.exists()) {
                             targetFile.delete()
                         }
@@ -121,9 +116,6 @@ object NetworkManager {
         }
     }
 
-    /**
-     * Parses the JSON response string into a ServerVersionInfo object.
-     */
     private fun parseJson(jsonString: String): ServerVersionInfo? {
         return try {
             jsonParser.decodeFromString<ServerVersionInfo>(jsonString)
@@ -136,18 +128,10 @@ object NetworkManager {
         }
     }
 
-    /**
-     * Logs detailed information about an unsuccessful HTTP response.
-     */
     private fun handleUnsuccessfulResponse(response: Response) {
         Log.e(
             TAG,
-            "Failed to fetch version.json. " +
-                    "Code: ${response.code}, " +
-                    "Message: ${response.message}"
+            "Failed to fetch. Code: ${response.code}, Message: ${response.message}"
         )
-        // You could also log response.body?.string() here,
-        // but be careful as it might be large.
     }
 }
-

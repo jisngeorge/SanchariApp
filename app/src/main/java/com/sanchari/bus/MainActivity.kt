@@ -3,6 +3,8 @@ package com.sanchari.bus
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.widget.ArrayAdapter
 import android.widget.Toast
@@ -23,6 +25,13 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "MainActivity"
+    }
+
+    // Wrapper class to display BusService nicely in AutoCompleteTextView
+    data class BusSearchItem(val service: BusService) {
+        override fun toString(): String {
+            return "${service.name} (${service.type})"
+        }
     }
 
     // Launcher for UserInfoActivity
@@ -61,6 +70,8 @@ class MainActivity : AppCompatActivity() {
             checkForUpdates()
         }
 
+        setupBusNameSearch() // --- NEW: Setup bus name search logic ---
+
         setupRecentSearchesRecyclerView()
 
         // --- Background Initialization ---
@@ -78,6 +89,53 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // --- NEW: Setup Bus Name AutoComplete ---
+    private fun setupBusNameSearch() {
+        val adapter = ArrayAdapter<BusSearchItem>(this, android.R.layout.simple_dropdown_item_1line)
+        binding.busNameAutocomplete.setAdapter(adapter)
+
+        binding.busNameAutocomplete.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val query = s.toString().trim()
+                if (query.length >= 1) { // Start searching after 1 character
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        val results = SearchManager.searchBusServicesByName(applicationContext, query)
+                        val searchItems = results.map { BusSearchItem(it) }
+
+                        withContext(Dispatchers.Main) {
+                            adapter.clear()
+                            adapter.addAll(searchItems)
+                            adapter.notifyDataSetChanged()
+                        }
+                    }
+                }
+            }
+
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        binding.busNameAutocomplete.setOnItemClickListener { parent, _, position, _ ->
+            val item = parent.getItemAtPosition(position) as BusSearchItem
+            val service = item.service
+
+            // Save to recent views
+            lifecycleScope.launch(Dispatchers.IO) {
+                UserDataManager.addRecentView(applicationContext, service.serviceId, service.name)
+            }
+
+            // Launch Details Activity directly
+            val intent = BusDetailsActivity.newIntent(this, service)
+            startActivity(intent)
+
+            // Clear the search bar
+            binding.busNameAutocomplete.setText("")
+        }
+    }
+    // --- END NEW ---
+
+    // --- NEW: Refresh recents every time the activity becomes visible ---
     override fun onResume() {
         super.onResume()
         refreshRecentSearches()
@@ -98,6 +156,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+    // --- END NEW ---
 
     /**
      * Sets up the RecyclerView for recent searches with an empty adapter.
@@ -205,7 +264,7 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     // Now check for DB updates
-                    checkForUpdates()
+                    // checkForUpdates() // Removed automatic check
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading app data", e)
@@ -223,11 +282,27 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 Log.i(TAG, "Checking for updates...")
-                val serverInfo = NetworkManager.fetchVersionInfo()
+
+                // --- UPDATED: Pass applicationContext to fetchVersionInfo ---
+                val serverInfo = NetworkManager.fetchVersionInfo(applicationContext)
+
                 if (serverInfo == null) {
                     Log.w(TAG, "Could not fetch server version info. Skipping update.")
                     return@launch
                 }
+
+                // --- NEW LOGIC: Check for dynamic configuration updates ---
+                // If the JSON contains a new URL for versions or community data, save it.
+                if (!serverInfo.versions.isNullOrBlank()) {
+                    Log.i(TAG, "Updating Versions URL to: ${serverInfo.versions}")
+                    LocalVersionManager.saveVersionsUrl(applicationContext, serverInfo.versions)
+                }
+
+                if (!serverInfo.communityData.isNullOrBlank()) {
+                    Log.i(TAG, "Updating Community Data URL to: ${serverInfo.communityData}")
+                    LocalVersionManager.saveCommunityUrl(applicationContext, serverInfo.communityData)
+                }
+                // --- END NEW LOGIC ---
 
                 val localTimetableVersion = LocalVersionManager.getTimetableDbVersion(applicationContext)
                 val localCommunityVersion = LocalVersionManager.getCommunityDbVersion(applicationContext)
@@ -249,6 +324,9 @@ class MainActivity : AppCompatActivity() {
                     }
                 } else {
                     Log.i(TAG, "No new updates.")
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@MainActivity, "App is up to date.", Toast.LENGTH_SHORT).show()
+                    }
                 }
 
             } catch (e: Exception) {

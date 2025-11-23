@@ -8,6 +8,10 @@ object LocalVersionManager {
 
     private const val PREFS_NAME = "SanchariBusPrefs"
 
+    // --- NEW KEYS ---
+    private const val KEY_DYNAMIC_VERSIONS_URL = "dynamic_versions_url"
+    private const val KEY_DYNAMIC_COMMUNITY_URL = "dynamic_community_url"
+
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
@@ -31,34 +35,37 @@ object LocalVersionManager {
 
     // --- Specific Getters for MainActivity ---
 
-    /**
-     * Gets the currently stored version of the Timetable database.
-     */
     fun getTimetableDbVersion(context: Context): Int {
         return getDbVersion(context, DatabaseConstants.TIMETABLE_DB_VERSION_KEY)
     }
 
-    /**
-     * Gets the currently stored version of the Community database.
-     */
     fun getCommunityDbVersion(context: Context): Int {
         return getDbVersion(context, DatabaseConstants.COMMUNITY_DB_VERSION_KEY)
     }
 
-    // --- ADDED MISSING FUNCTIONS for DatabaseManager ---
-
-    /**
-     * Saves the new version of the Timetable database.
-     */
     fun saveTimetableVersion(context: Context, version: Int) {
         setDbVersion(context, DatabaseConstants.TIMETABLE_DB_VERSION_KEY, version)
     }
 
-    /**
-     * Saves the new version of the Community database.
-     */
     fun saveCommunityVersion(context: Context, version: Int) {
         setDbVersion(context, DatabaseConstants.COMMUNITY_DB_VERSION_KEY, version)
     }
-}
 
+    // --- NEW: Dynamic URL Management ---
+
+    fun getVersionsUrl(context: Context): String? {
+        return getPrefs(context).getString(KEY_DYNAMIC_VERSIONS_URL, null)
+    }
+
+    fun saveVersionsUrl(context: Context, url: String) {
+        getPrefs(context).edit().putString(KEY_DYNAMIC_VERSIONS_URL, url).apply()
+    }
+
+    fun getCommunityUrl(context: Context): String? {
+        return getPrefs(context).getString(KEY_DYNAMIC_COMMUNITY_URL, null)
+    }
+
+    fun saveCommunityUrl(context: Context, url: String) {
+        getPrefs(context).edit().putString(KEY_DYNAMIC_COMMUNITY_URL, url).apply()
+    }
+}

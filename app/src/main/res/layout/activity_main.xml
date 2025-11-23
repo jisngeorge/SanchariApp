@@ -22,6 +22,7 @@
             android:gravity="center"
             android:layout_marginBottom="16dp" />
 
+        <!-- Route Search Section -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/fromInputLayout"
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
@@ -65,6 +66,27 @@
             android:padding="12dp"
             android:text="Find Bus" />
 
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/busNameInputLayout"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Or Search Bus by Name"
+            app:startIconDrawable="@drawable/ic_bus_placeholder"
+            app:endIconMode="clear_text"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="8dp">
+
+            <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                android:id="@+id/busNameAutocomplete"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="text"
+                android:completionThreshold="1"
+                android:minHeight="56dp"/>
+
+        </com.google.android.material.textfield.TextInputLayout>
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -85,7 +107,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Check for DB Updates" />
+                android:text="Check for Updates" />
 
         </LinearLayout>
 

@@ -4,24 +4,24 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.view.View
+import android.view.View // --- FIXED: Import for View.VISIBLE ---
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-// Updated import
 import com.sanchari.bus.databinding.ActivityConfirmBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+// --- FIXED: Imports for OkHttp and Extensions ---
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+// --- END FIXED ---
 
 class ConfirmationActivity : AppCompatActivity() {
 
-    // Updated binding type
     private lateinit var binding: ActivityConfirmBinding
     private var suggestionJson: String? = null
     private var currentUser: User? = null
@@ -39,14 +39,13 @@ class ConfirmationActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Updated binding inflation
         binding = ActivityConfirmBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         // Setup Toolbar
         binding.toolbar.setNavigationOnClickListener { finish() }
 
-        // Get the JSON payload from SuggestEditActivity
+        // Get the JSON payload
         suggestionJson = intent.getStringExtra(EXTRA_JSON_PAYLOAD)
         if (suggestionJson == null) {
             Log.e(TAG, "No JSON payload provided. Finishing activity.")
@@ -83,20 +82,19 @@ class ConfirmationActivity : AppCompatActivity() {
         val user = currentUser ?: return
         val json = suggestionJson ?: return
 
-        // --- 1. Get potentially updated user info ---
+        // 1. Get updated user info
         val newName = binding.editTextName.text.toString().trim()
         val newEmail = binding.editTextEmail.text.toString().trim()
         val newPhone = binding.editTextPhone.text.toString().trim()
         val newPlace = binding.editTextPlace.text.toString().trim()
 
-        // --- 2. Validate user info ---
+        // 2. Validate
         if (newName.isEmpty() || newEmail.isEmpty() || newPhone.isEmpty()) {
             Toast.makeText(this, "Please fill in your name, email, and phone.", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // --- 3. Check if user info changed and save if needed ---
-        var userSaveSuccess = true // Assume true if no changes
+        // 3. Save user info if changed
         if (user.name != newName || user.email != newEmail || user.phone != newPhone || user.place != newPlace) {
             val updatedUser = user.copy(
                 name = newName,
@@ -104,18 +102,12 @@ class ConfirmationActivity : AppCompatActivity() {
                 phone = newPhone,
                 place = newPlace
             )
-            // Launch this in a coroutine but we will wait for the result
             lifecycleScope.launch(Dispatchers.IO) {
-                userSaveSuccess = UserDataManager.saveUser(applicationContext, updatedUser)
-                if (userSaveSuccess) {
-                    Log.i(TAG, "User info updated in local database.")
-                } else {
-                    Log.e(TAG, "Failed to update user info.")
-                }
+                UserDataManager.saveUser(applicationContext, updatedUser)
             }
         }
 
-        // --- 4. Handle the final JSON submission ---
+        // 4. Create Final JSON
         val finalPayloadJson = """
             {
               "submittedBy": {
@@ -129,46 +121,30 @@ class ConfirmationActivity : AppCompatActivity() {
             }
         """.trimIndent()
 
-        // --- 5. Save the JSON to local storage ---
-        lifecycleScope.launch(Dispatchers.IO) {
-            val fileSaveSuccess = SuggestionStorageManager.saveSuggestion(applicationContext, finalPayloadJson)
+        // 5. Save Locally (Backup)
+        SuggestionStorageManager.saveSuggestion(applicationContext, finalPayloadJson)
 
-            // --- 6. Show success/error dialog on the main thread ---
-            withContext(Dispatchers.Main) {
-                if (fileSaveSuccess && userSaveSuccess) {
-                    // Show success dialog
-                    AlertDialog.Builder(this@ConfirmationActivity)
-                        .setTitle("Suggestion Saved")
-                        .setMessage("Thank you! Your suggestion has been saved locally. It will be submitted later.")
-                        .setPositiveButton("OK") { dialog, _ ->
-                            dialog.dismiss()
-                            // Finish this activity and SuggestEditActivity
-                            val intent = Intent(this@ConfirmationActivity, MainActivity::class.java)
-                            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
-                            startActivity(intent)
-                            finish()
-                        }
-                        .setCancelable(false)
-                        .show()
-                } else {
-                    // Show error dialog
-                    AlertDialog.Builder(this@ConfirmationActivity)
-                        .setTitle("Error")
-                        .setMessage("Could not save your suggestion. Please try again.")
-                        .setPositiveButton("OK", null)
-                        .show()
-                }
-            }
-        }
-
+        // 6. Upload to Google Sheet
         uploadToGoogleSheet(finalPayloadJson)
     }
 
     private fun uploadToGoogleSheet(jsonPayload: String) {
-        // PASTE YOUR GOOGLE SCRIPT URL HERE
-        val url = "https://script.google.com/macros/s/AKfycbyDLyr_WttKbklkys3Jim8K6u07XCytYUEi2RWY58EIKGlKzl1WZuhe5QVMDoajHP7x/exec"
+        // --- NEW LOGIC: Dynamic URL with Fallback ---
+        val defaultUrl = "https://script.google.com/macros/s/AKfycbyDLyr_WttKbklkys3Jim8K6u07XCytYUEi2RWY58EIKGlKzl1WZuhe5QVMDoajHP7x/exec" // Your hardcoded backup
+        val dynamicUrl = LocalVersionManager.getCommunityUrl(applicationContext)
 
-        binding.progressBar.visibility = View.VISIBLE // Assuming you have a progress bar
+        val url = if (!dynamicUrl.isNullOrBlank()) {
+            Log.d(TAG, "Using dynamic Community URL")
+            dynamicUrl
+        } else {
+            Log.d(TAG, "Using default Community URL")
+            defaultUrl
+        }
+        // --- END NEW LOGIC ---
+
+        // Show progress bar
+        binding.progressBar.visibility = View.VISIBLE
+        binding.buttonApplySuggestion.isEnabled = false // Prevent double clicks
 
         val mediaType = "application/json; charset=utf-8".toMediaType()
         val body = jsonPayload.toRequestBody(mediaType)
@@ -187,6 +163,8 @@ class ConfirmationActivity : AppCompatActivity() {
 
                     withContext(Dispatchers.Main) {
                         binding.progressBar.visibility = View.GONE
+                        binding.buttonApplySuggestion.isEnabled = true
+
                         if (response.isSuccessful) {
                             showSuccessDialog()
                         } else {
@@ -198,18 +176,19 @@ class ConfirmationActivity : AppCompatActivity() {
                 Log.e(TAG, "Upload failed", e)
                 withContext(Dispatchers.Main) {
                     binding.progressBar.visibility = View.GONE
-                    // If network fails, we still show success because we saved it locally!
-                    // You might want to change the text to "Saved offline. Will sync later."
-                    showSuccessDialog()
+                    binding.buttonApplySuggestion.isEnabled = true
+
+                    // If network fails, we treat it as a success because we saved it locally!
+                    showSuccessDialog("Saved offline. Will sync later.")
                 }
             }
         }
     }
 
-    private fun showSuccessDialog() {
+    private fun showSuccessDialog(message: String = "Your input has been submitted.") {
         AlertDialog.Builder(this)
             .setTitle("Thank You!")
-            .setMessage("Your input has been submitted.")
+            .setMessage(message)
             .setPositiveButton("OK") { dialog, _ ->
                 dialog.dismiss()
                 val intent = Intent(this, MainActivity::class.java)
@@ -225,4 +204,3 @@ class ConfirmationActivity : AppCompatActivity() {
         Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
     }
 }
-

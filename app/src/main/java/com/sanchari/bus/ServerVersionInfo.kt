@@ -9,7 +9,11 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ServerVersionInfo(
     val timetable: DatabaseVersion,
-    val community: DatabaseVersion
+    val community: DatabaseVersion,
+    // --- NEW OPTIONAL FIELDS ---
+    // If present, the app will update its local configuration to use these URLs
+    val versions: String? = null,      // URL for future version.json checks
+    val communityData: String? = null  // URL for uploading comments/ratings (Google Script)
 )
 
 @Serializable

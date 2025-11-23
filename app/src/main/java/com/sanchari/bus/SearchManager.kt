@@ -10,12 +10,10 @@ object SearchManager {
 
     /**
      * Finds bus services that travel from 'from' to 'to'.
-     *
-     * --- UPDATED LOGIC (NORMALIZED) ---
-     * This query now joins the new Stop and RouteStop tables.
-     * It still handles Shuttles and Halts correctly.
+     * ... (existing documentation) ...
      */
     fun findBusServices(context: Context, from: String, to: String): List<BusService> {
+        // ... (existing code unchanged) ...
         val results = mutableListOf<BusService>()
         val dbHelper = TimetableDatabaseHelper(context)
         val db = dbHelper.readableDatabase
@@ -26,6 +24,8 @@ object SearchManager {
                 bs.${DatabaseConstants.BusServiceTable.COLUMN_SERVICE_ID}, 
                 bs.${DatabaseConstants.BusServiceTable.COLUMN_NAME}, 
                 bs.${DatabaseConstants.BusServiceTable.COLUMN_TYPE}, 
+                bs.${DatabaseConstants.BusServiceTable.COLUMN_IS_RUNNING},
+                bs.${DatabaseConstants.BusServiceTable.COLUMN_LAST_REPORTED_TIME},
                 rs_from.${DatabaseConstants.RouteStopTable.COLUMN_SCHEDULED_TIME} AS fromTime,
                 rs_to.${DatabaseConstants.RouteStopTable.COLUMN_SCHEDULED_TIME} AS toTime
             FROM 
@@ -67,7 +67,6 @@ object SearchManager {
         """.trimIndent()
 
         try {
-            // Note: The "from" and "to" parameters are now used multiple times
             db.rawQuery(query, arrayOf(from, to, from, to)).use { cursor ->
                 if (cursor.moveToFirst()) {
                     val serviceIdIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_SERVICE_ID)
@@ -75,6 +74,8 @@ object SearchManager {
                     val typeIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_TYPE)
                     val fromTimeIndex = cursor.getColumnIndex("fromTime")
                     val toTimeIndex = cursor.getColumnIndex("toTime")
+                    val isRunningIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_IS_RUNNING)
+                    val lastReportedTimeIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_LAST_REPORTED_TIME)
 
                     do {
                         if (serviceIdIndex != -1 && nameIndex != -1 && typeIndex != -1 && fromTimeIndex != -1 && toTimeIndex != -1) {
@@ -83,16 +84,18 @@ object SearchManager {
                             val type = cursor.getString(typeIndex)
                             val fromTime = cursor.getString(fromTimeIndex)
                             val toTime = cursor.getString(toTimeIndex)
+                            val isRunning = if (isRunningIndex != -1) cursor.getInt(isRunningIndex) == 1 else true
+                            val lastReportedTime = if (lastReportedTimeIndex != -1) cursor.getLong(lastReportedTimeIndex) else 0L
 
                             results.add(
                                 BusService(
                                     serviceId = serviceId,
                                     name = name,
                                     type = type,
-                                    isRunning = true, // Placeholder
-                                    lastReportedTime = 0L, // Placeholder
-                                    fromTime = fromTime, // Added new field
-                                    toTime = toTime      // Added new field
+                                    isRunning = isRunning,
+                                    lastReportedTime = lastReportedTime,
+                                    fromTime = fromTime,
+                                    toTime = toTime
                                 )
                             )
                         }
@@ -111,10 +114,8 @@ object SearchManager {
 
     /**
      * Retrieves a single BusService object by its ID.
-     * This is needed to launch BusDetailsActivity from a recent search.
      */
     fun getBusServiceById(context: Context, serviceId: String): BusService? {
-        // This function logic does not need to change, as it only queries BusServiceTable
         val dbHelper = TimetableDatabaseHelper(context)
         val db = dbHelper.readableDatabase
         var busService: BusService? = null
@@ -149,12 +150,63 @@ object SearchManager {
         return busService
     }
 
+    // --- NEW FUNCTION ---
+    /**
+     * Searches for buses by name (partial match).
+     */
+    fun searchBusServicesByName(context: Context, query: String): List<BusService> {
+        val results = mutableListOf<BusService>()
+        val dbHelper = TimetableDatabaseHelper(context)
+        val db = dbHelper.readableDatabase
+
+        // Simple LIKE query
+        val sql = """
+            SELECT * FROM ${DatabaseConstants.BusServiceTable.TABLE_NAME}
+            WHERE ${DatabaseConstants.BusServiceTable.COLUMN_NAME} LIKE ?
+            LIMIT 20
+        """.trimIndent()
+
+        val selectionArgs = arrayOf("%$query%")
+
+        try {
+            db.rawQuery(sql, selectionArgs).use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val serviceIdIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_SERVICE_ID)
+                    val nameIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_NAME)
+                    val typeIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_TYPE)
+                    val isRunningIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_IS_RUNNING)
+                    val lastReportedTimeIndex = cursor.getColumnIndex(DatabaseConstants.BusServiceTable.COLUMN_LAST_REPORTED_TIME)
+
+                    do {
+                        results.add(
+                            BusService(
+                                serviceId = if (serviceIdIndex != -1) cursor.getString(serviceIdIndex) else "",
+                                name = if (nameIndex != -1) cursor.getString(nameIndex) else "Unknown",
+                                type = if (typeIndex != -1) cursor.getString(typeIndex) else "Unknown",
+                                isRunning = if (isRunningIndex != -1) cursor.getInt(isRunningIndex) == 1 else true,
+                                lastReportedTime = if (lastReportedTimeIndex != -1) cursor.getLong(lastReportedTimeIndex) else 0L,
+                                fromTime = "--:--",
+                                toTime = "--:--"
+                            )
+                        )
+                    } while (cursor.moveToNext())
+                }
+            }
+        } catch (e: SQLiteException) {
+            Log.e(TAG, "Error searching buses by name", e)
+        } finally {
+            db.close()
+        }
+        return results
+    }
+    // --- END NEW FUNCTION ---
+
 
     /**
      * Gets all stops for a specific bus service, ordered by stopOrder.
-     * --- UPDATED LOGIC (NORMALIZED) ---
      */
     fun getBusStops(context: Context, serviceId: String): List<BusStop> {
+        // ... (existing code unchanged) ...
         val stops = mutableListOf<BusStop>()
         val dbHelper = TimetableDatabaseHelper(context)
         val db = dbHelper.readableDatabase
@@ -191,6 +243,9 @@ object SearchManager {
                     val stopOrderIndex = cursor.getColumnIndex(DatabaseConstants.RouteStopTable.COLUMN_STOP_ORDER)
 
                     do {
+                        // --- ADDED: Null check with default value ---
+                        val scheduledTime = if (scheduledTimeIndex != -1) cursor.getString(scheduledTimeIndex) else null
+
                         stops.add(
                             BusStop(
                                 stopId = if (stopIdIndex != -1) cursor.getInt(stopIdIndex) else 0,
@@ -198,7 +253,7 @@ object SearchManager {
                                 locationName = if (locationNameIndex != -1) cursor.getString(locationNameIndex) else "Unknown Stop",
                                 latitude = if (latitudeIndex != -1) cursor.getDouble(latitudeIndex) else 0.0,
                                 longitude = if (longitudeIndex != -1) cursor.getDouble(longitudeIndex) else 0.0,
-                                scheduledTime = if (scheduledTimeIndex != -1) cursor.getString(scheduledTimeIndex) else "--:--",
+                                scheduledTime = scheduledTime ?: "--:--", // Fixed
                                 stopOrder = if (stopOrderIndex != -1) cursor.getInt(stopOrderIndex) else 0
                             )
                         )
@@ -217,9 +272,9 @@ object SearchManager {
 
     /**
      * Gets a distinct list of all stop names for autocomplete.
-     * --- UPDATED LOGIC (NORMALIZED) ---
      */
     fun getStopSuggestions(context: Context): List<String> {
+        // ... (existing code unchanged) ...
         val suggestions = mutableListOf<String>()
         val dbHelper = TimetableDatabaseHelper(context)
         val db = dbHelper.readableDatabase
