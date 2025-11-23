@@ -42,7 +42,15 @@ class BusServiceAdapter(
 
             // Set the icon based on the service type
             when (service.type.uppercase()) {
-                "FAST" -> {
+                "ORDINARY" -> {
+                    binding.serviceIcon.setImageResource(R.drawable.ic_bus_ordinary)
+                    binding.serviceType.text = "Ordinary"
+                }
+                "LIMITED STOP" -> {
+                    binding.serviceIcon.setImageResource(R.drawable.ic_bus_limited_stop)
+                    binding.serviceType.text = "Limited Stop"
+                }
+                "FAST PASSENGER" -> {
                     binding.serviceIcon.setImageResource(R.drawable.ic_bus_fast)
                     binding.serviceType.text = "Fast Passenger"
                 }
@@ -50,13 +58,17 @@ class BusServiceAdapter(
                     binding.serviceIcon.setImageResource(R.drawable.ic_bus_superfast)
                     binding.serviceType.text = "Superfast"
                 }
-                "LIMITED STOP" -> {
-                    binding.serviceIcon.setImageResource(R.drawable.ic_bus_limited_stop)
-                    binding.serviceType.text = "Limited Stop"
+                "EXPRESS" -> {
+                    binding.serviceIcon.setImageResource(R.drawable.ic_bus_express)
+                    binding.serviceType.text = "Express"
                 }
-                "ORDINARY" -> {
-                    binding.serviceIcon.setImageResource(R.drawable.ic_bus_ordinary)
-                    binding.serviceType.text = "Ordinary"
+                "DELUXE" -> {
+                    binding.serviceIcon.setImageResource(R.drawable.ic_bus_deluxe)
+                    binding.serviceType.text = "Super Deluxe"
+                }
+                "MINNAL" -> {
+                    binding.serviceIcon.setImageResource(R.drawable.ic_bus_minnal)
+                    binding.serviceType.text = "Minnal"
                 }
                 else -> {
                     binding.serviceIcon.setImageResource(R.drawable.ic_bus_placeholder)
@@ -66,11 +78,6 @@ class BusServiceAdapter(
 
             // Set the click listener for the whole item
             binding.root.setOnClickListener {
-                // --- REMOVED: GlobalScope.launch ---
-                // The database save is now handled in SearchResultsActivity
-                // using lifecycleScope, which is a safer practice.
-
-                // Notify the activity to handle the click
                 onItemClick(service)
             }
         }

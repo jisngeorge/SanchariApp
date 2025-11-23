@@ -33,11 +33,9 @@ class MainActivity : AppCompatActivity() {
             Log.i(TAG, "UserInfoActivity finished. Loading app data.")
             loadAppData()
         } else {
-            // --- FIXED: Break the loop ---
-            // If user cancels the mandatory setup, show a message and close the app.
             Log.w(TAG, "UserInfoActivity cancelled. User info is still incomplete.")
-            Toast.makeText(this, "User information is required. Exiting app.", Toast.LENGTH_SHORT).show()
-            finish() // Close MainActivity
+            Toast.makeText(this, "Please complete your user info to use the app.", Toast.LENGTH_LONG).show()
+            loadAppData()
         }
     }
 
@@ -76,6 +74,27 @@ class MainActivity : AppCompatActivity() {
             Log.i(TAG, "Loading app data...")
             withContext(Dispatchers.Main) {
                 loadAppData()
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshRecentSearches()
+    }
+
+    private fun refreshRecentSearches() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val recentSearches = UserDataManager.getRecentViews(applicationContext)
+                withContext(Dispatchers.Main) {
+                    // Ensure adapter is initialized before using it
+                    if (::recentSearchAdapter.isInitialized) {
+                        recentSearchAdapter.updateData(recentSearches)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error refreshing recent searches", e)
             }
         }
     }
@@ -185,7 +204,8 @@ class MainActivity : AppCompatActivity() {
                         // TODO: Show/hide a "No recent searches" text view
                     }
 
-                    // REMOVED: checkForUpdates() call to stop auto-update on launch
+                    // Now check for DB updates
+                    checkForUpdates()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading app data", e)

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -13,6 +14,10 @@ import com.sanchari.bus.databinding.ActivityConfirmBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
 class ConfirmationActivity : AppCompatActivity() {
 
@@ -155,6 +160,69 @@ class ConfirmationActivity : AppCompatActivity() {
                 }
             }
         }
+
+        uploadToGoogleSheet(finalPayloadJson)
+    }
+
+    private fun uploadToGoogleSheet(jsonPayload: String) {
+        // PASTE YOUR GOOGLE SCRIPT URL HERE
+        val url = "https://script.google.com/macros/s/AKfycbyDLyr_WttKbklkys3Jim8K6u07XCytYUEi2RWY58EIKGlKzl1WZuhe5QVMDoajHP7x/exec"
+
+        binding.progressBar.visibility = View.VISIBLE // Assuming you have a progress bar
+
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val body = jsonPayload.toRequestBody(mediaType)
+
+        val request = Request.Builder()
+            .url(url)
+            .post(body)
+            .build()
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val client = OkHttpClient()
+                client.newCall(request).execute().use { response ->
+                    val responseBody = response.body?.string()
+                    Log.i(TAG, "Google Sheet Response: $responseBody")
+
+                    withContext(Dispatchers.Main) {
+                        binding.progressBar.visibility = View.GONE
+                        if (response.isSuccessful) {
+                            showSuccessDialog()
+                        } else {
+                            showErrorDialog("Server error: ${response.code}")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Upload failed", e)
+                withContext(Dispatchers.Main) {
+                    binding.progressBar.visibility = View.GONE
+                    // If network fails, we still show success because we saved it locally!
+                    // You might want to change the text to "Saved offline. Will sync later."
+                    showSuccessDialog()
+                }
+            }
+        }
+    }
+
+    private fun showSuccessDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Thank You!")
+            .setMessage("Your input has been submitted.")
+            .setPositiveButton("OK") { dialog, _ ->
+                dialog.dismiss()
+                val intent = Intent(this, MainActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                startActivity(intent)
+                finish()
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun showErrorDialog(msg: String) {
+        Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
     }
 }
 

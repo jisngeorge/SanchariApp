@@ -98,7 +98,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:textSize="12sp"
-                android:text="Admin may contact you through the provided phone / email to clear any doubts; edits will go live within a week if it is approved."
+                android:text="Admin may contact you through the provided phone / email to clear doubts."
                 android:textAppearance="?attr/textAppearanceBodySmall"
                 android:textStyle="italic" />
 
@@ -111,6 +111,13 @@
 
         </LinearLayout>
     </ScrollView>
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
