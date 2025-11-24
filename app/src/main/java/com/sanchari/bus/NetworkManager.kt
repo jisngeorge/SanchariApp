@@ -1,6 +1,6 @@
 package com.sanchari.bus
 
-import android.content.Context // Added import
+import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,35 +14,27 @@ import okio.sink
 import java.io.File
 import java.io.IOException
 
-/**
- * Manages all network operations.
- */
 object NetworkManager {
 
     private const val TAG = "NetworkManager"
     private val client = OkHttpClient()
     private val jsonParser = Json { ignoreUnknownKeys = true }
 
-    // --- DEFAULT HARDCODED URL (Fallback) ---
-    // TODO: Replace this with your GitHub Pages URL
-    private const val DEFAULT_VERSION_JSON_URL = "https://your-github-username.github.io/your-repo/version.json"
-
     /**
-     * Fetches version.json.
-     * Checks LocalVersionManager for a dynamic URL first.
+     * Fetches version.json using the URL stored in SharedPreferences.
      */
     suspend fun fetchVersionInfo(context: Context): ServerVersionInfo? {
         return withContext(Dispatchers.IO) {
 
-            // 1. Determine which URL to use
-            val dynamicUrl = LocalVersionManager.getVersionsUrl(context)
-            val targetUrl = if (!dynamicUrl.isNullOrBlank()) {
-                Log.d(TAG, "Using dynamic versions URL: $dynamicUrl")
-                dynamicUrl
-            } else {
-                Log.d(TAG, "Using default versions URL: $DEFAULT_VERSION_JSON_URL")
-                DEFAULT_VERSION_JSON_URL
+            // Get URL from local config
+            val targetUrl = LocalVersionManager.getVersionsUrl(context)
+
+            if (targetUrl.isNullOrBlank()) {
+                Log.e(TAG, "No versions URL found in configuration.")
+                return@withContext null
             }
+
+            Log.d(TAG, "Fetching version info from: $targetUrl")
 
             val request = Request.Builder()
                 .url(targetUrl)
@@ -73,9 +65,6 @@ object NetworkManager {
         }
     }
 
-    /**
-     * Downloads a file from the given URL and saves it to the target file.
-     */
     suspend fun downloadFile(url: String, targetFile: File): Boolean {
         return withContext(Dispatchers.IO) {
             val request = Request.Builder().url(url).build()

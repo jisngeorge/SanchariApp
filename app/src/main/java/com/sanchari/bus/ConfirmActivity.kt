@@ -129,18 +129,14 @@ class ConfirmationActivity : AppCompatActivity() {
     }
 
     private fun uploadToGoogleSheet(jsonPayload: String) {
-        // --- NEW LOGIC: Dynamic URL with Fallback ---
-        val defaultUrl = "https://script.google.com/macros/s/AKfycbyDLyr_WttKbklkys3Jim8K6u07XCytYUEi2RWY58EIKGlKzl1WZuhe5QVMDoajHP7x/exec" // Your hardcoded backup
-        val dynamicUrl = LocalVersionManager.getCommunityUrl(applicationContext)
+        // Get URL from local config
+        val url = LocalVersionManager.getCommunityUrl(applicationContext)
 
-        val url = if (!dynamicUrl.isNullOrBlank()) {
-            Log.d(TAG, "Using dynamic Community URL")
-            dynamicUrl
-        } else {
-            Log.d(TAG, "Using default Community URL")
-            defaultUrl
+        if (url.isNullOrBlank()) {
+            Log.e(TAG, "No Community URL found in configuration.")
+            showErrorDialog("Configuration error: Upload URL missing.")
+            return
         }
-        // --- END NEW LOGIC ---
 
         // Show progress bar
         binding.progressBar.visibility = View.VISIBLE
