@@ -9,5 +9,6 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class AppConfig(
     val remoteVersionsUrl: String,
-    val communityDataUrl: String
+    val communityDataUrl: String,
+    val latestAppUrl: String? = null
 )

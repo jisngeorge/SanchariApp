@@ -79,6 +79,24 @@ class MainActivity : AppCompatActivity() {
             checkForUpdates(forceCheck = true, initialTimetableVersion, initialCommunityVersion)
         }
 
+        binding.buttonShareApp.setOnClickListener {
+            val appUrl = LocalVersionManager.getLatestAppUrl(this)
+            if (!appUrl.isNullOrBlank()) {
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, "Check out Sanchari Bus App")
+                    putExtra(Intent.EXTRA_TEXT, "Download the Sanchari Bus App here: $appUrl")
+                }
+                startActivity(Intent.createChooser(shareIntent, "Share App via"))
+            } else {
+                Toast.makeText(this, "Update link not available yet. Please check for updates first.", Toast.LENGTH_LONG).show()
+                // Optionally trigger an update check here automatically
+                val currentT = LocalVersionManager.getTimetableDbVersion(applicationContext)
+                val currentC = LocalVersionManager.getCommunityDbVersion(applicationContext)
+                checkForUpdates(forceCheck = true, currentT, currentC)
+            }
+        }
+
         setupBusNameSearch()
 
         setupRecentSearchesRecyclerView()
@@ -317,6 +335,10 @@ class MainActivity : AppCompatActivity() {
                 }
                 if (!serverInfo.communityData.isNullOrBlank()) {
                     LocalVersionManager.saveCommunityUrl(applicationContext, serverInfo.communityData)
+                }
+
+                if (serverInfo.app != null && !serverInfo.app.url.isNullOrBlank()) {
+                    LocalVersionManager.saveLatestAppUrl(applicationContext, serverInfo.app.url)
                 }
 
                 // --- NEW: CHECK FOR APP UPDATE ---

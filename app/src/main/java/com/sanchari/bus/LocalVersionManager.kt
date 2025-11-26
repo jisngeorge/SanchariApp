@@ -14,6 +14,7 @@ object LocalVersionManager {
     private const val KEY_DYNAMIC_VERSIONS_URL = "dynamic_versions_url"
     private const val KEY_DYNAMIC_COMMUNITY_URL = "dynamic_community_url"
     private const val KEY_LAST_UPDATE_CHECK = "last_update_check_timestamp"
+    private const val KEY_LATEST_APP_URL = "latest_app_url"
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -108,5 +109,13 @@ object LocalVersionManager {
 
     fun saveLastUpdateCheckTime(context: Context, time: Long) {
         getPrefs(context).edit().putLong(KEY_LAST_UPDATE_CHECK, time).apply()
+    }
+
+    fun getLatestAppUrl(context: Context): String? {
+        return getPrefs(context).getString(KEY_LATEST_APP_URL, null)
+    }
+
+    fun saveLatestAppUrl(context: Context, url: String) {
+        getPrefs(context).edit().putString(KEY_LATEST_APP_URL, url).apply()
     }
 }

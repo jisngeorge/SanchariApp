@@ -31,11 +31,19 @@ object DatabaseManager {
         }
     }
 
+    /**
+     * Reads app_config.json from assets and saves the URLs to SharedPreferences
+     * if they are not already set.
+     */
     private fun initializeAppConfig(context: Context) {
         val currentVersionsUrl = LocalVersionManager.getVersionsUrl(context)
         val currentCommunityUrl = LocalVersionManager.getCommunityUrl(context)
+        val currentAppUrl = LocalVersionManager.getLatestAppUrl(context) // --- CHECK EXISTING ---
 
-        if (!currentVersionsUrl.isNullOrBlank() && !currentCommunityUrl.isNullOrBlank()) {
+        // If all are set, skip loading assets
+        if (!currentVersionsUrl.isNullOrBlank() &&
+            !currentCommunityUrl.isNullOrBlank() &&
+            !currentAppUrl.isNullOrBlank()) {
             return
         }
 
@@ -51,11 +59,21 @@ object DatabaseManager {
                 LocalVersionManager.saveCommunityUrl(context, config.communityDataUrl)
             }
 
+            // --- NEW: SAVE DEFAULT APP URL ---
+            if (currentAppUrl.isNullOrBlank() && !config.latestAppUrl.isNullOrBlank()) {
+                LocalVersionManager.saveLatestAppUrl(context, config.latestAppUrl)
+                Log.i(TAG, "Initialized Default App URL: ${config.latestAppUrl}")
+            }
+            // -------------------------------
+
         } catch (e: Exception) {
             Log.e(TAG, "Failed to load app_config.json", e)
         }
     }
 
+    /**
+     * Downloads a new database file, verifies it, and replaces the old one.
+     */
     suspend fun downloadAndReplaceDatabase(
         context: Context,
         dbName: String,
@@ -119,8 +137,6 @@ object DatabaseManager {
                     }
                 }
                 Log.i(TAG, "Successfully copied database $dbName from assets.")
-                // Note: We don't set versions here anymore.
-                // The syncVersionsFromDbFiles() call in initializeDatabases will handle it.
 
             } catch (e: IOException) {
                 Log.e(TAG, "Failed to copy database $dbName from assets", e)
