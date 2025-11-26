@@ -38,6 +38,7 @@ android {
     // Enable View Binding (optional but recommended for XML)
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 }
 

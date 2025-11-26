@@ -33,7 +33,7 @@
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Bus Service Name (e.g., Town to Town)">
+                android:hint="Bus Service Name">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/editTextServiceName"
@@ -47,7 +47,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="Bus Type (e.g., Fast, Superfast)">
+                android:hint="Bus Type (eg. Ordinary, LS, FP)">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/editTextServiceType"

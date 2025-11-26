@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- This allows sharing files in the app's cache directory -->
+    <cache-path name="my_cache" path="." />
+    <!-- Alternatively, use external-path if you save to Downloads -->
+    <external-path name="my_download" path="." />
+</paths>

@@ -4,6 +4,7 @@
 
     <!-- Added Internet permission for OkHttp -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:allowBackup="false"
@@ -58,6 +59,17 @@
             android:exported="false"
             android:label="Confirm Suggestion"
             android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar" />
+
+        <!-- FileProvider Configuration -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/provider_paths" />
+        </provider>
 
     </application>
 
