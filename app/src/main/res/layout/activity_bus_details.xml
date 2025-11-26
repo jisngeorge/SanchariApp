@@ -212,7 +212,7 @@
                             android:layout_width="100dp"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
-                            android:text="Driving" />
+                            android:text="Driving and Comfort" />
 
                         <RatingBar
                             android:id="@+id/ratingBarDrive"

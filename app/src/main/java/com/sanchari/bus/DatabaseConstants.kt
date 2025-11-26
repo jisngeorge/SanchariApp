@@ -18,8 +18,22 @@ object DatabaseConstants {
     const val TIMETABLE_DB_VERSION_KEY = "timetable_db_version"
     const val COMMUNITY_DB_VERSION_KEY = "community_db_version"
 
+    // --- NEW TABLE: DbVersion ---
+    // This table holds the content version.
+    // It should have one row: { "version": 102 }
+    object VersionTable {
+        const val TABLE_NAME = "DbVersion"
+        const val COLUMN_VERSION = "version" // INTEGER
+
+        const val CREATE_TABLE = """
+            CREATE TABLE IF NOT EXISTS $TABLE_NAME (
+                $COLUMN_VERSION INTEGER
+            )
+        """
+    }
 
     // --- Table: BusService (TimetableDatabase) ---
+// ... (rest of file unchanged) ...
     object BusServiceTable {
         const val TABLE_NAME = "BusService"
         const val COLUMN_SERVICE_ID = "serviceId" // PK, TEXT
@@ -38,8 +52,6 @@ object DatabaseConstants {
             )
         """
     }
-
-    // --- (REMOVED) Old BusStopTable ---
 
     // --- NEW TABLE: Stop (TimetableDatabase) ---
     /**
@@ -86,7 +98,6 @@ object DatabaseConstants {
         """
     }
 
-
     // --- Table: BusRating (CommunityDatabase) ---
     object BusRatingTable {
         const val TABLE_NAME = "BusRating"
@@ -114,7 +125,8 @@ object DatabaseConstants {
         const val COLUMN_SERVICE_ID = "serviceId" // FK, TEXT
         const val COLUMN_USERNAME = "userName"
         const val COLUMN_COMMENT_TEXT = "commentText"
-        const val COLUMN_COMMENT_DATE = "commentDate" // TEXT (ISO 8601)
+        const val COLUMN_COMMENT_DATE = "commentDate" // INTEGER (Unix Time)
+        // --- REMOVED showUsername constant ---
 
         const val CREATE_TABLE = """
             CREATE TABLE IF NOT EXISTS $TABLE_NAME (
@@ -122,7 +134,7 @@ object DatabaseConstants {
                 $COLUMN_SERVICE_ID TEXT NOT NULL,
                 $COLUMN_USERNAME TEXT,
                 $COLUMN_COMMENT_TEXT TEXT,
-                $COLUMN_COMMENT_DATE TEXT
+                $COLUMN_COMMENT_DATE INTEGER
             )
         """
     }
@@ -157,7 +169,6 @@ object DatabaseConstants {
         const val COLUMN_SERVICE_NAME = "serviceName"
         const val COLUMN_VIEWED_TIMESTAMP = "viewedTimestamp" // Long
 
-        // --- THIS IS THE FIX ---
         // Added "DEFAULT CURRENT_TIMESTAMP" to the timestamp column
         const val CREATE_TABLE = """
             CREATE TABLE IF NOT EXISTS $TABLE_NAME (

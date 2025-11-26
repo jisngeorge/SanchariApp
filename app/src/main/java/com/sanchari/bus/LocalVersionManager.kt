@@ -11,88 +11,78 @@ object LocalVersionManager {
     private const val PREFS_NAME = "SanchariBusPrefs"
     private const val TAG = "LocalVersionManager"
 
-    // Keys for Dynamic URLs (Still stored in Prefs)
     private const val KEY_DYNAMIC_VERSIONS_URL = "dynamic_versions_url"
     private const val KEY_DYNAMIC_COMMUNITY_URL = "dynamic_community_url"
+    private const val KEY_LAST_UPDATE_CHECK = "last_update_check_timestamp"
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    // --- DB HEADER VERSION LOGIC (Replaces Prefs logic) ---
-
     /**
-     * reads the internal version number from the SQLite file header.
-     * Returns 0 if file doesn't exist or can't be read.
+     * Syncs the versions stored in the database files (DbVersion table)
+     * into SharedPreferences. Call this after DB initialization or download.
      */
-    private fun getDbHeaderVersion(context: Context, dbName: String): Int {
-        val dbPath = context.getDatabasePath(dbName)
-        if (!dbPath.exists()) {
-            Log.d(TAG, "Database $dbName does not exist. Returning version 0.")
-            return 0
-        }
+    fun syncVersionsFromDbFiles(context: Context) {
+        val tVersion = readVersionFromDbFile(context, DatabaseConstants.TIMETABLE_DATABASE_NAME)
+        val cVersion = readVersionFromDbFile(context, DatabaseConstants.COMMUNITY_DATABASE_NAME)
 
-        return try {
-            // Open DB just to read the version header
-            SQLiteDatabase.openDatabase(
-                dbPath.absolutePath,
-                null,
-                SQLiteDatabase.OPEN_READONLY
-            ).use { db ->
-                Log.v(TAG, "Read $dbName header version: ${db.version}")
-                db.version
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to read version from $dbName header", e)
-            0
-        }
+        if (tVersion > 0) saveTimetableVersion(context, tVersion)
+        if (cVersion > 0) saveCommunityVersion(context, cVersion)
     }
 
     /**
-     * Writes the version number into the SQLite file header.
+     * Queries the 'DbVersion' table in the given database file to find the content version.
      */
-    private fun setDbHeaderVersion(context: Context, dbName: String, version: Int) {
+    private fun readVersionFromDbFile(context: Context, dbName: String): Int {
         val dbPath = context.getDatabasePath(dbName)
-        if (!dbPath.exists()) {
-            Log.e(TAG, "Cannot set version for $dbName: File not found.")
-            return
-        }
+        if (!dbPath.exists()) return 0
 
+        var version = 0
         try {
-            SQLiteDatabase.openDatabase(
-                dbPath.absolutePath,
-                null,
-                SQLiteDatabase.OPEN_READWRITE
-            ).use { db ->
-                db.version = version // This executes 'PRAGMA user_version = X'
-                Log.i(TAG, "Updated $dbName header to version $version")
+            SQLiteDatabase.openDatabase(dbPath.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { db ->
+                // Check if table exists first to avoid crash on old/empty DBs
+                val cursor = db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='${DatabaseConstants.VersionTable.TABLE_NAME}'", null)
+                if (cursor.count > 0) {
+                    cursor.close()
+                    val vCursor = db.rawQuery("SELECT ${DatabaseConstants.VersionTable.COLUMN_VERSION} FROM ${DatabaseConstants.VersionTable.TABLE_NAME} LIMIT 1", null)
+                    if (vCursor.moveToFirst()) {
+                        version = vCursor.getInt(0)
+                        Log.i(TAG, "Read content version $version from $dbName")
+                    }
+                    vCursor.close()
+                } else {
+                    cursor.close()
+                    Log.w(TAG, "Version table not found in $dbName")
+                }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to set version in $dbName header", e)
+            Log.e(TAG, "Failed to read version from table in $dbName", e)
         }
+        return version
     }
 
-    // --- Specific Getters (Now use DB Header) ---
+    // --- Getters (Read from SharedPreferences) ---
 
     fun getTimetableDbVersion(context: Context): Int {
-        return getDbHeaderVersion(context, DatabaseConstants.TIMETABLE_DATABASE_NAME)
+        return getPrefs(context).getInt(DatabaseConstants.TIMETABLE_DB_VERSION_KEY, 0)
     }
 
     fun getCommunityDbVersion(context: Context): Int {
-        return getDbHeaderVersion(context, DatabaseConstants.COMMUNITY_DATABASE_NAME)
+        return getPrefs(context).getInt(DatabaseConstants.COMMUNITY_DB_VERSION_KEY, 0)
     }
 
-    // --- Specific Setters (Now use DB Header) ---
+    // --- Setters (Write to SharedPreferences) ---
 
-    fun saveTimetableVersion(context: Context, version: Int) {
-        setDbHeaderVersion(context, DatabaseConstants.TIMETABLE_DATABASE_NAME, version)
+    private fun saveTimetableVersion(context: Context, version: Int) {
+        getPrefs(context).edit().putInt(DatabaseConstants.TIMETABLE_DB_VERSION_KEY, version).apply()
     }
 
-    fun saveCommunityVersion(context: Context, version: Int) {
-        setDbHeaderVersion(context, DatabaseConstants.COMMUNITY_DATABASE_NAME, version)
+    private fun saveCommunityVersion(context: Context, version: Int) {
+        getPrefs(context).edit().putInt(DatabaseConstants.COMMUNITY_DB_VERSION_KEY, version).apply()
     }
 
-    // --- Dynamic URL Management (Remains in SharedPreferences) ---
+    // --- Dynamic URL Management ---
 
     fun getVersionsUrl(context: Context): String? {
         return getPrefs(context).getString(KEY_DYNAMIC_VERSIONS_URL, null)
@@ -108,5 +98,15 @@ object LocalVersionManager {
 
     fun saveCommunityUrl(context: Context, url: String) {
         getPrefs(context).edit().putString(KEY_DYNAMIC_COMMUNITY_URL, url).apply()
+    }
+
+    // --- Update Check Timestamp Management ---
+
+    fun getLastUpdateCheckTime(context: Context): Long {
+        return getPrefs(context).getLong(KEY_LAST_UPDATE_CHECK, 0L)
+    }
+
+    fun saveLastUpdateCheckTime(context: Context, time: Long) {
+        getPrefs(context).edit().putLong(KEY_LAST_UPDATE_CHECK, time).apply()
     }
 }

@@ -17,6 +17,7 @@ import com.sanchari.bus.databinding.ActivityMainBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Date
 
 class MainActivity : AppCompatActivity() {
 
@@ -25,6 +26,8 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "MainActivity"
+        // 7 days in milliseconds: 7 * 24 * 60 * 60 * 1000
+        private const val UPDATE_INTERVAL_MS = 604800000L
     }
 
     // Wrapper class to display BusService nicely in AutoCompleteTextView
@@ -43,8 +46,8 @@ class MainActivity : AppCompatActivity() {
             loadAppData()
         } else {
             Log.w(TAG, "UserInfoActivity cancelled. User info is still incomplete.")
-            Toast.makeText(this, "Please complete your user info to use the app.", Toast.LENGTH_LONG).show()
-            loadAppData()
+            Toast.makeText(this, "User information is required. Exiting app.", Toast.LENGTH_SHORT).show()
+            finish() // Close MainActivity
         }
     }
 
@@ -67,10 +70,11 @@ class MainActivity : AppCompatActivity() {
 
         binding.buttonCheckForUpdates.setOnClickListener {
             Toast.makeText(this, "Checking for updates...", Toast.LENGTH_SHORT).show()
-            checkForUpdates()
+            // Force update on manual click
+            checkForUpdates(forceCheck = true)
         }
 
-        setupBusNameSearch() // --- NEW: Setup bus name search logic ---
+        setupBusNameSearch()
 
         setupRecentSearchesRecyclerView()
 
@@ -89,7 +93,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // --- NEW: Setup Bus Name AutoComplete ---
+    // --- Setup Bus Name AutoComplete ---
     private fun setupBusNameSearch() {
         val adapter = ArrayAdapter<BusSearchItem>(this, android.R.layout.simple_dropdown_item_1line)
         binding.busNameAutocomplete.setAdapter(adapter)
@@ -133,9 +137,8 @@ class MainActivity : AppCompatActivity() {
             binding.busNameAutocomplete.setText("")
         }
     }
-    // --- END NEW ---
 
-    // --- NEW: Refresh recents every time the activity becomes visible ---
+    // --- Refresh recents every time the activity becomes visible ---
     override fun onResume() {
         super.onResume()
         refreshRecentSearches()
@@ -156,7 +159,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-    // --- END NEW ---
 
     /**
      * Sets up the RecyclerView for recent searches with an empty adapter.
@@ -249,7 +251,7 @@ class MainActivity : AppCompatActivity() {
 
                 if (user.name.isBlank() || user.email.isBlank() || user.phone.isBlank()) {
                     Log.i(TAG, "User info incomplete. Launching UserInfoActivity.")
-                    withContext(Dispatchers.Main) { // Corrected Dispatchers.Main
+                    withContext(Dispatchers.Main) {
                         val intent = Intent(this@MainActivity, UserInfoActivity::class.java)
                         userInfoLauncher.launch(intent)
                     }
@@ -260,11 +262,10 @@ class MainActivity : AppCompatActivity() {
                     val recentSearches = UserDataManager.getRecentViews(applicationContext)
                     withContext(Dispatchers.Main) {
                         recentSearchAdapter.updateData(recentSearches)
-                        // TODO: Show/hide a "No recent searches" text view
                     }
 
-                    // Now check for DB updates
-                    // checkForUpdates() // Removed automatic check
+                    // Now check for DB updates (Automatic check = false)
+                    checkForUpdates(forceCheck = false)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading app data", e)
@@ -277,32 +278,46 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * Fetches version info from the server and compares it with local versions.
+     * @param forceCheck If true, ignores the 7-day interval rule.
      */
-    private fun checkForUpdates() {
+    private fun checkForUpdates(forceCheck: Boolean) {
         lifecycleScope.launch(Dispatchers.IO) {
+
+            // --- Frequency Check Logic ---
+            if (!forceCheck) {
+                val lastCheckTime = LocalVersionManager.getLastUpdateCheckTime(applicationContext)
+                val currentTime = System.currentTimeMillis()
+                val timeSinceLastCheck = currentTime - lastCheckTime
+
+                if (timeSinceLastCheck < UPDATE_INTERVAL_MS) {
+                    Log.i(TAG, "Skipping update check. Last check was ${Date(lastCheckTime)}. Next check in ${(UPDATE_INTERVAL_MS - timeSinceLastCheck) / 1000 / 60 / 60} hours.")
+                    return@launch
+                }
+            }
+
             try {
                 Log.i(TAG, "Checking for updates...")
-
-                // --- UPDATED: Pass applicationContext to fetchVersionInfo ---
                 val serverInfo = NetworkManager.fetchVersionInfo(applicationContext)
 
                 if (serverInfo == null) {
                     Log.w(TAG, "Could not fetch server version info. Skipping update.")
+                    // Don't update timestamp if fetch failed
                     return@launch
                 }
 
-                // --- NEW LOGIC: Check for dynamic configuration updates ---
-                // If the JSON contains a new URL for versions or community data, save it.
+                // --- FIXED: Save timestamp ONLY after successful fetch ---
+                LocalVersionManager.saveLastUpdateCheckTime(applicationContext, System.currentTimeMillis())
+                // --------------------------------------------------------
+
+                // --- Dynamic configuration updates ---
                 if (!serverInfo.versions.isNullOrBlank()) {
                     Log.i(TAG, "Updating Versions URL to: ${serverInfo.versions}")
                     LocalVersionManager.saveVersionsUrl(applicationContext, serverInfo.versions)
                 }
-
                 if (!serverInfo.communityData.isNullOrBlank()) {
                     Log.i(TAG, "Updating Community Data URL to: ${serverInfo.communityData}")
                     LocalVersionManager.saveCommunityUrl(applicationContext, serverInfo.communityData)
                 }
-                // --- END NEW LOGIC ---
 
                 val localTimetableVersion = LocalVersionManager.getTimetableDbVersion(applicationContext)
                 val localCommunityVersion = LocalVersionManager.getCommunityDbVersion(applicationContext)
@@ -324,8 +339,11 @@ class MainActivity : AppCompatActivity() {
                     }
                 } else {
                     Log.i(TAG, "No new updates.")
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivity, "App is up to date.", Toast.LENGTH_SHORT).show()
+                    // Only show toast if user clicked the button
+                    if (forceCheck) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(this@MainActivity, "App is up to date.", Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
 
