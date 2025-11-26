@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.view.View // --- FIXED: Import for View.VISIBLE ---
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -13,12 +13,6 @@ import com.sanchari.bus.databinding.ActivityConfirmBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-// --- FIXED: Imports for OkHttp and Extensions ---
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-// --- END FIXED ---
 
 class ConfirmationActivity : AppCompatActivity() {
 
@@ -121,67 +115,39 @@ class ConfirmationActivity : AppCompatActivity() {
             }
         """.trimIndent()
 
-        // 5. Save Locally (Backup)
-        SuggestionStorageManager.saveSuggestion(applicationContext, finalPayloadJson)
-
-        // 6. Upload to Google Sheet
-        uploadToGoogleSheet(finalPayloadJson)
+        // --- UPDATED LOGIC: Try Upload, Save on Failure ---
+        uploadOrSave(finalPayloadJson)
     }
 
-    private fun uploadToGoogleSheet(jsonPayload: String) {
-        // Get URL from local config
-        val url = LocalVersionManager.getCommunityUrl(applicationContext)
-
-        if (url.isNullOrBlank()) {
-            Log.e(TAG, "No Community URL found in configuration.")
-            showErrorDialog("Configuration error: Upload URL missing.")
-            return
-        }
-
+    private fun uploadOrSave(jsonPayload: String) {
         // Show progress bar
         binding.progressBar.visibility = View.VISIBLE
-        binding.buttonApplySuggestion.isEnabled = false // Prevent double clicks
-
-        val mediaType = "application/json; charset=utf-8".toMediaType()
-        val body = jsonPayload.toRequestBody(mediaType)
-
-        val request = Request.Builder()
-            .url(url)
-            .post(body)
-            .build()
+        binding.buttonApplySuggestion.isEnabled = false
 
         lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val client = OkHttpClient()
-                client.newCall(request).execute().use { response ->
-                    val responseBody = response.body?.string()
-                    Log.i(TAG, "Google Sheet Response: $responseBody")
+            // Try to upload using the NetworkManager
+            val success = NetworkManager.uploadDataToGoogleSheet(applicationContext, jsonPayload)
 
-                    withContext(Dispatchers.Main) {
-                        binding.progressBar.visibility = View.GONE
-                        binding.buttonApplySuggestion.isEnabled = true
+            withContext(Dispatchers.Main) {
+                binding.progressBar.visibility = View.GONE
+                binding.buttonApplySuggestion.isEnabled = true
 
-                        if (response.isSuccessful) {
-                            showSuccessDialog()
-                        } else {
-                            showErrorDialog("Server error: ${response.code}")
-                        }
+                if (success) {
+                    showSuccessDialog("Your suggestion has been submitted successfully.")
+                } else {
+                    // If upload fails, save locally
+                    val savedLocally = SuggestionStorageManager.saveSuggestion(applicationContext, jsonPayload)
+                    if (savedLocally) {
+                        showSuccessDialog("Network unavailable. Suggestion saved offline and will sync later.")
+                    } else {
+                        showErrorDialog("Failed to submit or save suggestion.")
                     }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Upload failed", e)
-                withContext(Dispatchers.Main) {
-                    binding.progressBar.visibility = View.GONE
-                    binding.buttonApplySuggestion.isEnabled = true
-
-                    // If network fails, we treat it as a success because we saved it locally!
-                    showSuccessDialog("Saved offline. Will sync later.")
                 }
             }
         }
     }
 
-    private fun showSuccessDialog(message: String = "Your input has been submitted.") {
+    private fun showSuccessDialog(message: String) {
         AlertDialog.Builder(this)
             .setTitle("Thank You!")
             .setMessage(message)

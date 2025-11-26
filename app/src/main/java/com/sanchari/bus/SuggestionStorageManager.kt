@@ -14,26 +14,18 @@ object SuggestionStorageManager {
 
     /**
      * Saves the given JSON string to a new file in the app's internal storage.
-     *
-     * @param context The application context.
-     * @param jsonPayload The JSON string to save.
-     * @return True if saving was successful, false otherwise.
      */
     fun saveSuggestion(context: Context, jsonPayload: String): Boolean {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         val fileName = "suggestion_$timestamp.json"
 
-        // --- 1. Save to Internal Storage (Critical Path) ---
-        val internalSaveSuccess = try {
-            // Get the directory for suggestions (e.g., /data/data/com.sanchari.bus/files/suggestions)
+        return try {
             val suggestionsDir = File(context.filesDir, SUGGESTIONS_DIR)
             if (!suggestionsDir.exists()) {
                 suggestionsDir.mkdirs()
             }
 
             val file = File(suggestionsDir, fileName)
-
-            // Write the JSON payload to the file
             file.writeText(jsonPayload)
 
             Log.i(TAG, "Suggestion saved successfully to: ${file.absolutePath}")
@@ -42,9 +34,32 @@ object SuggestionStorageManager {
             Log.e(TAG, "Error saving suggestion to internal storage", e)
             false
         }
+    }
 
-        // Return the success of the internal save.
-        return internalSaveSuccess
+    /**
+     * Returns a list of all pending suggestion JSON files.
+     */
+    fun getPendingSuggestions(context: Context): List<File> {
+        val suggestionsDir = File(context.filesDir, SUGGESTIONS_DIR)
+        if (!suggestionsDir.exists()) {
+            return emptyList()
+        }
+        return suggestionsDir.listFiles()?.filter { it.isFile && it.name.endsWith(".json") } ?: emptyList()
+    }
+
+    /**
+     * Deletes a suggestion file (e.g., after successful upload).
+     */
+    fun deleteSuggestion(file: File): Boolean {
+        return try {
+            if (file.exists()) {
+                file.delete()
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting suggestion file", e)
+            false
+        }
     }
 }
-

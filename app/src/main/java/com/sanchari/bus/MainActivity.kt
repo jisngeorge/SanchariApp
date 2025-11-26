@@ -83,6 +83,8 @@ class MainActivity : AppCompatActivity() {
             Log.i(TAG, "Initializing databases...")
             DatabaseManager.initializeDatabases(applicationContext)
 
+            retryPendingUploads()
+
             Log.i(TAG, "Loading stop suggestions...")
             loadStopSuggestions()
 
@@ -437,6 +439,42 @@ class MainActivity : AppCompatActivity() {
                         .setPositiveButton("OK", null)
                         .show()
                 }
+            }
+        }
+    }
+
+    private suspend fun retryPendingUploads() {
+        val pendingFiles = SuggestionStorageManager.getPendingSuggestions(applicationContext)
+        if (pendingFiles.isEmpty()) return
+
+        Log.i(TAG, "Found ${pendingFiles.size} pending suggestions. Attempting to sync...")
+        var failureCount = 0
+
+        for (file in pendingFiles) {
+            try {
+                val jsonPayload = file.readText()
+                val success = NetworkManager.uploadDataToGoogleSheet(applicationContext, jsonPayload)
+
+                if (success) {
+                    Log.i(TAG, "Successfully synced: ${file.name}")
+                    SuggestionStorageManager.deleteSuggestion(file)
+                } else {
+                    Log.e(TAG, "Failed to sync: ${file.name}")
+                    failureCount++
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error processing pending file: ${file.name}", e)
+                failureCount++
+            }
+        }
+
+        if (failureCount > 0) {
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@MainActivity, "Failed to sync $failureCount offline suggestion(s).", Toast.LENGTH_LONG).show()
+            }
+        } else {
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@MainActivity, "Synced all offline suggestions.", Toast.LENGTH_SHORT).show()
             }
         }
     }

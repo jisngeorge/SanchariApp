@@ -5,8 +5,10 @@ import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okio.BufferedSink
 import okio.buffer
@@ -21,8 +23,45 @@ object NetworkManager {
     private val jsonParser = Json { ignoreUnknownKeys = true }
 
     /**
-     * Fetches version.json using the URL stored in SharedPreferences.
+     * Uploads a JSON payload to the Google Script URL found in configuration.
+     * Returns TRUE if successful (HTTP 200), FALSE otherwise.
      */
+    suspend fun uploadDataToGoogleSheet(context: Context, jsonPayload: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            // 1. Get URL
+            val defaultUrl = "https://script.google.com/macros/s/YOUR_DEFAULT_SCRIPT_ID/exec"
+            val dynamicUrl = LocalVersionManager.getCommunityUrl(context)
+
+            val url = if (!dynamicUrl.isNullOrBlank()) dynamicUrl else defaultUrl
+
+            // 2. Prepare Request
+            val mediaType = "application/json; charset=utf-8".toMediaType()
+            val body = jsonPayload.toRequestBody(mediaType)
+
+            val request = Request.Builder()
+                .url(url)
+                .post(body)
+                .build()
+
+            // 3. Execute
+            try {
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        Log.i(TAG, "Upload successful: ${response.code}")
+                        return@withContext true
+                    } else {
+                        Log.e(TAG, "Upload failed: ${response.code} - ${response.message}")
+                        return@withContext false
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Network error during upload", e)
+                return@withContext false
+            }
+        }
+    }
+
+    // ... (rest of the existing methods: fetchVersionInfo, downloadFile, parseJson, handleUnsuccessfulResponse) ...
     suspend fun fetchVersionInfo(context: Context): ServerVersionInfo? {
         return withContext(Dispatchers.IO) {
 
