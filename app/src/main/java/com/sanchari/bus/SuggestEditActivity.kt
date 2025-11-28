@@ -6,11 +6,10 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.sanchari.bus.databinding.ActivitySuggestEditBinding
 import com.google.android.material.timepicker.MaterialTimePicker
 import com.google.android.material.timepicker.TimeFormat
@@ -19,13 +18,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.Calendar
 import java.util.UUID
 import java.util.Locale
-// --- NEW IMPORTS ---
 import java.time.Instant
 import java.util.Date
-// --- END NEW IMPORTS ---
 
 class SuggestEditActivity : AppCompatActivity() {
 
@@ -33,7 +29,6 @@ class SuggestEditActivity : AppCompatActivity() {
     private lateinit var adapter: StopEditAdapter
     private val editableStops = mutableListOf<EditableStop>()
     private var originalService: BusService? = null
-    private var itemTouchHelper: ItemTouchHelper? = null
 
     companion object {
         private const val TAG = "SuggestEditActivity"
@@ -61,6 +56,10 @@ class SuggestEditActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         binding.toolbar.setNavigationOnClickListener { finish() }
+
+        if (savedInstanceState == null) {
+            showInstructionsDialog()
+        }
 
         setupRecyclerView()
 
@@ -131,39 +130,9 @@ class SuggestEditActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        val dragCallback = object : ItemTouchHelper.SimpleCallback(
-            ItemTouchHelper.UP or ItemTouchHelper.DOWN,
-            0
-        ) {
-            override fun onMove(
-                recyclerView: RecyclerView,
-                viewHolder: RecyclerView.ViewHolder,
-                target: RecyclerView.ViewHolder
-            ): Boolean {
-                adapter.onItemMove(viewHolder.adapterPosition, target.adapterPosition)
-                return true
-            }
-
-            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) { }
-
-            override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
-                super.onSelectedChanged(viewHolder, actionState)
-                if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
-                    viewHolder?.itemView?.alpha = 0.7f
-                }
-            }
-
-            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
-                super.clearView(recyclerView, viewHolder)
-                viewHolder.itemView.alpha = 1.0f
-            }
-        }
-
-        itemTouchHelper = ItemTouchHelper(dragCallback)
-
+        // Initialize adapter without ItemTouchHelper
         adapter = StopEditAdapter(
             editableStops,
-            itemTouchHelper!!,
             onRemoveClicked = { position ->
                 editableStops.removeAt(position)
                 adapter.notifyItemRemoved(position)
@@ -175,8 +144,6 @@ class SuggestEditActivity : AppCompatActivity() {
         )
         binding.recyclerViewStopsEditor.layoutManager = LinearLayoutManager(this)
         binding.recyclerViewStopsEditor.adapter = adapter
-
-        itemTouchHelper?.attachToRecyclerView(binding.recyclerViewStopsEditor)
     }
 
     private fun preFillData(service: BusService) {
@@ -197,6 +164,8 @@ class SuggestEditActivity : AppCompatActivity() {
     private fun addNewStop() {
         editableStops.add(EditableStop("", "", editableStops.size + 1))
         adapter.notifyItemInserted(editableStops.size - 1)
+        // Scroll to the new bottom item
+        binding.recyclerViewStopsEditor.smoothScrollToPosition(editableStops.size - 1)
     }
 
     private fun showTimePicker(position: Int) {
@@ -223,7 +192,12 @@ class SuggestEditActivity : AppCompatActivity() {
             val hour = picker.hour
             val minute = picker.minute
             val formattedTime = String.format(Locale.getDefault(), "%02d:%02d", hour, minute)
-            adapter.updateTime(position, formattedTime)
+
+            val newPosition = adapter.updateTime(position, formattedTime)
+            // Use post to ensure RecyclerView layout is updated after sorting before scrolling
+            binding.recyclerViewStopsEditor.post {
+                binding.recyclerViewStopsEditor.smoothScrollToPosition(newPosition)
+            }
         }
 
         picker.show(supportFragmentManager, "TimePicker")
@@ -255,9 +229,14 @@ class SuggestEditActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
-    /**
-     * Creates the JSON string based on the user's edits.
-     */
+    private fun showInstructionsDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Instructions")
+            .setMessage("• Add only important stops and junctions to bus routes.\n\n• Please do mention any special cases in notes, like running status on Sundays, deviations from normal route etc.")
+            .setPositiveButton("Got it", null)
+            .show()
+    }
+
     private fun buildJsonPayload(name: String, type: String, stops: List<EditableStop>, editNotes: String): String {
         val root = JSONObject()
         val service = JSONObject()
@@ -279,7 +258,6 @@ class SuggestEditActivity : AppCompatActivity() {
             stopsArray.put(stopJson)
         }
 
-        // --- ADDED: Timestamp logic ---
         val timestamp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Instant.now().toString()
         } else {
@@ -289,9 +267,8 @@ class SuggestEditActivity : AppCompatActivity() {
         root.put("service", service)
         root.put("stops", stopsArray)
         root.put("editNotes", editNotes)
-        root.put("suggestionDate", timestamp) // --- ADDED: Date field ---
+        root.put("suggestionDate", timestamp)
 
-        // Distinguish edit types
         if (originalService != null) {
             root.put("type", "edit_schedule")
         } else {

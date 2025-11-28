@@ -1,31 +1,26 @@
 package com.sanchari.bus
 
-import android.annotation.SuppressLint
+import android.graphics.Color
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
-import android.view.MotionEvent
 import android.view.ViewGroup
-import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.sanchari.bus.databinding.ItemEditStopBinding
-import java.util.Collections
 
 /**
  * Adapter for the editable list of bus stops in SuggestEditActivity.
- * This adapter is complex because it needs to read data back from EditTexts.
+ * Handles auto-sorting and highlighting of moved items.
  */
 class StopEditAdapter(
     private val stops: MutableList<EditableStop>,
-    // --- MODIFIED: Added ItemTouchHelper ---
-    private val itemTouchHelper: ItemTouchHelper,
     private val onRemoveClicked: (position: Int) -> Unit,
     private val onTimeClicked: (position: Int) -> Unit
 ) : RecyclerView.Adapter<StopEditAdapter.StopEditViewHolder>() {
 
-    // This is crucial to prevent TextWatchers from causing crashes
-    // during view recycling.
-    // --- MODIFIED: Removed the time TextWatcher ---
+    // Tracks the position of the item that was just updated/moved
+    private var highlightedPosition = RecyclerView.NO_POSITION
+
     private val textWatchers = mutableMapOf<Int, TextWatcher>()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): StopEditViewHolder {
@@ -37,56 +32,48 @@ class StopEditAdapter(
         return StopEditViewHolder(binding)
     }
 
-    @SuppressLint("ClickableViewAccessibility") // For the drag handle
     override fun onBindViewHolder(holder: StopEditViewHolder, position: Int) {
-        // Remove any existing watchers from the recycled view
+        // Clear existing watchers to prevent recursion/wrong updates
         textWatchers[holder.adapterPosition]?.let {
             holder.binding.editTextStopName.removeTextChangedListener(it)
         }
-        // --- REMOVED: Time watcher logic ---
 
         holder.bind(stops[position])
 
-        // Create new watchers and store them
+        // --- NEW: Highlight Logic ---
+        if (position == highlightedPosition) {
+            // Set a light yellow background to indicate this item was just moved/edited
+            holder.itemView.setBackgroundColor(Color.parseColor("#FFF9C4"))
+        } else {
+            // Reset to transparent
+            holder.itemView.setBackgroundColor(Color.TRANSPARENT)
+        }
+        // ---------------------------
+
         val stopNameWatcher = object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                // Check position to avoid crash on remove
                 if (holder.adapterPosition != RecyclerView.NO_POSITION) {
                     stops[holder.adapterPosition].stopName = s.toString()
                 }
             }
         }
-        // --- REMOVED: Time watcher logic ---
 
         holder.binding.editTextStopName.addTextChangedListener(stopNameWatcher)
-        // --- REMOVED: Time watcher logic ---
         textWatchers[holder.adapterPosition] = stopNameWatcher
 
         holder.binding.buttonRemoveStop.setOnClickListener {
-            // Check adapterPosition to be safe
             if (holder.adapterPosition != RecyclerView.NO_POSITION) {
                 onRemoveClicked(holder.adapterPosition)
             }
         }
 
-        // --- NEW: Set click listener for the time field ---
         holder.binding.editTextScheduledTime.setOnClickListener {
             if (holder.adapterPosition != RecyclerView.NO_POSITION) {
                 onTimeClicked(holder.adapterPosition)
             }
         }
-
-        // --- NEW: DRAG HANDLE LISTENER ---
-        holder.binding.dragHandle.setOnTouchListener { _, event ->
-            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
-                // Tell the ItemTouchHelper to start a drag
-                itemTouchHelper.startDrag(holder)
-            }
-            false
-        }
-        // --- END OF NEW ---
     }
 
     override fun getItemCount(): Int = stops.size
@@ -100,31 +87,38 @@ class StopEditAdapter(
         }
     }
 
-    // Helper to get all the data from the adapter
     fun getStopsData(): List<EditableStop> {
         return stops
     }
 
-    // --- NEW: Helper to update time data from the dialog ---
-    fun updateTime(position: Int, time: String) {
+    /**
+     * Updates the time for a stop, AUTO-SORTS the list, and returns the new position.
+     */
+    fun updateTime(position: Int, time: String): Int {
         if (position in stops.indices) {
-            stops[position].scheduledTime = time
-            notifyItemChanged(position)
-        }
-    }
+            val stopToUpdate = stops[position]
+            stopToUpdate.scheduledTime = time
 
-    // --- NEW: Function to handle reordering ---
-    fun onItemMove(fromPosition: Int, toPosition: Int) {
-        if (fromPosition < toPosition) {
-            for (i in fromPosition until toPosition) {
-                Collections.swap(stops, i, i + 1)
-            }
-        } else {
-            for (i in fromPosition downTo toPosition + 1) {
-                Collections.swap(stops, i, i - 1)
-            }
+            // Sort: time-based, putting blanks at the end
+            stops.sortWith(Comparator { o1, o2 ->
+                val t1 = o1.scheduledTime
+                val t2 = o2.scheduledTime
+
+                if (t1.isBlank() && t2.isBlank()) 0
+                else if (t1.isBlank()) 1
+                else if (t2.isBlank()) -1
+                else t1.compareTo(t2)
+            })
+
+            // Find the new index of the updated item
+            val newIndex = stops.indexOf(stopToUpdate)
+            highlightedPosition = newIndex
+
+            notifyDataSetChanged()
+
+            // Return the new index so the Activity can scroll to it
+            return newIndex
         }
-        notifyItemMoved(fromPosition, toPosition)
+        return position
     }
-    // --- END OF NEW ---
 }
