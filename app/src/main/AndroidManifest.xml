@@ -18,7 +18,7 @@
         tools:targetApi="31">
 
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.activity.MainActivity"
             android:exported="true"
             android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
             <intent-filter>
@@ -28,34 +28,34 @@
         </activity>
 
         <activity
-            android:name=".UserInfoActivity"
+            android:name=".ui.activity.UserInfoActivity"
             android:exported="false"
             android:label="Your Information"
             android:theme="@style/Theme.SanchariApp" />
 
         <activity
-            android:name=".SearchResultsActivity"
+            android:name=".ui.activity.SearchResultsActivity"
             android:exported="false"
             android:label="Search Results"
-            android:parentActivityName=".MainActivity"
+            android:parentActivityName=".ui.activity.MainActivity"
             android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar" />
 
         <activity
-            android:name=".BusDetailsActivity"
+            android:name=".ui.activity.BusDetailsActivity"
             android:exported="false"
             android:label="Bus Details"
-            android:parentActivityName=".SearchResultsActivity"
+            android:parentActivityName=".ui.activity.SearchResultsActivity"
             android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar" />
 
         <activity
-            android:name=".SuggestEditActivity"
+            android:name=".ui.activity.SuggestEditActivity"
             android:exported="false"
             android:label="Suggest Edit"
-            android:parentActivityName=".BusDetailsActivity"
+            android:parentActivityName=".ui.activity.BusDetailsActivity"
             android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar" />
 
         <activity
-            android:name=".ConfirmationActivity"
+            android:name=".ui.activity.ConfirmationActivity"
             android:exported="false"
             android:label="Confirm Suggestion"
             android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar" />
