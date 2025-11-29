@@ -232,7 +232,9 @@ class SuggestEditActivity : AppCompatActivity() {
     private fun showInstructionsDialog() {
         AlertDialog.Builder(this)
             .setTitle("Instructions")
-            .setMessage("• Add only important stops and junctions to bus routes.\n\n• Please do mention any special cases in notes, like running status on Sundays, deviations from normal route etc.")
+            .setMessage("• Add only important stops and bus route junctions.\n\n" +
+                    "• To record a halt, enter two stops with the same name, specifying arrival and departure times separately.\n\n" +
+                    "• Note any special conditions, including variations in Sunday operations.")
             .setPositiveButton("Got it", null)
             .show()
     }
