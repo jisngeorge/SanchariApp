@@ -1,10 +1,10 @@
 package com.sanchari.bus
 
-import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.sanchari.bus.databinding.ItemBusStopBinding
+import androidx.core.graphics.toColorInt
 
 class BusStopAdapter(
     // We initially pass an empty list, data is set via updateStops
@@ -51,7 +51,7 @@ class BusStopAdapter(
 
             if (stop.isHalt) {
                 // Highlight halts in Red
-                binding.textViewStopName.setTextColor(Color.parseColor("#D32F2F"))
+                binding.textViewStopName.setTextColor("#D32F2F".toColorInt())
             } else {
                 // Reset to default
                 binding.textViewStopName.setTextColor(defaultTextColor)

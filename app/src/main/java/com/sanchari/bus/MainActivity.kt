@@ -1,6 +1,5 @@
 package com.sanchari.bus
 
-import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -36,7 +35,7 @@ class MainActivity : AppCompatActivity() {
     private val userInfoLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
+        if (result.resultCode == RESULT_OK) {
             Log.i(TAG, "UserInfoActivity finished. Loading app data.")
             loadAppData()
         } else {

@@ -33,7 +33,7 @@
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Bus Service Name">
+                android:hint="@string/hint_bus_service_name">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/editTextServiceName"
@@ -47,7 +47,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="Bus Type (eg. Ordinary, LS, FP)">
+                android:hint="@string/hint_bus_type">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/editTextServiceType"
@@ -62,7 +62,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:textSize="18sp"
-                android:text="Stops"
+                android:text="@string/title_bus_stops"
                 android:textAppearance="?attr/textAppearanceTitleMedium" />
 
             <androidx.recyclerview.widget.RecyclerView
@@ -81,7 +81,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
                 android:layout_marginTop="8dp"
-                android:text="Add Stop"
+                android:text="@string/btn_add_stop"
                 app:icon="@drawable/ic_add" />
 
             <com.google.android.material.textfield.TextInputLayout
@@ -89,7 +89,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                android:hint="Notes for Admin (Optional)">
+                android:hint="@string/hint_notes_admin">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/editTextEditNotes"
@@ -105,7 +105,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
-                android:text="Apply and Proceed" />
+                android:text="@string/btn_apply_proceed" />
 
         </LinearLayout>
 

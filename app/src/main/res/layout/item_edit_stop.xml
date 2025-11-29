@@ -20,7 +20,7 @@
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Stop Name">
+            android:hint="@string/hint_stop_name">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/editTextStopName"
@@ -33,7 +33,7 @@
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Scheduled Time (HH:mm)">
+            android:hint="@string/hint_scheduled_time">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/editTextScheduledTime"
@@ -52,7 +52,7 @@
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="Remove Stop"
+        android:contentDescription="@string/cd_remove_stop"
         android:src="@drawable/ic_remove"
         app:tint="#D32F2F" />
 

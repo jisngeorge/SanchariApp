@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.sanchari.bus.databinding.ItemEditStopBinding
+import androidx.core.graphics.toColorInt
 
 /**
  * Adapter for the editable list of bus stops in SuggestEditActivity.
@@ -43,7 +44,7 @@ class StopEditAdapter(
         // --- NEW: Highlight Logic ---
         if (position == highlightedPosition) {
             // Set a light yellow background to indicate this item was just moved/edited
-            holder.itemView.setBackgroundColor(Color.parseColor("#FFF9C4"))
+            holder.itemView.setBackgroundColor("#FFF9C4".toColorInt())
         } else {
             // Reset to transparent
             holder.itemView.setBackgroundColor(Color.TRANSPARENT)

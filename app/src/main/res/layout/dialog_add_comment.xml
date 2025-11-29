@@ -8,7 +8,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Add Your Comment"
+        android:text="@string/btn_add_comment"
         android:textSize="18sp"
         android:textAppearance="?attr/textAppearanceTitleLarge" />
 
@@ -16,7 +16,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:hint="Your comment...">
+        android:hint="@string/btn_add_comment">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/editTextComment"
@@ -33,6 +33,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Post anonymously" />
+        android:text="@string/post_anonymously" />
 
 </LinearLayout>

@@ -44,7 +44,7 @@ class CommentAdapter(
                 // Multiply Unix time (seconds) by 1000L to get milliseconds
                 val date = Date(comment.commentDate * 1000L)
                 binding.textViewCommentDate.text = outputFormat.format(date)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Fallback if timestamp is invalid
                 binding.textViewCommentDate.text = "---"
             }

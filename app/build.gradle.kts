@@ -16,25 +16,40 @@ android {
         versionCode = 1
         versionName = "1.0"
 
+        // --- RELEASE BUILD OPTIMIZATION ---
+        // Uncomment this block when generating a Release APK.
+        // It ensures the APK only contains native libraries for ARM devices (phones),
+        // removing x86 (emulator) libraries to significantly reduce file size.
+        // ----------------------------------
+//        ndk {
+//            abiFilters.add("armeabi-v7a")
+//            abiFilters.add("arm64-v8a")
+//        }
+        // --
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     kotlinOptions {
         jvmTarget = "11"
     }
+
     // Enable View Binding (optional but recommended for XML)
     buildFeatures {
         viewBinding = true

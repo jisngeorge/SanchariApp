@@ -138,7 +138,7 @@ class BusDetailsActivity : AppCompatActivity() {
             try {
                 val date = Date(service.lastReportedTime * 1000L)
                 val sdf = SimpleDateFormat("dd-MMM-yyyy", Locale.getDefault())
-                binding.textViewLastReported.text = "Last reported: ${sdf.format(date)}"
+                binding.textViewLastReported.text = getString(R.string.label_last_reported,sdf.format(date))
                 binding.textViewLastReported.visibility = View.VISIBLE
             } catch (e: Exception) {
                 Log.e(TAG, "Error formatting lastReportedTime", e)
@@ -180,7 +180,7 @@ class BusDetailsActivity : AppCompatActivity() {
                 if (stops.isEmpty()) {
                     binding.recyclerViewBusStops.visibility = View.GONE
                     binding.textViewError.visibility = View.VISIBLE
-                    binding.textViewError.text = "No stops found for this service."
+                    binding.textViewError.text = getText(R.string.msg_no_stops_found)
                 } else {
                     binding.recyclerViewBusStops.visibility = View.VISIBLE
                     binding.textViewError.visibility = View.GONE
@@ -203,7 +203,7 @@ class BusDetailsActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 if (rating != null && rating.ratingCount > 0) {
                     binding.ratingsCard.visibility = View.VISIBLE
-                    binding.textViewRatingCount.text = "Based on ${rating.ratingCount} ratings"
+                    binding.textViewRatingCount.text = getString(R.string.label_based_on_ratings, rating.ratingCount)
                     binding.ratingBarPunctuality.rating = rating.avgPunctuality
                     binding.ratingBarDrive.rating = rating.avgDrive
                     binding.ratingBarBehaviour.rating = rating.avgBehaviour

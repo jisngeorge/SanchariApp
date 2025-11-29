@@ -1,3 +1,73 @@
 <resources>
     <string name="app_name">Sanchari</string>
+
+    <!-- Common Actions -->
+    <string name="btn_save_continue">Save and Continue</string>
+    <string name="btn_apply_proceed">Apply and Proceed</string>
+    <string name="btn_apply_suggestion">Apply Suggestion</string>
+    <string name="btn_add_stop">Add Stop</string>
+    <string name="btn_find_bus">Find Bus</string>
+    <string name="btn_add_new_bus">Add a New Bus Service</string>
+    <string name="btn_check_updates">Check for Updates</string>
+    <string name="btn_share_app">Share App</string>
+    <string name="btn_add_rating">Add Your Rating</string>
+    <string name="btn_add_comment">Add Comment</string>
+    <string name="btn_suggest_edit">Suggest an Edit for this Bus</string>
+
+    <!-- Search & Input Hints -->
+    <string name="hint_from">From</string>
+    <string name="hint_to">To</string>
+    <string name="hint_search_bus_name">Or Search Bus by Name</string>
+    <string name="hint_stop_name">Stop Name</string>
+    <string name="hint_scheduled_time">Scheduled Time (HH:mm)</string>
+    <string name="hint_bus_service_name">Bus Service Name</string>
+    <string name="hint_bus_type">Bus Type (eg. Ordinary, LS, FP)</string>
+    <string name="hint_notes_admin">Notes for Admin (Optional)</string>
+    <string name="hint_full_name">Full Name (Required)</string>
+    <string name="hint_email">Email (Required)</string>
+    <string name="hint_phone">Phone Number (Required)</string>
+    <string name="hint_place">Your City / Place (Optional)</string>
+    <string name="hint_your_comment">Your comment…</string>
+
+    <!-- Headings & Labels -->
+    <string name="title_recent_services">Recent Services</string>
+    <string name="title_bus_stops">Bus Stops</string>
+    <string name="title_error_message">Error message</string>
+    <string name="title_community_ratings">Community Ratings</string>
+    <string name="title_comments">Comments</string>
+    <string name="title_add_rating">Add Your Rating</string>
+    <string name="title_welcome">Welcome to Sanchari!</string>
+    <string name="title_tell_us">Tell us about yourself</string>
+    <string name="title_confirm_details">Please confirm your details</string>
+    <string name="label_punctuality_5">Punctuality</string>
+    <string name="label_driving_comfort_5">Driving and Comfort</string>
+    <string name="label_behaviour_5">Behaviour</string>
+    <string name="label_based_on_ratings">Based on %1$d ratings</string>
+    <string name="label_no_comments">No comments yet.</string>
+    <string name="label_last_reported">Last reported: %1$s</string>
+    <string name="label_is_bus_running">Is this bus running?</string>
+    <string name="label_viewed_recently">Viewed recently</string>
+    <string name="label_bus_fast">Fast Passenger</string>
+    <string name="label_bus_ordinary">Ordinary</string>
+    <string name="label_bus_superfast">Superfast</string>
+    <string name="label_bus_ls">Limited Stop</string>
+    <string name="label_bus_express">Express</string>
+    <string name="label_bus_deluxe">Super Deluxe</string>
+    <string name="label_bus_minnal">Minnal</string>
+    <string name="label_bus_unspecified">Unspecified type</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="post_anonymously">Post anonymously</string>
+
+    <!-- Content Descriptions (for Accessibility) -->
+    <string name="cd_remove_stop">Remove Stop</string>
+    <string name="cd_drag_reorder">Drag to reorder</string>
+    <string name="cd_bus_icon">Bus Icon</string>
+    <string name="cd_app_logo">App Logo</string>
+
+    <!-- Messages -->
+    <string name="msg_admin_contact">Admin may contact you through the provided phone / email to clear any doubts; edits will go live within a week if it is approved.</string>
+    <string name="msg_welcome_sub">Your Community-Driven Bus Guide</string>
+    <string name="msg_app_desc">This app works offline using a database stored on your phone. Routes, timings, and ratings are contributed by users like you and updated periodically.\n\nTo get the latest schedules, remember to check for updates regularly. We look forward to your contributions!</string>
+    <string name="msg_no_stops_found">No stops found for this service."</string>
 </resources>

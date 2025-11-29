@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.database.sqlite.SQLiteDatabase
 import android.util.Log
-import java.io.File
+import androidx.core.content.edit
 
 object LocalVersionManager {
 
@@ -76,11 +76,11 @@ object LocalVersionManager {
     // --- Setters (Write to SharedPreferences) ---
 
     private fun saveTimetableVersion(context: Context, version: Int) {
-        getPrefs(context).edit().putInt(DatabaseConstants.TIMETABLE_DB_VERSION_KEY, version).apply()
+        getPrefs(context).edit { putInt(DatabaseConstants.TIMETABLE_DB_VERSION_KEY, version) }
     }
 
     private fun saveCommunityVersion(context: Context, version: Int) {
-        getPrefs(context).edit().putInt(DatabaseConstants.COMMUNITY_DB_VERSION_KEY, version).apply()
+        getPrefs(context).edit { putInt(DatabaseConstants.COMMUNITY_DB_VERSION_KEY, version) }
     }
 
     // --- Dynamic URL Management ---
@@ -90,7 +90,7 @@ object LocalVersionManager {
     }
 
     fun saveVersionsUrl(context: Context, url: String) {
-        getPrefs(context).edit().putString(KEY_DYNAMIC_VERSIONS_URL, url).apply()
+        getPrefs(context).edit { putString(KEY_DYNAMIC_VERSIONS_URL, url) }
     }
 
     fun getCommunityUrl(context: Context): String? {
@@ -98,7 +98,7 @@ object LocalVersionManager {
     }
 
     fun saveCommunityUrl(context: Context, url: String) {
-        getPrefs(context).edit().putString(KEY_DYNAMIC_COMMUNITY_URL, url).apply()
+        getPrefs(context).edit { putString(KEY_DYNAMIC_COMMUNITY_URL, url) }
     }
 
     // --- Update Check Timestamp Management ---
@@ -108,7 +108,7 @@ object LocalVersionManager {
     }
 
     fun saveLastUpdateCheckTime(context: Context, time: Long) {
-        getPrefs(context).edit().putLong(KEY_LAST_UPDATE_CHECK, time).apply()
+        getPrefs(context).edit { putLong(KEY_LAST_UPDATE_CHECK, time) }
     }
 
     fun getLatestAppUrl(context: Context): String? {
@@ -116,6 +116,6 @@ object LocalVersionManager {
     }
 
     fun saveLatestAppUrl(context: Context, url: String) {
-        getPrefs(context).edit().putString(KEY_LATEST_APP_URL, url).apply()
+        getPrefs(context).edit { putString(KEY_LATEST_APP_URL, url) }
     }
 }
