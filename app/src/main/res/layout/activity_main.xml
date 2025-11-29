@@ -108,10 +108,12 @@
                     android:text="@string/btn_add_new_bus"
                     app:icon="@drawable/ic_add" />
 
+                <!-- FIX: Added baselineAligned="false" to ensure buttons are vertically centered -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal">
+                    android:orientation="horizontal"
+                    android:baselineAligned="false">
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/buttonCheckForUpdates"
