@@ -1,6 +1,5 @@
 package com.sanchari.bus.ui.activity
 
-import android.R
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -109,7 +108,7 @@ class BusDetailsActivity : AppCompatActivity() {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == R.id.home) {
+        if (item.itemId == android.R.id.home) {
             finish()
             return true
         }
