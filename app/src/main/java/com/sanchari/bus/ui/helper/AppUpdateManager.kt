@@ -59,6 +59,15 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
 
                 if (serverInfo == null) {
                     Log.w(TAG, "Could not fetch server version info. Skipping update.")
+                    if (forceCheck) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                activity,
+                                "Update check failed. Please check your internet connection.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
                     return@launch
                 }
 
@@ -110,6 +119,11 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
 
             } catch (e: Exception) {
                 Log.e(TAG, "Error in checkForUpdates", e)
+                if (forceCheck) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(activity, "An error occurred while checking for updates.", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
         }
     }
