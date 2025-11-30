@@ -44,7 +44,7 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textViewUsername"
-            tools:text="This bus is always on time. The driver was very friendly." />
+            tools:text="NA" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

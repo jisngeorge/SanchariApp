@@ -13,6 +13,7 @@
     <string name="btn_add_rating">Add Your Rating</string>
     <string name="btn_add_comment">Add Comment</string>
     <string name="btn_suggest_edit">Suggest an Edit for this Bus</string>
+    <string name="btn_message_admin_report_issue">Message Admin / Report Issue</string>
 
     <!-- Search & Input Hints -->
     <string name="hint_from">From</string>
@@ -28,6 +29,7 @@
     <string name="hint_phone">Phone Number (Required)</string>
     <string name="hint_place">Your City / Place (Optional)</string>
     <string name="hint_your_comment">Your comment…</string>
+    <string name="hint_your_message">Your message…</string>
 
     <!-- Headings & Labels -->
     <string name="title_recent_services">Recent Services</string>
@@ -55,6 +57,7 @@
     <string name="label_bus_deluxe">Super Deluxe</string>
     <string name="label_bus_minnal">Minnal</string>
     <string name="label_bus_unspecified">Unspecified type</string>
+    <string name="label_message_to_admin">Message To Admin</string>
     <string name="yes">Yes</string>
     <string name="no">No</string>
     <string name="post_anonymously">Post anonymously</string>
