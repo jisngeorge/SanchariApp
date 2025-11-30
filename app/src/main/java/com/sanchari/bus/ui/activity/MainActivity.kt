@@ -17,6 +17,7 @@ import com.sanchari.bus.data.manager.SearchManager
 import com.sanchari.bus.ui.helper.UploadManager
 import com.sanchari.bus.data.manager.UserDataManager
 import com.sanchari.bus.databinding.ActivityMainBinding
+import com.sanchari.bus.ui.helper.MainSubmissionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -30,6 +31,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var appUpdateManager: AppUpdateManager
     private lateinit var uploadManager: UploadManager
     private lateinit var busSearchHandler: BusSearchHandler
+    private lateinit var mainSubmissionHandler: MainSubmissionHandler
 
     // Temp variables to hold initial DB versions
     private var initialTimetableVersion = 0
@@ -62,11 +64,11 @@ class MainActivity : AppCompatActivity() {
         appUpdateManager = AppUpdateManager(this)
         uploadManager = UploadManager(this)
         busSearchHandler = BusSearchHandler(this, binding)
+        mainSubmissionHandler = MainSubmissionHandler(this)
 
         // --- Setup UI ---
         busSearchHandler.setup() // Sets up search bars and buttons
 
-        // --- ADDED NEW CLICK LISTENER ---
         binding.buttonAddNewBus.setOnClickListener {
             val intent = SuggestEditActivity.newIntentForNew(this)
             startActivity(intent)
@@ -93,6 +95,10 @@ class MainActivity : AppCompatActivity() {
                 val currentC = LocalVersionManager.getCommunityDbVersion(applicationContext)
                 appUpdateManager.checkForUpdates(forceCheck = true, currentT, currentC)
             }
+        }
+
+        binding.buttonMessageAdmin.setOnClickListener {
+            mainSubmissionHandler.showMessageAdminDialog()
         }
 
         setupRecentSearchesRecyclerView()
