@@ -4,29 +4,20 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.text.format.DateFormat
 import android.util.Log
-import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.sanchari.bus.databinding.ActivitySuggestEditBinding
-import com.google.android.material.timepicker.MaterialTimePicker
-import com.google.android.material.timepicker.TimeFormat
+import com.sanchari.bus.data.manager.SearchManager
 import com.sanchari.bus.data.model.BusService
 import com.sanchari.bus.data.model.EditableStop
-import com.sanchari.bus.data.manager.SearchManager
+import com.sanchari.bus.databinding.ActivitySuggestEditBinding
 import com.sanchari.bus.ui.adapter.StopEditAdapter
+import com.sanchari.bus.ui.helper.SuggestEditHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
-import java.util.UUID
-import java.util.Locale
-import java.time.Instant
-import java.util.Date
+import java.util.ArrayList
 
 class SuggestEditActivity : AppCompatActivity() {
 
@@ -34,6 +25,9 @@ class SuggestEditActivity : AppCompatActivity() {
     private lateinit var adapter: StopEditAdapter
     private val editableStops = mutableListOf<EditableStop>()
     private var originalService: BusService? = null
+
+    // Refactored Handler
+    private lateinit var handler: SuggestEditHandler
 
     companion object {
         private const val TAG = "SuggestEditActivity"
@@ -62,11 +56,14 @@ class SuggestEditActivity : AppCompatActivity() {
 
         binding.toolbar.setNavigationOnClickListener { finish() }
 
-        if (savedInstanceState == null) {
-            showInstructionsDialog()
-        }
-
         setupRecyclerView()
+
+        // Initialize Handler
+        handler = SuggestEditHandler(this, binding, adapter, editableStops)
+
+        if (savedInstanceState == null) {
+            handler.showInstructionsDialog()
+        }
 
         if (savedInstanceState != null) {
             Log.i(TAG, "Restoring state from savedInstanceState")
@@ -81,7 +78,8 @@ class SuggestEditActivity : AppCompatActivity() {
         }
 
         binding.buttonApplyChanges.setOnClickListener {
-            applyChanges()
+            // Delegate to handler
+            handler.applyChanges(originalService)
         }
     }
 
@@ -135,7 +133,6 @@ class SuggestEditActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        // Initialize adapter without ItemTouchHelper
         adapter = StopEditAdapter(
             editableStops,
             onRemoveClicked = { position ->
@@ -144,7 +141,8 @@ class SuggestEditActivity : AppCompatActivity() {
                 adapter.notifyItemRangeChanged(position, editableStops.size)
             },
             onTimeClicked = { position ->
-                showTimePicker(position)
+                // Delegate to handler
+                handler.showTimePicker(position)
             }
         )
         binding.recyclerViewStopsEditor.layoutManager = LinearLayoutManager(this)
@@ -159,7 +157,7 @@ class SuggestEditActivity : AppCompatActivity() {
             val stops = SearchManager.getBusStops(applicationContext, service.serviceId)
             withContext(Dispatchers.Main) {
                 stops.sortedBy { it.stopOrder }.forEach {
-                    editableStops.add(EditableStop.Companion.fromBusStop(it))
+                    editableStops.add(EditableStop.fromBusStop(it))
                 }
                 adapter.notifyDataSetChanged()
             }
@@ -167,121 +165,10 @@ class SuggestEditActivity : AppCompatActivity() {
     }
 
     private fun addNewStop() {
-        editableStops.add(EditableStop("", "", editableStops.size + 1))
+        // Pass -1 for new stops
+        editableStops.add(EditableStop("", "", editableStops.size + 1, -1))
         adapter.notifyItemInserted(editableStops.size - 1)
         // Scroll to the new bottom item
         binding.recyclerViewStopsEditor.smoothScrollToPosition(editableStops.size - 1)
-    }
-
-    private fun showTimePicker(position: Int) {
-        val currentStop = editableStops[position]
-        val (initialHour, initialMinute) = try {
-            if (currentStop.scheduledTime.isNotBlank()) {
-                val parts = currentStop.scheduledTime.split(":")
-                parts[0].toInt() to parts[1].toInt()
-            } else {
-                9 to 0
-            }
-        } catch (e: Exception) {
-            9 to 0
-        }
-
-        val picker = MaterialTimePicker.Builder()
-            .setTimeFormat(TimeFormat.CLOCK_24H)
-            .setHour(initialHour)
-            .setMinute(initialMinute)
-            .setTitleText("Select Stop Time")
-            .build()
-
-        picker.addOnPositiveButtonClickListener {
-            val hour = picker.hour
-            val minute = picker.minute
-            val formattedTime = String.format(Locale.getDefault(), "%02d:%02d", hour, minute)
-
-            val newPosition = adapter.updateTime(position, formattedTime)
-            // Use post to ensure RecyclerView layout is updated after sorting before scrolling
-            binding.recyclerViewStopsEditor.post {
-                binding.recyclerViewStopsEditor.smoothScrollToPosition(newPosition)
-            }
-        }
-
-        picker.show(supportFragmentManager, "TimePicker")
-    }
-
-    private fun applyChanges() {
-        val serviceName = binding.editTextServiceName.text.toString().trim()
-        val serviceType = binding.editTextServiceType.text.toString().trim()
-        val stopsData = adapter.getStopsData()
-        val editNotes = binding.editTextEditNotes.text.toString().trim()
-
-        if (serviceName.isEmpty()) {
-            Toast.makeText(this, "Please enter a bus service name.", Toast.LENGTH_SHORT).show()
-            return
-        }
-        if (stopsData.isEmpty()) {
-            Toast.makeText(this, "Please add at least one stop.", Toast.LENGTH_SHORT).show()
-            return
-        }
-        if (stopsData.any { it.stopName.isBlank() || it.scheduledTime.isBlank() }) {
-            Toast.makeText(this, "Please fill in all stop names and times.", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val json = buildJsonPayload(serviceName, serviceType, stopsData, editNotes)
-        Log.d(TAG, "Generated JSON: $json")
-
-        val intent = ConfirmationActivity.newIntent(this, json)
-        startActivity(intent)
-    }
-
-    private fun showInstructionsDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("Instructions")
-            .setMessage("• Add only important stops and bus route junctions.\n\n" +
-                    "• To record a halt, enter two stops with the same name, specifying arrival and departure times separately.\n\n" +
-                    "• Note any special conditions, including variations in Sunday operations.")
-            .setPositiveButton("Got it", null)
-            .show()
-    }
-
-    private fun buildJsonPayload(name: String, type: String, stops: List<EditableStop>, editNotes: String): String {
-        val root = JSONObject()
-        val service = JSONObject()
-        service.put("serviceId", originalService?.serviceId ?: "NEW-${UUID.randomUUID()}")
-        service.put("name", name)
-        service.put("type", type)
-        service.put("isRunning", 1)
-        service.put("lastReportedTime", 0L)
-
-        val stopsArray = JSONArray()
-        stops.forEachIndexed { index, stop ->
-            val stopJson = JSONObject()
-            stopJson.put("stopId", "NEW-${index + 1}")
-            stopJson.put("locationName", stop.stopName)
-            stopJson.put("scheduledTime", stop.scheduledTime)
-            stopJson.put("stopOrder", index + 1)
-            stopJson.put("latitude", 0.0)
-            stopJson.put("longitude", 0.0)
-            stopsArray.put(stopJson)
-        }
-
-        val timestamp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Instant.now().toString()
-        } else {
-            DateFormat.format("yyyy-MM-dd'T'HH:mm:ss'Z'", Date()).toString()
-        }
-
-        root.put("service", service)
-        root.put("stops", stopsArray)
-        root.put("editNotes", editNotes)
-        root.put("suggestionDate", timestamp)
-
-        if (originalService != null) {
-            root.put("type", "edit_schedule")
-        } else {
-            root.put("type", "new_schedule")
-        }
-
-        return root.toString(2)
     }
 }
