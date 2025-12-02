@@ -1,6 +1,5 @@
 package com.sanchari.bus.ui.helper
 
-import android.os.Build
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -14,8 +13,6 @@ import com.sanchari.bus.ui.activity.ConfirmationActivity
 import com.sanchari.bus.ui.adapter.StopEditAdapter
 import org.json.JSONArray
 import org.json.JSONObject
-import java.time.Instant
-import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
@@ -140,16 +137,13 @@ class SuggestEditHandler(
             stopsArray.put(stopJson)
         }
 
-        val timestamp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Instant.now().toString()
-        } else {
-            android.text.format.DateFormat.format("yyyy-MM-dd'T'HH:mm:ss'Z'", Date()).toString()
-        }
+        // --- UPDATED: Use Unix Timestamp (Seconds) with key 'timestamp' ---
+        val timestamp = System.currentTimeMillis() / 1000
 
         root.put("service", service)
         root.put("stops", stopsArray)
         root.put("editNotes", editNotes)
-        root.put("suggestionDate", timestamp)
+        root.put("timestamp", timestamp) // Changed from 'suggestionDate'
 
         if (originalService != null) {
             root.put("type", "edit_schedule")

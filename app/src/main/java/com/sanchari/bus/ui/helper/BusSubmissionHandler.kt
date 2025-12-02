@@ -1,7 +1,5 @@
 package com.sanchari.bus.ui.helper
 
-import android.os.Build
-import android.text.format.DateFormat
 import android.util.Log
 import android.view.LayoutInflater
 import android.widget.EditText
@@ -14,8 +12,6 @@ import com.sanchari.bus.R
 import com.sanchari.bus.data.model.BusService
 import com.sanchari.bus.ui.activity.ConfirmationActivity
 import org.json.JSONObject
-import java.time.Instant
-import java.util.Date
 
 /**
  * Handles the UI and Logic for submitting user contributions:
@@ -90,46 +86,42 @@ class BusSubmissionHandler(
             .show()
     }
 
-    private fun generateRatingJson(service: BusService, punctuality: Float, drive: Float, behaviour: Float) {
-        val timestamp = getIsoTimestamp()
+    // --- UPDATED JSON GENERATION METHODS ---
 
+    private fun generateRatingJson(service: BusService, punctuality: Float, drive: Float, behaviour: Float) {
+        val timestamp = System.currentTimeMillis() / 1000
         val ratingJson = JSONObject().apply {
             put("type", "rating")
             put("serviceId", service.serviceId)
-            put("ratingDate", timestamp)
+            put("timestamp", timestamp) // Standardized key
             put("punctuality_5", punctuality)
             put("drive_5", drive)
             put("behaviour_5", behaviour)
         }
-
         launchConfirmation(ratingJson.toString(2))
     }
 
     private fun generateCommentJson(service: BusService, commentText: String, showUsername: Boolean) {
-        val timestamp = getIsoTimestamp()
-
+        val timestamp = System.currentTimeMillis() / 1000
         val commentJson = JSONObject().apply {
             put("type", "comment")
             put("serviceId", service.serviceId)
             put("commentText", commentText)
             put("showUsername", showUsername)
-            put("commentDate", timestamp)
+            put("timestamp", timestamp) // Standardized key
         }
-
         launchConfirmation(commentJson.toString(2))
     }
 
     private fun generateRunningStatusJson(service: BusService, newStatusIsRunning: Boolean) {
-        val timestamp = getIsoTimestamp()
-
+        val timestamp = System.currentTimeMillis() / 1000
         val statusJson = JSONObject().apply {
             put("type", "running_status_suggestion")
             put("serviceId", service.serviceId)
-            put("suggestionDate", timestamp)
+            put("timestamp", timestamp) // Standardized key
             put("suggestedStatus", if (newStatusIsRunning) "Running" else "Not Running")
             put("suggestedStatusBoolean", newStatusIsRunning)
         }
-
         launchConfirmation(statusJson.toString(2))
     }
 
@@ -137,13 +129,5 @@ class BusSubmissionHandler(
         Log.d(TAG, "Generated JSON: $jsonPayload")
         val intent = ConfirmationActivity.newIntent(activity, jsonPayload)
         activity.startActivity(intent)
-    }
-
-    private fun getIsoTimestamp(): String {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Instant.now().toString()
-        } else {
-            DateFormat.format("yyyy-MM-dd'T'HH:mm:ss'Z'", Date()).toString()
-        }
     }
 }

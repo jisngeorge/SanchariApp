@@ -1,6 +1,5 @@
 package com.sanchari.bus.ui.helper
 
-import android.util.Log
 import android.view.LayoutInflater
 import android.widget.EditText
 import android.widget.Toast
@@ -36,19 +35,15 @@ class MainSubmissionHandler(private val activity: AppCompatActivity) {
     }
 
     private fun generateMessageJson(messageText: String) {
-        // Unix Timestamp (Seconds)
         val timestamp = System.currentTimeMillis() / 1000
 
         val jsonObject = JSONObject().apply {
             put("type", "admin_message")
             put("messageText", messageText)
-            put("messageDate", timestamp)
+            put("timestamp", timestamp) // Standardized key
         }
 
-        val jsonPayload = jsonObject.toString(2)
-        Log.d(TAG, "Generated Admin Message JSON: $jsonPayload")
-
-        val intent = ConfirmationActivity.newIntent(activity, jsonPayload)
+        val intent = ConfirmationActivity.newIntent(activity, jsonObject.toString(2))
         activity.startActivity(intent)
     }
 }
