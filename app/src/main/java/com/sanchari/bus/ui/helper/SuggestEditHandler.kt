@@ -36,7 +36,9 @@ class SuggestEditHandler(
     fun showInstructionsDialog() {
         AlertDialog.Builder(activity)
             .setTitle("Instructions")
-            .setMessage("• Add only important stops and junctions to bus routes.\n\n• Please do mention any special cases in notes, like running status on Sundays, deviations from normal route etc.")
+            .setMessage("• Add only important stops and junctions to bus routes.\n\n" +
+                    "• Please use notes to convey any other details, like running status on Sundays, stops for which time unknown etc.\n\n" +
+                    "• For naming the bus, you can use place, depo names and numbers to make it easy to identify.")
             .setPositiveButton("Got it", null)
             .show()
     }
