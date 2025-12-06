@@ -4,14 +4,19 @@ import android.graphics.Color
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
-import androidx.core.graphics.toColorInt
 import androidx.recyclerview.widget.RecyclerView
 import com.sanchari.bus.data.model.EditableStop
 import com.sanchari.bus.databinding.ItemEditStopBinding
+import java.util.Collections
 
 /**
  * Adapter for the editable list of bus stops in SuggestEditActivity.
+ * Features:
+ * - Auto-sorts on time change.
+ * - Allows manual reordering via Up/Down buttons.
+ * - Highlights the active item.
  */
 class StopEditAdapter(
     private val stops: MutableList<EditableStop>,
@@ -32,29 +37,53 @@ class StopEditAdapter(
     }
 
     override fun onBindViewHolder(holder: StopEditViewHolder, position: Int) {
-        // FIX: Use bindingAdapterPosition instead of adapterPosition
+        // Use bindingAdapterPosition
         val currentPos = holder.bindingAdapterPosition
 
-        // Remove existing watcher for this position to avoid infinite loops
+        // Remove existing watcher
         textWatchers[currentPos]?.let {
             holder.binding.editTextStopName.removeTextChangedListener(it)
         }
 
         holder.bind(stops[position])
 
-        // Highlight logic
+        // --- Highlight Logic ---
         if (position == highlightedPosition) {
-            holder.itemView.setBackgroundColor("#FFF9C4".toColorInt())
+            holder.itemView.setBackgroundColor(Color.parseColor("#FFF9C4")) // Light Yellow
         } else {
             holder.itemView.setBackgroundColor(Color.TRANSPARENT)
         }
 
-        // Create new TextWatcher
+        // --- Stop Order & Arrows ---
+        holder.binding.textViewStopOrder.text = "${position + 1}"
+
+        // Visibility logic for arrows
+        if (position == 0) {
+            holder.binding.buttonMoveUp.visibility = View.INVISIBLE
+        } else {
+            holder.binding.buttonMoveUp.visibility = View.VISIBLE
+        }
+
+        if (position == stops.size - 1) {
+            holder.binding.buttonMoveDown.visibility = View.INVISIBLE
+        } else {
+            holder.binding.buttonMoveDown.visibility = View.VISIBLE
+        }
+
+        // Click Listeners for Move
+        holder.binding.buttonMoveUp.setOnClickListener {
+            moveItem(holder.bindingAdapterPosition, -1)
+        }
+
+        holder.binding.buttonMoveDown.setOnClickListener {
+            moveItem(holder.bindingAdapterPosition, 1)
+        }
+
+        // Text Watcher
         val stopNameWatcher = object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                // FIX: Use bindingAdapterPosition
                 val adapterPos = holder.bindingAdapterPosition
                 if (adapterPos != RecyclerView.NO_POSITION) {
                     stops[adapterPos].stopName = s.toString()
@@ -63,30 +92,21 @@ class StopEditAdapter(
         }
 
         holder.binding.editTextStopName.addTextChangedListener(stopNameWatcher)
-
-        // Store watcher reference using the current position
         textWatchers[currentPos] = stopNameWatcher
 
         holder.binding.buttonRemoveStop.setOnClickListener {
-            // FIX: Use bindingAdapterPosition
             val adapterPos = holder.bindingAdapterPosition
             if (adapterPos != RecyclerView.NO_POSITION) {
-                // --- FIX: Update highlightedPosition before removing ---
                 if (adapterPos == highlightedPosition) {
-                    // The highlighted item is being removed, so clear the highlight
                     highlightedPosition = RecyclerView.NO_POSITION
                 } else if (adapterPos < highlightedPosition) {
-                    // An item above the highlighted one is removed, so shift highlight up
                     highlightedPosition--
                 }
-                // -------------------------------------------------------
-
                 onRemoveClicked(adapterPos)
             }
         }
 
         holder.binding.editTextScheduledTime.setOnClickListener {
-            // FIX: Use bindingAdapterPosition
             val adapterPos = holder.bindingAdapterPosition
             if (adapterPos != RecyclerView.NO_POSITION) {
                 onTimeClicked(adapterPos)
@@ -110,44 +130,57 @@ class StopEditAdapter(
     }
 
     /**
-     * Updates the time and uses specific move events for efficiency.
+     * Moves an item up (-1) or down (+1) manually.
+     * Updates highlight position if the moved item was highlighted.
+     */
+    private fun moveItem(currentPos: Int, direction: Int) {
+        if (currentPos == RecyclerView.NO_POSITION) return
+
+        val targetPos = currentPos + direction
+        if (targetPos in 0 until stops.size) {
+            Collections.swap(stops, currentPos, targetPos)
+
+            // Track the highlight if we moved the highlighted item
+            if (highlightedPosition == currentPos) {
+                highlightedPosition = targetPos
+            } else if (highlightedPosition == targetPos) {
+                highlightedPosition = currentPos
+            }
+
+            notifyItemMoved(currentPos, targetPos)
+            // Update order numbers and arrows
+            notifyItemRangeChanged(minOf(currentPos, targetPos), 2)
+        }
+    }
+
+    /**
+     * Updates the time for a stop, AUTO-SORTS the list, and highlights the item.
+     * Returns the new index.
      */
     fun updateTime(position: Int, time: String): Int {
         if (position in stops.indices) {
             val stopToUpdate = stops[position]
             stopToUpdate.scheduledTime = time
 
-            // 1. Remove the item from its old position
-            stops.removeAt(position)
-            notifyItemRemoved(position)
+            // --- Auto-Sort Logic ---
+            // Sort by time string, putting blanks at the end
+            stops.sortWith(Comparator { o1, o2 ->
+                val t1 = o1.scheduledTime
+                val t2 = o2.scheduledTime
 
-            // 2. Find new index based on sort order
-            var newIndex = 0
-            // Logic: Find the first item that should come AFTER this one
-            // We treat blank times as "largest" so they go to the end
-            while (newIndex < stops.size) {
-                val t1 = time
-                val t2 = stops[newIndex].scheduledTime
-
-                val comparison = if (t1.isBlank() && t2.isBlank()) 0
+                if (t1.isBlank() && t2.isBlank()) 0
                 else if (t1.isBlank()) 1
                 else if (t2.isBlank()) -1
                 else t1.compareTo(t2)
+            })
+            // -----------------------
 
-                if (comparison < 0) {
-                    break // Found our spot
-                }
-                newIndex++
-            }
-
-            // 3. Insert at new position
-            stops.add(newIndex, stopToUpdate)
-            notifyItemInserted(newIndex)
-
+            // Find where our item ended up after sorting
+            val newIndex = stops.indexOf(stopToUpdate)
             highlightedPosition = newIndex
 
-            // If the item moved significantly, refresh the view to update highlight
-            notifyItemChanged(newIndex)
+            // We use notifyDataSetChanged because the whole list order might have shifted
+            notifyDataSetChanged()
 
             return newIndex
         }

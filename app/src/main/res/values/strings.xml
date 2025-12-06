@@ -67,6 +67,8 @@
     <string name="cd_drag_reorder">Drag to reorder</string>
     <string name="cd_bus_icon">Bus Icon</string>
     <string name="cd_app_logo">App Logo</string>
+    <string name="cd_move_down">Move Down</string>
+    <string name="cd_move_up">Move Up</string>
 
     <!-- Messages -->
     <string name="msg_admin_contact">Admin may contact you through the provided phone / email to clear any doubts; edits will go live within a week if it is approved.</string>

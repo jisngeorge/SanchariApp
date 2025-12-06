@@ -38,22 +38,27 @@ class SuggestEditHandler(
             .setTitle("Instructions")
             .setMessage("• Add only important stops and junctions to bus routes.\n\n" +
                     "• Please use notes to convey any other details, like running status on Sundays, stops for which time unknown etc.\n\n" +
-                    "• For naming the bus, you can use place, depo names and numbers to make it easy to identify.")
+                    "• For naming the bus, you can use place, depo names and numbers to make it easy to identify." +
+                    "• For adding a halt, add same stop name with arrival and departure time.\n\n")
             .setPositiveButton("Got it", null)
             .show()
     }
 
     fun showTimePicker(position: Int) {
         val currentStop = editableStops[position]
-        val (initialHour, initialMinute) = try {
+        var initialHour = 9
+        var initialMinute = 0
+
+        try {
             if (currentStop.scheduledTime.isNotBlank()) {
                 val parts = currentStop.scheduledTime.split(":")
-                parts[0].toInt() to parts[1].toInt()
-            } else {
-                9 to 0
+                if (parts.size == 2) {
+                    initialHour = parts[0].trim().toInt()
+                    initialMinute = parts[1].trim().toInt()
+                }
             }
         } catch (e: Exception) {
-            9 to 0
+            Log.e(TAG, "Error parsing time: ${currentStop.scheduledTime}", e)
         }
 
         val picker = MaterialTimePicker.Builder()
@@ -68,11 +73,9 @@ class SuggestEditHandler(
             val minute = picker.minute
             val formattedTime = String.format(Locale.getDefault(), "%02d:%02d", hour, minute)
 
-            val newPosition = adapter.updateTime(position, formattedTime)
-            // Use post to ensure RecyclerView layout is updated after sorting before scrolling
-            binding.recyclerViewStopsEditor.post {
-                binding.recyclerViewStopsEditor.smoothScrollToPosition(newPosition)
-            }
+            // Just update the time; auto-sorting is handled by adapter.
+            // --- REMOVED: Scrolling logic ---
+            adapter.updateTime(position, formattedTime)
         }
 
         picker.show(activity.supportFragmentManager, "TimePicker")
@@ -123,29 +126,27 @@ class SuggestEditHandler(
         stops.forEachIndexed { index, stop ->
             val stopJson = JSONObject()
 
-            // --- UPDATED: Use "NEW" for new stops ---
+            // Use "NEW" for new stops, preserve ID for existing
             if (stop.originalStopId != -1) {
-                stopJson.put("stopId", stop.originalStopId) // Use INT from DB
+                stopJson.put("stopId", stop.originalStopId)
             } else {
-                stopJson.put("stopId", "NEW") // Just "NEW", no index
+                stopJson.put("stopId", "NEW")
             }
 
-            stopJson.put("locationName", stop.stopName)
-            stopJson.put("scheduledTime", stop.scheduledTime)
+            stopJson.put("locationName", stop.stopName.trim())
+            stopJson.put("scheduledTime", stop.scheduledTime.trim())
             stopJson.put("stopOrder", index + 1)
-
-            // Removed Lat/Long as requested previously
 
             stopsArray.put(stopJson)
         }
 
-        // --- UPDATED: Use Unix Timestamp (Seconds) with key 'timestamp' ---
+        // Use Unix Timestamp (Seconds)
         val timestamp = System.currentTimeMillis() / 1000
 
         root.put("service", service)
         root.put("stops", stopsArray)
         root.put("editNotes", editNotes)
-        root.put("timestamp", timestamp) // Changed from 'suggestionDate'
+        root.put("timestamp", timestamp)
 
         if (originalService != null) {
             root.put("type", "edit_schedule")
