@@ -61,11 +61,7 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
                     Log.w(TAG, "Could not fetch server version info. Skipping update.")
                     if (forceCheck) {
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(
-                                activity,
-                                "Update check failed. Please check your internet connection.",
-                                Toast.LENGTH_LONG
-                            ).show()
+                            Toast.makeText(activity, "Update check failed. Please check your internet connection.", Toast.LENGTH_LONG).show()
                         }
                     }
                     return@launch
@@ -82,6 +78,13 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
                     LocalVersionManager.saveCommunityUrl(activity, serverInfo.communityData)
                 }
 
+                // --- FIX: Save the App URL for the Share Button ---
+                if (serverInfo.app != null && !serverInfo.app.url.isNullOrBlank()) {
+                    LocalVersionManager.saveLatestAppUrl(activity, serverInfo.app.url)
+                    Log.i(TAG, "Updated latest App URL for sharing: ${serverInfo.app.url}")
+                }
+                // --------------------------------------------------
+
                 // 4. Check App Version
                 val currentAppVersion = BuildConfig.VERSION_CODE
                 val serverAppInfo = serverInfo.app
@@ -91,8 +94,6 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
                 }
 
                 // 5. Check DB Versions
-                // Re-fetch local versions here to ensure we have the latest state (though passed params are usually fine)
-                // We use the passed params to be consistent with the calling context
                 val isTimetableUpdateAvailable = serverInfo.timetable.version > localTimetableVersion
                 val isCommunityUpdateAvailable = serverInfo.community.version > localCommunityVersion
 
@@ -211,8 +212,6 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
         downloadCommunity: Boolean
     ) {
         Toast.makeText(activity, "Downloading database updates...", Toast.LENGTH_SHORT).show()
-        Log.i(TAG, "Starting download coroutine...")
-
         activity.lifecycleScope.launch(Dispatchers.IO) {
             var timetableSuccess = true
             var communitySuccess = true
