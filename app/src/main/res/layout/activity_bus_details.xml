@@ -58,7 +58,8 @@
                         android:layout_height="wrap_content"
                         android:text="@string/label_is_bus_running"
                         android:textAppearance="?attr/textAppearanceTitleMedium"
-                        android:textSize="18sp"/>
+                        android:textSize="18sp"
+                        android:textColor="?android:attr/textColorPrimary"/>
 
                     <com.google.android.material.button.MaterialButtonToggleGroup
                         android:id="@+id/toggleGroupStatus"
@@ -94,7 +95,8 @@
                         android:textSize="14sp"
                         android:visibility="gone"
                         tools:visibility="visible"
-                        tools:text="Last reported: 12-Nov-2025" />
+                        tools:text="Last reported: 12-Nov-2025"
+                        android:textColor="?android:attr/textColorPrimary" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -107,7 +109,8 @@
                 android:layout_marginTop="16dp"
                 android:text="@string/title_bus_stops"
                 android:textAppearance="?attr/textAppearanceTitleMedium"
-                android:textSize="18sp"/>
+                android:textSize="18sp"
+                android:textColor="?android:attr/textColorPrimary"/>
 
             <ProgressBar
                 android:id="@+id/progressBar"
@@ -125,9 +128,11 @@
                 android:layout_gravity="center_horizontal"
                 android:text="@string/title_error_message"
                 android:visibility="gone"
-                tools:visibility="visible" />
+                tools:visibility="visible"
+                android:textColor="?android:attr/textColorPrimary" />
 
             <!-- RATINGS SECTION -->
+
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recyclerViewBusStops"
                 android:layout_width="match_parent"
@@ -154,7 +159,8 @@
                         android:layout_height="wrap_content"
                         android:text="@string/title_community_ratings"
                         android:textAppearance="?attr/textAppearanceTitleMedium"
-                        android:textSize="18sp"/>
+                        android:textSize="18sp"
+                        android:textColor="?android:attr/textColorPrimary"/>
 
                     <TextView
                         android:id="@+id/textViewRatingCount"
@@ -162,7 +168,8 @@
                         android:layout_height="wrap_content"
                         android:textAppearance="?attr/textAppearanceBodySmall"
                         android:textSize="14sp"
-                        tools:text="Based on 5 ratings" />
+                        tools:text="Based on 5 ratings"
+                        android:textColor="?android:attr/textColorPrimary" />
 
                     <!-- Punctuality -->
                     <LinearLayout
@@ -182,7 +189,8 @@
                             android:layout_width="100dp"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
-                            android:text="@string/label_punctuality_5" />
+                            android:text="@string/label_punctuality_5"
+                            android:textColor="?android:attr/textColorPrimary" />
 
                         <RatingBar
                             android:id="@+id/ratingBarPunctuality"
@@ -212,7 +220,8 @@
                             android:layout_width="100dp"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
-                            android:text="@string/label_driving_comfort_5" />
+                            android:text="@string/label_driving_comfort_5"
+                            android:textColor="?android:attr/textColorPrimary" />
 
                         <RatingBar
                             android:id="@+id/ratingBarDrive"
@@ -242,7 +251,8 @@
                             android:layout_width="100dp"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
-                            android:text="@string/label_behaviour_5" />
+                            android:text="@string/label_behaviour_5"
+                            android:textColor="?android:attr/textColorPrimary"/>
 
                         <RatingBar
                             android:id="@+id/ratingBarBehaviour"
@@ -281,7 +291,8 @@
                 android:layout_marginTop="16dp"
                 android:text="@string/title_comments"
                 android:textAppearance="?attr/textAppearanceTitleMedium"
-                android:textSize="18sp"/>
+                android:textSize="18sp"
+                android:textColor="?android:attr/textColorPrimary"/>
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/commentsRecyclerView"
@@ -301,7 +312,8 @@
                 android:text="@string/label_no_comments"
                 android:textAppearance="?attr/textAppearanceBodySmall"
                 android:textSize="14sp"
-                android:visibility="gone" />
+                android:visibility="gone"
+                android:textColor="?android:attr/textColorPrimary" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonAddComment"
