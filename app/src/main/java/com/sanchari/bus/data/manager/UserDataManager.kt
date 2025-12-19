@@ -3,6 +3,7 @@ package com.sanchari.bus.data.manager
 import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
+import android.database.sqlite.SQLiteException
 import android.util.Log
 import com.sanchari.bus.data.local.DatabaseConstants.RecentViewTable
 import com.sanchari.bus.data.local.DatabaseConstants.UserTable
@@ -14,6 +15,7 @@ import java.util.UUID
 object UserDataManager {
 
     private const val TAG = "UserDataManager"
+    private const val RECENTS_LIMIT = 5 // Changed from 10 to 5
 
     /**
      * Saves user information. This will either insert a new user (if one doesn't exist)
@@ -23,7 +25,7 @@ object UserDataManager {
     fun saveUser(context: Context, user: User): Boolean {
         val dbHelper = UserDatabaseHelper(context)
         val db = dbHelper.writableDatabase
-        var success = false // Initialize success flag
+        var success = false
         db.beginTransaction()
         try {
             val values = ContentValues().apply {
@@ -37,7 +39,6 @@ object UserDataManager {
             var operationSuccessful = false
 
             // Try to update first based on UUID.
-            // The WHERE clause is "uuid = ?"
             val updatedRows = db.update(
                 UserTable.TABLE_NAME,
                 values,
@@ -46,39 +47,34 @@ object UserDataManager {
             )
 
             if (updatedRows > 0) {
-                // Update was successful
                 Log.i(TAG, "Existing user updated with UUID: ${user.uuid}")
                 operationSuccessful = true
             } else {
-                // No rows were updated, so this is a new user. Insert them.
                 val newRowId = db.insert(UserTable.TABLE_NAME, null, values)
                 if (newRowId != -1L) {
                     Log.i(TAG, "New user inserted with UUID: ${user.uuid}")
                     operationSuccessful = true
                 } else {
                     Log.e(TAG, "Failed to insert new user with UUID: ${user.uuid}")
-                    // operationSuccessful remains false
                 }
             }
 
             if (operationSuccessful) {
                 db.setTransactionSuccessful()
-                success = true // Mark as successful only if transaction is committed
+                success = true
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error saving user", e)
-            success = false // Ensure success is false on exception
+            success = false
         } finally {
             db.endTransaction()
             db.close()
         }
-        return success // Return the success status
+        return success
     }
 
     /**
-     * Retrieves the current user. Since there's only one user, it fetches the first one.
-     * If no user exists, it creates and returns a default, empty User object
-     * with a new UUID.
+     * Retrieves the current user.
      */
     @SuppressLint("Range")
     fun getUser(context: Context): User {
@@ -86,16 +82,9 @@ object UserDataManager {
         val db = dbHelper.readableDatabase
         var user: User? = null
 
-        // We just fetch the first user, as there should only be one
         val cursor = db.query(
             UserTable.TABLE_NAME,
-            null, // all columns
-            null, // no WHERE clause
-            null, // no WHERE args
-            null, // no grouping
-            null, // no filter
-            null, // no sort order
-            "1"   // LIMIT 1
+            null, null, null, null, null, null, "1"
         )
 
         try {
@@ -106,7 +95,6 @@ object UserDataManager {
                 val phoneIndex = cursor.getColumnIndex(UserTable.COLUMN_PHONE)
                 val placeIndex = cursor.getColumnIndex(UserTable.COLUMN_PLACE)
 
-                // Construct the User object *without* the internal userId
                 user = User(
                     uuid = if (uuidIndex != -1) cursor.getString(uuidIndex) else "",
                     name = if (nameIndex != -1) cursor.getString(nameIndex) else "",
@@ -122,7 +110,6 @@ object UserDataManager {
             db.close()
         }
 
-        // Return the found user, or a new blank User object with a fresh UUID
         return user ?: User(
             uuid = UUID.randomUUID().toString(),
             name = "",
@@ -133,59 +120,70 @@ object UserDataManager {
     }
 
     /**
-     * Adds a service to the recent views.
-     * It removes any existing entry for this serviceId to avoid duplicates and
-     * re-inserts it at the top (most recent).
+     * Adds a service to the recent views and prunes the list to keep only the latest 5.
      */
     fun addRecentView(context: Context, serviceId: String, serviceName: String) {
         val dbHelper = UserDatabaseHelper(context)
         val db = dbHelper.writableDatabase
-        db.beginTransaction()
+
         try {
-            // 1. Delete any existing entry for this serviceId to prevent duplicates
-            db.delete(
-                RecentViewTable.TABLE_NAME,
-                "${RecentViewTable.COLUMN_SERVICE_ID} = ?",
-                arrayOf(serviceId)
-            )
+            db.beginTransaction()
+            try {
+                // 1. Delete any existing entry for this serviceId to prevent duplicates
+                // (This brings it to the top when re-inserted with a new timestamp)
+                db.delete(
+                    RecentViewTable.TABLE_NAME,
+                    "${RecentViewTable.COLUMN_SERVICE_ID} = ?",
+                    arrayOf(serviceId)
+                )
 
-            // 2. Insert the new entry
-            val values = ContentValues().apply {
-                put(RecentViewTable.COLUMN_SERVICE_ID, serviceId)
-                put(RecentViewTable.COLUMN_SERVICE_NAME, serviceName)
-                // The timestamp defaults to CURRENT_TIMESTAMP in the schema
+                // 2. Insert the new entry
+                val values = ContentValues().apply {
+                    put(RecentViewTable.COLUMN_SERVICE_ID, serviceId)
+                    put(RecentViewTable.COLUMN_SERVICE_NAME, serviceName)
+                    // The timestamp defaults to CURRENT_TIMESTAMP in the schema
+                }
+                db.insert(RecentViewTable.TABLE_NAME, null, values)
+
+                // 3. Prune old entries: Keep only the latest 5
+                // Logic: Delete rows where recentId is NOT IN the set of the top 5 recent IDs
+                val pruneQuery = """
+                    DELETE FROM ${RecentViewTable.TABLE_NAME} 
+                    WHERE ${RecentViewTable.COLUMN_RECENT_ID} NOT IN (
+                        SELECT ${RecentViewTable.COLUMN_RECENT_ID} 
+                        FROM ${RecentViewTable.TABLE_NAME} 
+                        ORDER BY ${RecentViewTable.COLUMN_VIEWED_TIMESTAMP} DESC 
+                        LIMIT $RECENTS_LIMIT
+                    )
+                """
+                db.execSQL(pruneQuery)
+
+                db.setTransactionSuccessful()
+                Log.i(TAG, "Added recent view: $serviceName and pruned list")
+            } finally {
+                db.endTransaction()
             }
-            db.insert(RecentViewTable.TABLE_NAME, null, values)
-
-            db.setTransactionSuccessful()
-            Log.i(TAG, "Added recent view: $serviceName")
         } catch (e: Exception) {
             Log.e(TAG, "Error adding recent view", e)
         } finally {
-            db.endTransaction()
             db.close()
         }
     }
 
     /**
-     * Retrieves the list of recent searches, ordered by most recent first.
+     * Retrieves the list of recent searches.
      */
     @SuppressLint("Range")
-    fun getRecentViews(context: Context, limit: Int = 10): List<RecentSearch> {
+    fun getRecentViews(context: Context, limit: Int = RECENTS_LIMIT): List<RecentSearch> {
         val dbHelper = UserDatabaseHelper(context)
         val db = dbHelper.readableDatabase
         val recentSearches = mutableListOf<RecentSearch>()
 
-        // Corrected the typo: RecentData -> RecentViewTable
         val cursor = db.query(
             RecentViewTable.TABLE_NAME,
-            null, // all columns
-            null, // no WHERE
-            null, // no WHERE args
-            null, // no grouping
-            null, // no filter
-            "${RecentViewTable.COLUMN_VIEWED_TIMESTAMP} DESC", // Order by most recent
-            limit.toString() // Use the limit parameter
+            null, null, null, null, null,
+            "${RecentViewTable.COLUMN_VIEWED_TIMESTAMP} DESC",
+            limit.toString()
         )
 
         try {
@@ -198,7 +196,6 @@ object UserDataManager {
                     val search = RecentSearch(
                         serviceId = cursor.getString(serviceIdIndex),
                         serviceName = cursor.getString(serviceNameIndex),
-                        // Corrected data type: getString -> getLong
                         viewedTimestamp = cursor.getLong(timestampIndex)
                     )
                     recentSearches.add(search)
@@ -213,4 +210,3 @@ object UserDataManager {
         return recentSearches
     }
 }
-
