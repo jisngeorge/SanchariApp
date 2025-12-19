@@ -11,6 +11,7 @@ import com.sanchari.bus.data.model.EditableStop
 import com.sanchari.bus.databinding.ItemEditStopBinding
 import java.util.Collections
 import kotlin.math.abs
+import androidx.core.graphics.toColorInt
 
 /**
  * Adapter for the editable list of bus stops in SuggestEditActivity.
@@ -50,7 +51,7 @@ class StopEditAdapter(
 
         // --- Highlight Logic ---
         if (position == highlightedPosition) {
-            holder.itemView.setBackgroundColor(Color.parseColor("#FFF9C4")) // Light Yellow
+            holder.itemView.setBackgroundColor("#FFF9C4".toColorInt()) // Light Yellow
         } else {
             holder.itemView.setBackgroundColor(Color.TRANSPARENT)
         }

@@ -63,7 +63,7 @@ class BusServiceAdapter(
                     binding.serviceIcon.setImageResource(R.drawable.ic_bus_express)
                     binding.serviceType.text = context.getString(R.string.label_bus_express)
                 }
-                "DELUXE" -> {
+                "SUPER DELUXE" -> {
                     binding.serviceIcon.setImageResource(R.drawable.ic_bus_deluxe)
                     binding.serviceType.text = context.getString(R.string.label_bus_deluxe)
                 }

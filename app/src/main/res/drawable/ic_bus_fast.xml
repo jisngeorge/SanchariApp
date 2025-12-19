@@ -11,7 +11,7 @@
 
     <!-- Top Half (Red) -->
     <path
-        android:fillColor="#D32F2F"
+        android:fillColor="#FF0000"
         android:pathData="M4,6v5h16V6c0,-3.5 -3.58,-4 -8,-4s-8,0.5 -8,4Z"/>
 
     <!-- Bottom Half (Dark Yellow) -->
