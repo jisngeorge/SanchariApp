@@ -38,8 +38,8 @@ class SuggestEditHandler(
             .setTitle("Instructions")
             .setMessage("• Add only important stops and junctions to bus routes.\n\n" +
                     "• Please use notes to convey any other details, like running status on Sundays, stops for which time unknown etc.\n\n" +
-                    "• For naming the bus, you can use place, depo names and numbers to make it easy to identify." +
-                    "• For adding a halt, add same stop name with arrival and departure time.\n\n")
+                    "• For naming the bus, you can use place, depo names and numbers to make it easy to identify.\n\n" +
+                    "• For adding a halt, add same stop name with arrival and departure time.")
             .setPositiveButton("Got it", null)
             .show()
     }

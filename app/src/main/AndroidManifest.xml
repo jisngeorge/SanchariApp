@@ -20,7 +20,7 @@
         <activity
             android:name=".ui.activity.MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
+            android:theme="@style/Theme.SanchariApp.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -38,27 +38,27 @@
             android:exported="false"
             android:label="Search Results"
             android:parentActivityName=".ui.activity.MainActivity"
-            android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar" />
+            android:theme="@style/Theme.SanchariApp.NoActionBar" />
 
         <activity
             android:name=".ui.activity.BusDetailsActivity"
             android:exported="false"
             android:label="Bus Details"
             android:parentActivityName=".ui.activity.SearchResultsActivity"
-            android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar" />
+            android:theme="@style/Theme.SanchariApp.NoActionBar" />
 
         <activity
             android:name=".ui.activity.SuggestEditActivity"
             android:exported="false"
             android:label="Suggest Edit"
             android:parentActivityName=".ui.activity.BusDetailsActivity"
-            android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar" />
+            android:theme="@style/Theme.SanchariApp.NoActionBar" />
 
         <activity
             android:name=".ui.activity.ConfirmationActivity"
             android:exported="false"
             android:label="Confirm Suggestion"
-            android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar" />
+            android:theme="@style/Theme.SanchariApp.NoActionBar" />
 
         <!-- FileProvider Configuration -->
         <provider
