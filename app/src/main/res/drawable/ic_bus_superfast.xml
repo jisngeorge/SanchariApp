@@ -14,18 +14,9 @@
         android:fillColor="#DC143C"
         android:pathData="M4,6v5h16V6c0,-3.5 -3.58,-4 -8,-4s-8,0.5 -8,4Z"/>
 
-    <!-- Bottom Half (Yellow) -->
+    <!-- Bottom Half (Dark Yellow) -->
     <path
-        android:fillColor="#FFFF00"
+        android:fillColor="#FF6F61"
         android:pathData="M4,11v5c0,0.88 0.39,1.67 1,2.22V20c0,0.55 0.45,1 1,1h1c0.55,0 1,-0.45 1,-1v-1h8v1c0,0.55 0.45,1 1,1h1c0.55,0 1,-0.45 1,-1v-1.78c0.61,-0.55 1,-1.34 1,-2.22v-5H4Z"/>
-
-    <!-- Red Stripes on Orange Part -->
-    <path
-        android:fillColor="#DC143C"
-        android:pathData="M5,12.5h14v0.8H5Z"/>
-
-    <path
-        android:fillColor="#DC143C"
-        android:pathData="M5,14.5h14v0.8H5Z"/>
 
 </vector>
