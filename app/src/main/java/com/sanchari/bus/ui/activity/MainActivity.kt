@@ -154,8 +154,16 @@ class MainActivity : AppCompatActivity() {
         recentSearchAdapter = RecentSearchAdapter(emptyList()) { recentSearch ->
             Log.i(TAG, "Clicked recent search: ${recentSearch.serviceName}")
             lifecycleScope.launch(Dispatchers.IO) {
-                val service =
-                    SearchManager.getBusServiceById(applicationContext, recentSearch.serviceId)
+
+                // --- NEW: Update timestamp by re-adding it ---
+                UserDataManager.addRecentView(
+                    applicationContext,
+                    recentSearch.serviceId,
+                    recentSearch.serviceName
+                )
+                // ---------------------------------------------
+
+                val service = SearchManager.getBusServiceById(applicationContext, recentSearch.serviceId)
                 withContext(Dispatchers.Main) {
                     if (service != null) {
                         val intent = BusDetailsActivity.newIntent(this@MainActivity, service)
