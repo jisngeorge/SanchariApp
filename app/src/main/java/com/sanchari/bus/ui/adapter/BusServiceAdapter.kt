@@ -1,11 +1,13 @@
 package com.sanchari.bus.ui.adapter
 
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.sanchari.bus.data.model.BusService
 import com.sanchari.bus.R
 import com.sanchari.bus.databinding.ItemBusServiceBinding
+import androidx.core.graphics.toColorInt
 
 class BusServiceAdapter(
     private val services: List<BusService>,
@@ -31,6 +33,9 @@ class BusServiceAdapter(
     inner class BusServiceViewHolder(private val binding: ItemBusServiceBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
+        // Store default text color to restore it for recycled views
+        private val defaultTextColor = binding.serviceName.currentTextColor
+
         fun bind(service: BusService) {
             val context = binding.root.context
 
@@ -40,6 +45,17 @@ class BusServiceAdapter(
             binding.fromTime.text = service.fromTime
             binding.toTime.text = service.toTime
             // --- End of new code ---
+
+            // --- UPDATED: Running Status Indication ---
+            // Changed from dimming to text color change based on user feedback
+            binding.root.alpha = 1.0f // Reset alpha in case view is recycled
+
+            if (service.isRunning) {
+                binding.serviceName.setTextColor(defaultTextColor)
+            } else {
+                binding.serviceName.setTextColor("#D32F2F".toColorInt()) // Red for warning
+            }
+            // ------------------------------------------
 
             // Set the icon based on the service type
             when (service.type.uppercase()) {

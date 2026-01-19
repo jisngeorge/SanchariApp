@@ -28,7 +28,7 @@
             android:layout_height="wrap_content"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle1"
             android:textStyle="bold"
-            tools:text="Kothamangalam - Muvattupuzha" />
+            tools:text="Kottappady - Kothamangalam" />
 
         <TextView
             android:id="@+id/serviceType"
