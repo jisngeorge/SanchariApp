@@ -5,9 +5,11 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.sanchari.bus.databinding.ActivityMainBinding
 import com.sanchari.bus.ui.helper.AppUpdateManager
 import com.sanchari.bus.ui.helper.BusSearchHandler
 import com.sanchari.bus.data.local.DatabaseManager
@@ -16,8 +18,10 @@ import com.sanchari.bus.ui.adapter.RecentSearchAdapter
 import com.sanchari.bus.data.manager.SearchManager
 import com.sanchari.bus.ui.helper.UploadManager
 import com.sanchari.bus.data.manager.UserDataManager
-import com.sanchari.bus.databinding.ActivityMainBinding
 import com.sanchari.bus.ui.helper.MainSubmissionHandler
+import com.sanchari.bus.data.model.AppConfig
+import com.sanchari.bus.BuildConfig // Added BuildConfig import
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -69,6 +73,7 @@ class MainActivity : AppCompatActivity() {
         // --- Setup UI ---
         busSearchHandler.setup() // Sets up search bars and buttons
 
+        // --- ADDED NEW CLICK LISTENER ---
         binding.buttonAddNewBus.setOnClickListener {
             val intent = SuggestEditActivity.newIntentForNew(this)
             startActivity(intent)
@@ -90,12 +95,36 @@ class MainActivity : AppCompatActivity() {
                 }
                 startActivity(Intent.createChooser(shareIntent, "Share App via"))
             } else {
-                Toast.makeText(this, "Update link not available yet. Please check for updates first.", Toast.LENGTH_LONG).show()
-                val currentT = LocalVersionManager.getTimetableDbVersion(applicationContext)
-                val currentC = LocalVersionManager.getCommunityDbVersion(applicationContext)
-                appUpdateManager.checkForUpdates(forceCheck = true, currentT, currentC)
+                // Fallback: Try reading from assets if SharedPreferences is empty
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val assetUrl = getAppUrlFromAssets()
+                    withContext(Dispatchers.Main) {
+                        if (!assetUrl.isNullOrBlank()) {
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, "Check out Sanchari Bus App")
+                                putExtra(Intent.EXTRA_TEXT, "Download the Sanchari Bus App here: $assetUrl")
+                            }
+                            startActivity(Intent.createChooser(shareIntent, "Share App via"))
+                            // Save it for next time to avoid file IO
+                            LocalVersionManager.saveLatestAppUrl(this@MainActivity, assetUrl)
+                        } else {
+                            Toast.makeText(this@MainActivity, "Update link not available yet. Please check for updates first.", Toast.LENGTH_LONG).show()
+                            val currentT = LocalVersionManager.getTimetableDbVersion(applicationContext)
+                            val currentC = LocalVersionManager.getCommunityDbVersion(applicationContext)
+                            appUpdateManager.checkForUpdates(forceCheck = true, currentT, currentC)
+                        }
+                    }
+                }
             }
         }
+
+        // --- NEW: Long Click to show Version Info ---
+        binding.buttonShareApp.setOnLongClickListener {
+            showVersionInfoDialog()
+            true // Consume the click
+        }
+        // --------------------------------------------
 
         binding.buttonMessageAdmin.setOnClickListener {
             mainSubmissionHandler.showMessageAdminDialog()
@@ -127,6 +156,25 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun showVersionInfoDialog() {
+        val appVersionName = BuildConfig.VERSION_NAME
+        val appVersionCode = BuildConfig.VERSION_CODE
+        val tVersion = LocalVersionManager.getTimetableDbVersion(applicationContext)
+        val cVersion = LocalVersionManager.getCommunityDbVersion(applicationContext)
+
+        val message = """
+            App Version: $appVersionName ($appVersionCode)
+            Timetable DB: v$tVersion
+            Community DB: v$cVersion
+        """.trimIndent()
+
+        AlertDialog.Builder(this)
+            .setTitle("Version Information")
+            .setMessage(message)
+            .setPositiveButton("OK", null)
+            .show()
+    }
+
     override fun onResume() {
         super.onResume()
         refreshRecentSearches()
@@ -144,6 +192,17 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.e(TAG, "Error refreshing recent searches", e)
             }
+        }
+    }
+
+    private fun getAppUrlFromAssets(): String? {
+        return try {
+            val jsonString = assets.open("app_config.json").bufferedReader().use { it.readText() }
+            val config = Json { ignoreUnknownKeys = true }.decodeFromString<AppConfig>(jsonString)
+            config.latestAppUrl
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to read app_config.json from MainActivity", e)
+            null
         }
     }
 
