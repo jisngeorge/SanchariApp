@@ -36,7 +36,7 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
      * @param localTimetableVersion Current local DB version.
      * @param localCommunityVersion Current local DB version.
      */
-    fun checkForUpdates(forceCheck: Boolean, localTimetableVersion: Int, localCommunityVersion: Int) {
+    fun checkForUpdates(forceCheck: Boolean, localTimetableVersion: Int, localCommunityVersion: Int, onUpdateAvailable: ((Boolean) -> Unit)? = null) {
         activity.lifecycleScope.launch(Dispatchers.IO) {
 
             // 1. Frequency Check
@@ -102,6 +102,7 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
                 if (isTimetableUpdateAvailable || isCommunityUpdateAvailable || appUpdateAvailable) {
                     Log.i(TAG, "Updates available. Prompting user.")
                     withContext(Dispatchers.Main) {
+                        onUpdateAvailable?.invoke(true)
                         promptForUpdate(
                             isTimetableUpdateAvailable,
                             isCommunityUpdateAvailable,

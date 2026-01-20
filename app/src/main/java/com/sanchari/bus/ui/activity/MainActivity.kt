@@ -1,8 +1,12 @@
 package com.sanchari.bus.ui.activity
 
+import android.app.Activity
 import android.content.Intent
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
+import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -20,7 +24,8 @@ import com.sanchari.bus.ui.helper.UploadManager
 import com.sanchari.bus.data.manager.UserDataManager
 import com.sanchari.bus.ui.helper.MainSubmissionHandler
 import com.sanchari.bus.data.model.AppConfig
-import com.sanchari.bus.BuildConfig // Added BuildConfig import
+import com.sanchari.bus.BuildConfig
+import com.sanchari.bus.R
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -82,7 +87,11 @@ class MainActivity : AppCompatActivity() {
         binding.buttonCheckForUpdates.setOnClickListener {
             Toast.makeText(this, "Checking for updates...", Toast.LENGTH_SHORT).show()
             // Force update on manual click
-            appUpdateManager.checkForUpdates(forceCheck = true, initialTimetableVersion, initialCommunityVersion)
+            val currentT = LocalVersionManager.getTimetableDbVersion(applicationContext)
+            val currentC = LocalVersionManager.getCommunityDbVersion(applicationContext)
+            appUpdateManager.checkForUpdates(true, currentT, currentC) { isAvailable ->
+                updateUpdateButtonUI(isAvailable)
+            }
         }
 
         binding.buttonShareApp.setOnClickListener {
@@ -112,7 +121,9 @@ class MainActivity : AppCompatActivity() {
                             Toast.makeText(this@MainActivity, "Update link not available yet. Please check for updates first.", Toast.LENGTH_LONG).show()
                             val currentT = LocalVersionManager.getTimetableDbVersion(applicationContext)
                             val currentC = LocalVersionManager.getCommunityDbVersion(applicationContext)
-                            appUpdateManager.checkForUpdates(forceCheck = true, currentT, currentC)
+                            appUpdateManager.checkForUpdates(true, currentT, currentC) { isAvailable ->
+                                updateUpdateButtonUI(isAvailable)
+                            }
                         }
                     }
                 }
@@ -153,6 +164,16 @@ class MainActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 loadAppData()
             }
+        }
+    }
+
+    private fun updateUpdateButtonUI(isUpdateAvailable: Boolean) {
+        if (isUpdateAvailable) {
+            binding.buttonCheckForUpdates.setTextColor(Color.WHITE)
+            binding.buttonCheckForUpdates.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#4CAF50")) // Green
+        } else {
+            binding.buttonCheckForUpdates.text = getString(R.string.btn_check_updates)
+            // Leave default style or reset if needed (requires more complex logic to revert fully to outlined)
         }
     }
 
@@ -267,7 +288,9 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     // Now check for DB updates (Automatic check = false)
-                    appUpdateManager.checkForUpdates(forceCheck = false, initialTimetableVersion, initialCommunityVersion)
+                    appUpdateManager.checkForUpdates(false, initialTimetableVersion, initialCommunityVersion) { isAvailable ->
+                        updateUpdateButtonUI(isAvailable)
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading app data", e)

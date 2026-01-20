@@ -8,7 +8,7 @@
     <string name="btn_add_stop">Add Stop</string>
     <string name="btn_find_bus">Find Bus</string>
     <string name="btn_add_new_bus">Add a New Bus Service</string>
-    <string name="btn_check_updates">Check for Updates</string>
+    <string name="btn_check_updates">Update</string>
     <string name="btn_share_app">Share App</string>
     <string name="btn_add_rating">Add Your Rating</string>
     <string name="btn_add_comment">Add Comment</string>
