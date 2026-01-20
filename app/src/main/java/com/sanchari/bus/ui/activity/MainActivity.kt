@@ -5,14 +5,19 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.toColorInt
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.color.MaterialColors
 import com.sanchari.bus.databinding.ActivityMainBinding
 import com.sanchari.bus.ui.helper.AppUpdateManager
 import com.sanchari.bus.ui.helper.BusSearchHandler
@@ -78,6 +83,12 @@ class MainActivity : AppCompatActivity() {
         // --- Setup UI ---
         busSearchHandler.setup() // Sets up search bars and buttons
 
+        // --- NEW: Check persisted update state immediately ---
+        if (LocalVersionManager.isUpdateAvailable(this)) {
+            updateUpdateButtonUI(true)
+        }
+        // ----------------------------------------------------
+
         // --- ADDED NEW CLICK LISTENER ---
         binding.buttonAddNewBus.setOnClickListener {
             val intent = SuggestEditActivity.newIntentForNew(this)
@@ -89,9 +100,18 @@ class MainActivity : AppCompatActivity() {
             // Force update on manual click
             val currentT = LocalVersionManager.getTimetableDbVersion(applicationContext)
             val currentC = LocalVersionManager.getCommunityDbVersion(applicationContext)
-            appUpdateManager.checkForUpdates(true, currentT, currentC) { isAvailable ->
-                updateUpdateButtonUI(isAvailable)
-            }
+            // Fix: Use named argument for the lambda to resolve ambiguity
+            appUpdateManager.checkForUpdates(
+                forceCheck = true,
+                localTimetableVersion = currentT,
+                localCommunityVersion = currentC,
+                onUpdateAvailable = { isAvailable ->
+                    updateUpdateButtonUI(isAvailable)
+                },
+                onUpdateComplete = {
+                    updateUpdateButtonUI(false) // Reset UI on success
+                }
+            )
         }
 
         binding.buttonShareApp.setOnClickListener {
@@ -121,9 +141,18 @@ class MainActivity : AppCompatActivity() {
                             Toast.makeText(this@MainActivity, "Update link not available yet. Please check for updates first.", Toast.LENGTH_LONG).show()
                             val currentT = LocalVersionManager.getTimetableDbVersion(applicationContext)
                             val currentC = LocalVersionManager.getCommunityDbVersion(applicationContext)
-                            appUpdateManager.checkForUpdates(true, currentT, currentC) { isAvailable ->
-                                updateUpdateButtonUI(isAvailable)
-                            }
+                            // Fix: Use named argument
+                            appUpdateManager.checkForUpdates(
+                                forceCheck = true,
+                                localTimetableVersion = currentT,
+                                localCommunityVersion = currentC,
+                                onUpdateAvailable = { isAvailable ->
+                                    updateUpdateButtonUI(isAvailable)
+                                },
+                                onUpdateComplete = {
+                                    updateUpdateButtonUI(false)
+                                }
+                            )
                         }
                     }
                 }
@@ -170,10 +199,13 @@ class MainActivity : AppCompatActivity() {
     private fun updateUpdateButtonUI(isUpdateAvailable: Boolean) {
         if (isUpdateAvailable) {
             binding.buttonCheckForUpdates.setTextColor(Color.WHITE)
-            binding.buttonCheckForUpdates.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#4CAF50")) // Green
+            binding.buttonCheckForUpdates.backgroundTintList = ColorStateList.valueOf("#4CAF50".toColorInt()) // Green
         } else {
-            binding.buttonCheckForUpdates.text = getString(R.string.btn_check_updates)
-            // Leave default style or reset if needed (requires more complex logic to revert fully to outlined)
+            // Fix: Explicitly use com.google.android.material.R.attr.colorPrimary to resolve unresolved reference
+            val colorPrimary = MaterialColors.getColor(binding.root, androidx.constraintlayout.widget.R.attr.colorPrimary)
+            binding.buttonCheckForUpdates.setTextColor(colorPrimary)
+            // Reset background tint to null to restore default OutlinedButton behavior (transparent background)
+            binding.buttonCheckForUpdates.backgroundTintList = ColorStateList.valueOf(Color.TRANSPARENT)
         }
     }
 
@@ -288,9 +320,18 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     // Now check for DB updates (Automatic check = false)
-                    appUpdateManager.checkForUpdates(false, initialTimetableVersion, initialCommunityVersion) { isAvailable ->
-                        updateUpdateButtonUI(isAvailable)
-                    }
+                    // Fix: Use named argument
+                    appUpdateManager.checkForUpdates(
+                        forceCheck = false,
+                        localTimetableVersion = initialTimetableVersion,
+                        localCommunityVersion = initialCommunityVersion,
+                        onUpdateAvailable = { isAvailable ->
+                            updateUpdateButtonUI(isAvailable)
+                        },
+                        onUpdateComplete = {
+                            updateUpdateButtonUI(false)
+                        }
+                    )
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading app data", e)

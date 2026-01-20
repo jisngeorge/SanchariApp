@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.database.sqlite.SQLiteDatabase
 import android.util.Log
 import androidx.core.content.edit
+import com.sanchari.bus.data.local.DatabaseConstants
 
 object LocalVersionManager {
 
@@ -15,6 +16,8 @@ object LocalVersionManager {
     private const val KEY_DYNAMIC_COMMUNITY_URL = "dynamic_community_url"
     private const val KEY_LAST_UPDATE_CHECK = "last_update_check_timestamp"
     private const val KEY_LATEST_APP_URL = "latest_app_url"
+    // --- NEW KEY ---
+    private const val KEY_IS_UPDATE_AVAILABLE = "is_update_available"
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -117,5 +120,15 @@ object LocalVersionManager {
 
     fun saveLatestAppUrl(context: Context, url: String) {
         getPrefs(context).edit { putString(KEY_LATEST_APP_URL, url) }
+    }
+
+    // --- NEW: Update Availability Persistence ---
+
+    fun isUpdateAvailable(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_IS_UPDATE_AVAILABLE, false)
+    }
+
+    fun setUpdateAvailable(context: Context, isAvailable: Boolean) {
+        getPrefs(context).edit { putBoolean(KEY_IS_UPDATE_AVAILABLE, isAvailable) }
     }
 }

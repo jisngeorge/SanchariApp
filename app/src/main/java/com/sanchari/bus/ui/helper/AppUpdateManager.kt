@@ -19,10 +19,6 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Date
 
-/**
- * Handles all logic related to checking for updates, prompting the user,
- * downloading database updates, and self-updating the APK.
- */
 class AppUpdateManager(private val activity: AppCompatActivity) {
 
     companion object {
@@ -30,13 +26,13 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
         private const val UPDATE_INTERVAL_MS = 604800000L // 7 days
     }
 
-    /**
-     * Fetches version info from the server and compares it with local versions.
-     * @param forceCheck If true, ignores the 7-day interval rule.
-     * @param localTimetableVersion Current local DB version.
-     * @param localCommunityVersion Current local DB version.
-     */
-    fun checkForUpdates(forceCheck: Boolean, localTimetableVersion: Int, localCommunityVersion: Int, onUpdateAvailable: ((Boolean) -> Unit)? = null) {
+    fun checkForUpdates(
+        forceCheck: Boolean,
+        localTimetableVersion: Int,
+        localCommunityVersion: Int,
+        onUpdateAvailable: ((Boolean) -> Unit)? = null,
+        onUpdateComplete: (() -> Unit)? = null // Restored this callback
+    ) {
         activity.lifecycleScope.launch(Dispatchers.IO) {
 
             // 1. Frequency Check
@@ -78,12 +74,9 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
                     LocalVersionManager.saveCommunityUrl(activity, serverInfo.communityData)
                 }
 
-                // --- FIX: Save the App URL for the Share Button ---
                 if (serverInfo.app != null && !serverInfo.app.url.isNullOrBlank()) {
                     LocalVersionManager.saveLatestAppUrl(activity, serverInfo.app.url)
-                    Log.i(TAG, "Updated latest App URL for sharing: ${serverInfo.app.url}")
                 }
-                // --------------------------------------------------
 
                 // 4. Check App Version
                 val currentAppVersion = BuildConfig.VERSION_CODE
@@ -99,7 +92,11 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
 
                 Log.i(TAG, "Server Versions - Timetable: ${serverInfo.timetable.version}, Community: ${serverInfo.community.version}")
 
-                if (isTimetableUpdateAvailable || isCommunityUpdateAvailable || appUpdateAvailable) {
+                val updateAvailable = isTimetableUpdateAvailable || isCommunityUpdateAvailable || appUpdateAvailable
+
+                LocalVersionManager.setUpdateAvailable(activity, updateAvailable)
+
+                if (updateAvailable) {
                     Log.i(TAG, "Updates available. Prompting user.")
                     withContext(Dispatchers.Main) {
                         onUpdateAvailable?.invoke(true)
@@ -107,13 +104,15 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
                             isTimetableUpdateAvailable,
                             isCommunityUpdateAvailable,
                             appUpdateAvailable,
-                            serverInfo
+                            serverInfo,
+                            onUpdateComplete
                         )
                     }
                 } else {
                     Log.i(TAG, "No new updates.")
-                    if (forceCheck) {
-                        withContext(Dispatchers.Main) {
+                    withContext(Dispatchers.Main) {
+                        onUpdateAvailable?.invoke(false)
+                        if (forceCheck) {
                             Toast.makeText(activity, "App is up to date.", Toast.LENGTH_SHORT).show()
                         }
                     }
@@ -134,7 +133,8 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
         timetable: Boolean,
         community: Boolean,
         appUpdate: Boolean,
-        serverInfo: ServerVersionInfo
+        serverInfo: ServerVersionInfo,
+        onUpdateComplete: (() -> Unit)?
     ) {
         val messages = mutableListOf<String>()
         if (appUpdate) messages.add("New App Version")
@@ -153,7 +153,7 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
                     downloadAndInstallApp(serverInfo.app.url)
                 }
                 if (timetable || community) {
-                    startDatabaseDownload(serverInfo, timetable, community)
+                    startDatabaseDownload(serverInfo, timetable, community, onUpdateComplete)
                 }
                 dialog.dismiss()
             }
@@ -210,7 +210,8 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
     private fun startDatabaseDownload(
         serverInfo: ServerVersionInfo,
         downloadTimetable: Boolean,
-        downloadCommunity: Boolean
+        downloadCommunity: Boolean,
+        onUpdateComplete: (() -> Unit)?
     ) {
         Toast.makeText(activity, "Downloading database updates...", Toast.LENGTH_SHORT).show()
         activity.lifecycleScope.launch(Dispatchers.IO) {
@@ -239,7 +240,12 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
 
             if (timetableSuccess && communitySuccess) {
                 Log.i(TAG, "All databases updated successfully.")
+                // --- RESET FLAG AND NOTIFY ---
+                LocalVersionManager.setUpdateAvailable(activity, false)
+
                 withContext(Dispatchers.Main) {
+                    onUpdateComplete?.invoke() // Notify MainActivity to reset UI
+
                     AlertDialog.Builder(activity)
                         .setTitle("Update Complete")
                         .setMessage("Data updated successfully.")
