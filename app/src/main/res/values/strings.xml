@@ -39,6 +39,7 @@
     <string name="title_comments">Comments</string>
     <string name="title_add_rating">Add Your Rating</string>
     <string name="title_welcome">Welcome to Sanchari!</string>
+    <string name="title_how_it_works">How it works</string>
     <string name="title_tell_us">Tell us about yourself</string>
     <string name="title_confirm_details">Please confirm your details</string>
     <string name="label_punctuality_5">Punctuality</string>
@@ -75,4 +76,10 @@
     <string name="msg_welcome_sub">Your Community-Driven Bus Guide</string>
     <string name="msg_app_desc">This app works offline using a database stored on your phone. Routes, timings, and ratings are contributed by users like you and updated periodically.\n\nTo get the latest schedules, remember to check for updates regularly. We look forward to your contributions!</string>
     <string name="msg_no_stops_found">No stops found for this service."</string>
+
+    <!-- Feature Descriptions -->
+    <string name="desc_feat_search"><b>Find Bus:</b> Enter "From" and "To" places to find available bus services and their timings.</string>
+    <string name="desc_feat_add"><b>Add New:</b> Know a bus route that is missing? Use "Add a New Bus Service" to submit it to the community.</string>
+    <string name="desc_feat_update"><b>Update:</b> Use "Check for Updates" regularly to download the latest schedules, ratings, and comments.</string>
+    <string name="desc_feat_contribute"><b>Contribute:</b> Open any bus detail page to rate the service, add comments, or suggest corrections to the schedule.</string>
 </resources>

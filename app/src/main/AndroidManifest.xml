@@ -28,7 +28,7 @@
         </activity>
 
         <activity
-            android:name=".ui.activity.UserInfoActivity"
+            android:name=".ui.activity.IntroductionActivity"
             android:exported="false"
             android:label="Your Information"
             android:theme="@style/Theme.SanchariApp" />

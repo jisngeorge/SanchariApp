@@ -2,12 +2,13 @@ package com.sanchari.bus.ui.activity
 
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.sanchari.bus.data.model.User
 import com.sanchari.bus.data.manager.UserDataManager
-import com.sanchari.bus.databinding.ActivityUserInfoBinding
+import com.sanchari.bus.databinding.ActivityIntroductionBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -15,26 +16,57 @@ import kotlinx.coroutines.withContext
 /**
  * Activity to collect the user's information (name, email, etc.)
  */
-class UserInfoActivity : AppCompatActivity() {
+class IntroductionActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityUserInfoBinding
+    private lateinit var binding: ActivityIntroductionBinding
     private var currentUser: User? = null
+    private var isIntroMode = false
 
     companion object {
-        private const val TAG = "UserInfoActivity"
+        private const val TAG = "IntroductionActivity"
+        const val EXTRA_IS_INTRO = "EXTRA_IS_INTRO"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityUserInfoBinding.inflate(layoutInflater)
+        binding = ActivityIntroductionBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        supportActionBar?.title = "Your Information"
 
-        loadData()
+        isIntroMode = intent.getBooleanExtra(EXTRA_IS_INTRO, false)
+
+        if (isIntroMode) {
+            setupIntroMode()
+        } else {
+            supportActionBar?.title = "Your Information"
+            loadData()
+        }
 
         binding.saveButton.setOnClickListener {
-            saveData()
+            if (isIntroMode) {
+                // Just close the activity in intro mode
+                finish()
+            } else {
+                saveData()
+            }
         }
+    }
+
+    private fun setupIntroMode() {
+        // Intro Mode: Hide form fields, change button text
+        supportActionBar?.title = "Welcome"
+        binding.saveButton.text = "Get Started"
+
+        // Show the feature guide
+        binding.featureGuideLayout.visibility = View.VISIBLE
+
+        // Hide form fields
+        binding.formTitleTextView.visibility = View.GONE
+        binding.nameInputLayout.visibility = View.GONE
+        binding.emailInputLayout.visibility = View.GONE
+        binding.phoneInputLayout.visibility = View.GONE
+        binding.placeInputLayout.visibility = View.GONE
+
+        // Description remains visible as the intro message
     }
 
     /**
@@ -57,7 +89,7 @@ class UserInfoActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading user data", e)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@UserInfoActivity, "Error loading your data", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@IntroductionActivity, "Error loading your data", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -112,23 +144,20 @@ class UserInfoActivity : AppCompatActivity() {
                 val success = UserDataManager.saveUser(applicationContext, updatedUser)
                 withContext(Dispatchers.Main) {
                     if (success) {
-                        Toast.makeText(this@UserInfoActivity, "Information Saved!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@IntroductionActivity, "Information Saved!", Toast.LENGTH_SHORT).show()
                         setResult(RESULT_OK)
                         // User info is saved, we can close this activity
                         finish()
                     } else {
-                        Toast.makeText(this@UserInfoActivity, "Error saving data", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@IntroductionActivity, "Error saving data", Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error saving user data", e)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@UserInfoActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@IntroductionActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
     }
-
-    // The deprecated onBackPressed() method has been removed to use the default system behavior.
 }
-

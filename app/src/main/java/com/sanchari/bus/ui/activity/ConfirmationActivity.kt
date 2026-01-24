@@ -92,6 +92,18 @@ class ConfirmationActivity : AppCompatActivity() {
             return
         }
 
+        // Email validation: must contain "@"
+        if (!newEmail.contains("@")) {
+            Toast.makeText(this, "Please enter a valid email address", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Phone validation: must have minimum 10 digits
+        if (!newPhone.matches(Regex("\\d{10,}"))) {
+            Toast.makeText(this, "Phone number must have at least 10 digits", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         // 3. Save user info if changed
         if (user.name != newName || user.email != newEmail || user.phone != newPhone || user.place != newPlace) {
             val updatedUser = user.copy(

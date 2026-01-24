@@ -1,19 +1,14 @@
 package com.sanchari.bus.ui.activity
 
-import android.app.Activity
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
 import android.util.Log
-import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -30,7 +25,6 @@ import com.sanchari.bus.data.manager.UserDataManager
 import com.sanchari.bus.ui.helper.MainSubmissionHandler
 import com.sanchari.bus.data.model.AppConfig
 import com.sanchari.bus.BuildConfig
-import com.sanchari.bus.R
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -55,17 +49,16 @@ class MainActivity : AppCompatActivity() {
         private const val TAG = "MainActivity"
     }
 
-    // Launcher for UserInfoActivity
+    // Launcher for IntroductionActivity
     private val userInfoLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == RESULT_OK) {
-            Log.i(TAG, "UserInfoActivity finished. Loading app data.")
+            Log.i(TAG, "IntroductionActivity finished. Loading app data.")
             loadAppData()
         } else {
-            Log.w(TAG, "UserInfoActivity cancelled. User info is still incomplete.")
-            Toast.makeText(this, "User information is required. Exiting app.", Toast.LENGTH_SHORT).show()
-            finish() // Close MainActivity
+            Log.w(TAG, "IntroductionActivity cancelled.")
+            // No longer forcing exit since it's not mandatory on startup
         }
     }
 
@@ -88,6 +81,17 @@ class MainActivity : AppCompatActivity() {
             updateUpdateButtonUI(true)
         }
         // ----------------------------------------------------
+
+        // --- NEW: Check First Run & Show Intro Activity ---
+        if (LocalVersionManager.isFirstRun(this)) {
+            // Launch IntroductionActivity in "Intro Mode" (no data entry required)
+            val intent = Intent(this, IntroductionActivity::class.java).apply {
+                putExtra("EXTRA_IS_INTRO", true)
+            }
+            startActivity(intent)
+            LocalVersionManager.setFirstRunCompleted(this)
+        }
+        // ----------------------------------------
 
         // --- ADDED NEW CLICK LISTENER ---
         binding.buttonAddNewBus.setOnClickListener {
@@ -299,40 +303,32 @@ class MainActivity : AppCompatActivity() {
      * and finally checks for updates.
      */
     private fun loadAppData() {
-        Log.i(TAG, "loadAppData: Checking for user info...")
+        Log.i(TAG, "loadAppData: Loading data without forced user info check...")
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val user = UserDataManager.getUser(applicationContext)
+                // We no longer verify user info here.
+                // We proceed directly to loading content and checking updates.
 
-                if (user.name.isBlank() || user.email.isBlank() || user.phone.isBlank()) {
-                    Log.i(TAG, "User info incomplete. Launching UserInfoActivity.")
-                    withContext(Dispatchers.Main) {
-                        val intent = Intent(this@MainActivity, UserInfoActivity::class.java)
-                        userInfoLauncher.launch(intent)
-                    }
-                } else {
-                    Log.i(TAG, "User info found for ${user.name}. Loading recent searches.")
-
-                    val recentSearches = UserDataManager.getRecentViews(applicationContext)
-                    withContext(Dispatchers.Main) {
-                        recentSearchAdapter.updateData(recentSearches)
-                    }
-
-                    // Now check for DB updates (Automatic check = false)
-                    // Fix: Use named argument
-                    appUpdateManager.checkForUpdates(
-                        forceCheck = false,
-                        localTimetableVersion = initialTimetableVersion,
-                        localCommunityVersion = initialCommunityVersion,
-                        onUpdateAvailable = { isAvailable ->
-                            updateUpdateButtonUI(isAvailable)
-                        },
-                        onUpdateComplete = {
-                            updateUpdateButtonUI(false)
-                        }
-                    )
+                val recentSearches = UserDataManager.getRecentViews(applicationContext)
+                withContext(Dispatchers.Main) {
+                    recentSearchAdapter.updateData(recentSearches)
                 }
+
+                // Now check for DB updates (Automatic check = false)
+                // Fix: Use named argument
+                appUpdateManager.checkForUpdates(
+                    forceCheck = false,
+                    localTimetableVersion = initialTimetableVersion,
+                    localCommunityVersion = initialCommunityVersion,
+                    onUpdateAvailable = { isAvailable ->
+                        updateUpdateButtonUI(isAvailable)
+                    },
+                    onUpdateComplete = {
+                        updateUpdateButtonUI(false)
+                    }
+                )
+
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading app data", e)
                 withContext(Dispatchers.Main) {

@@ -5,7 +5,6 @@ import android.content.SharedPreferences
 import android.database.sqlite.SQLiteDatabase
 import android.util.Log
 import androidx.core.content.edit
-import com.sanchari.bus.data.local.DatabaseConstants
 
 object LocalVersionManager {
 
@@ -16,8 +15,8 @@ object LocalVersionManager {
     private const val KEY_DYNAMIC_COMMUNITY_URL = "dynamic_community_url"
     private const val KEY_LAST_UPDATE_CHECK = "last_update_check_timestamp"
     private const val KEY_LATEST_APP_URL = "latest_app_url"
-    // --- NEW KEY ---
     private const val KEY_IS_UPDATE_AVAILABLE = "is_update_available"
+    private const val KEY_IS_FIRST_RUN = "is_first_run"
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -35,9 +34,6 @@ object LocalVersionManager {
         if (cVersion > 0) saveCommunityVersion(context, cVersion)
     }
 
-    /**
-     * Queries the 'DbVersion' table in the given database file to find the content version.
-     */
     private fun readVersionFromDbFile(context: Context, dbName: String): Int {
         val dbPath = context.getDatabasePath(dbName)
         if (!dbPath.exists()) return 0
@@ -45,7 +41,6 @@ object LocalVersionManager {
         var version = 0
         try {
             SQLiteDatabase.openDatabase(dbPath.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { db ->
-                // Check if table exists first to avoid crash on old/empty DBs
                 val cursor = db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='${DatabaseConstants.VersionTable.TABLE_NAME}'", null)
                 if (cursor.count > 0) {
                     cursor.close()
@@ -66,8 +61,6 @@ object LocalVersionManager {
         return version
     }
 
-    // --- Getters (Read from SharedPreferences) ---
-
     fun getTimetableDbVersion(context: Context): Int {
         return getPrefs(context).getInt(DatabaseConstants.TIMETABLE_DB_VERSION_KEY, 0)
     }
@@ -75,8 +68,6 @@ object LocalVersionManager {
     fun getCommunityDbVersion(context: Context): Int {
         return getPrefs(context).getInt(DatabaseConstants.COMMUNITY_DB_VERSION_KEY, 0)
     }
-
-    // --- Setters (Write to SharedPreferences) ---
 
     private fun saveTimetableVersion(context: Context, version: Int) {
         getPrefs(context).edit { putInt(DatabaseConstants.TIMETABLE_DB_VERSION_KEY, version) }
@@ -104,8 +95,6 @@ object LocalVersionManager {
         getPrefs(context).edit { putString(KEY_DYNAMIC_COMMUNITY_URL, url) }
     }
 
-    // --- Update Check Timestamp Management ---
-
     fun getLastUpdateCheckTime(context: Context): Long {
         return getPrefs(context).getLong(KEY_LAST_UPDATE_CHECK, 0L)
     }
@@ -122,13 +111,20 @@ object LocalVersionManager {
         getPrefs(context).edit { putString(KEY_LATEST_APP_URL, url) }
     }
 
-    // --- NEW: Update Availability Persistence ---
-
     fun isUpdateAvailable(context: Context): Boolean {
         return getPrefs(context).getBoolean(KEY_IS_UPDATE_AVAILABLE, false)
     }
 
     fun setUpdateAvailable(context: Context, isAvailable: Boolean) {
         getPrefs(context).edit { putBoolean(KEY_IS_UPDATE_AVAILABLE, isAvailable) }
+    }
+
+    // --- NEW: First Run Management ---
+    fun isFirstRun(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_IS_FIRST_RUN, true)
+    }
+
+    fun setFirstRunCompleted(context: Context) {
+        getPrefs(context).edit { putBoolean(KEY_IS_FIRST_RUN, false) }
     }
 }
