@@ -49,19 +49,6 @@ class MainActivity : AppCompatActivity() {
         private const val TAG = "MainActivity"
     }
 
-    // Launcher for IntroductionActivity
-    private val userInfoLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == RESULT_OK) {
-            Log.i(TAG, "IntroductionActivity finished. Loading app data.")
-            loadAppData()
-        } else {
-            Log.w(TAG, "IntroductionActivity cancelled.")
-            // No longer forcing exit since it's not mandatory on startup
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -92,6 +79,19 @@ class MainActivity : AppCompatActivity() {
             LocalVersionManager.setFirstRunCompleted(this)
         }
         // ----------------------------------------
+
+        binding.buttonSwapLocations.setOnClickListener {
+            val fromText = binding.fromAutocomplete.text.toString()
+            val toText = binding.toAutocomplete.text.toString()
+
+            // Swap values
+            binding.fromAutocomplete.setText(toText)
+            binding.toAutocomplete.setText(fromText)
+
+            // Prevent dropdowns from showing immediately after swap
+            binding.fromAutocomplete.dismissDropDown()
+            binding.toAutocomplete.dismissDropDown()
+        }
 
         // --- ADDED NEW CLICK LISTENER ---
         binding.buttonAddNewBus.setOnClickListener {
