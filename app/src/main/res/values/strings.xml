@@ -14,6 +14,7 @@
     <string name="btn_add_comment">Add Comment</string>
     <string name="btn_suggest_edit">Suggest an Edit for this Bus</string>
     <string name="btn_message_admin_report_issue">Message Admin / Report Issue</string>
+    <string name="btn_get_started">Get Started</string>
 
     <!-- Search & Input Hints -->
     <string name="hint_from">From</string>
