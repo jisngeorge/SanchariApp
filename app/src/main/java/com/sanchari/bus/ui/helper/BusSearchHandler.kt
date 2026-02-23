@@ -132,6 +132,8 @@ class BusSearchHandler(
                     Log.i(TAG, "Found ${results.size} routes. Launching SearchResultsActivity.")
                     val intent = Intent(activity, SearchResultsActivity::class.java).apply {
                         putParcelableArrayListExtra(SearchResultsActivity.EXTRA_SEARCH_RESULTS, ArrayList(results))
+                        putExtra(SearchResultsActivity.EXTRA_FROM_STOP, from)
+                        putExtra(SearchResultsActivity.EXTRA_TO_STOP, to)
                     }
                     activity.startActivity(intent)
                 }

@@ -4,10 +4,13 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Parcelable
 import android.util.Log
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.appbar.MaterialToolbar
+import com.sanchari.bus.R
 import com.sanchari.bus.data.model.BusService
 import com.sanchari.bus.ui.adapter.BusServiceAdapter
 import com.sanchari.bus.data.manager.UserDataManager
@@ -22,6 +25,8 @@ class SearchResultsActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_SEARCH_RESULTS = "EXTRA_SEARCH_RESULTS"
+        const val EXTRA_FROM_STOP = "EXTRA_FROM_STOP"
+        const val EXTRA_TO_STOP = "EXTRA_TO_STOP"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -29,12 +34,35 @@ class SearchResultsActivity : AppCompatActivity() {
         binding = ActivitySearchResultsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Setup toolbar
+        // 1. Get strings from intent
+        val fromStop = intent.getStringExtra(EXTRA_FROM_STOP) ?: "Search"
+        val toStop = intent.getStringExtra(EXTRA_TO_STOP) ?: "Results"
+
+        // 3. Set the text on your custom Marquee TextView
+        // (Notice we use the nice arrow here on our custom view!)
+        binding.tvToolbarTitle.text = "$fromStop → $toStop"
+        binding.tvToolbarTitle.isSelected = true // Force selection to start marquee!
+
+        // 4. Handle the back button click (Just once!)
         binding.toolbar.setNavigationOnClickListener {
-            finish() // Go back to MainActivity
+            onBackPressedDispatcher.onBackPressed()
         }
 
-        // Get results from intent
+        // 5. Setup the Menu
+        // Note: If you use setSupportActionBar, it's usually better to override
+        // onCreateOptionsMenu, but if this standalone inflation works for you, keep it!
+        binding.toolbar.inflateMenu(R.menu.menu_search_results)
+        binding.toolbar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_suggest_nearby -> {
+                    Toast.makeText(this, "Nearby suggestions coming soon!", Toast.LENGTH_SHORT).show()
+                    true
+                }
+                else -> false
+            }
+        }
+
+        // 6. Setup RecyclerView with results
         val results = getParcelableArrayList<BusService>(EXTRA_SEARCH_RESULTS)
 
         if (results.isNullOrEmpty()) {
@@ -52,9 +80,7 @@ class SearchResultsActivity : AppCompatActivity() {
             // Handle click on a bus service
             Log.i("SearchResults", "Clicked on service: ${service.name} (ID: ${service.serviceId})")
 
-            // --- ADDED THIS BLOCK ---
             // Save this to recent views in the background
-            // This is tied to the Activity's lifecycle
             lifecycleScope.launch(Dispatchers.IO) {
                 UserDataManager.addRecentView(
                     applicationContext, // Get context from the activity
@@ -62,7 +88,6 @@ class SearchResultsActivity : AppCompatActivity() {
                     service.name
                 )
             }
-            // --- END OF BLOCK ---
 
             // Launch BusDetailsActivity
             val intent = BusDetailsActivity.newIntent(this, service)
@@ -84,4 +109,3 @@ class SearchResultsActivity : AppCompatActivity() {
         }
     }
 }
-
