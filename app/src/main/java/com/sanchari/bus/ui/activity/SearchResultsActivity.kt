@@ -6,11 +6,13 @@ import android.os.Parcelable
 import android.util.Log
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.appbar.MaterialToolbar
 import com.sanchari.bus.R
+import com.sanchari.bus.data.manager.SuggestionManager
 import com.sanchari.bus.data.model.BusService
 import com.sanchari.bus.ui.adapter.BusServiceAdapter
 import com.sanchari.bus.data.manager.UserDataManager
@@ -55,7 +57,29 @@ class SearchResultsActivity : AppCompatActivity() {
         binding.toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.action_suggest_nearby -> {
-                    Toast.makeText(this, "Nearby suggestions coming soon!", Toast.LENGTH_SHORT).show()
+                    // Show a quick loading toast (since database/math might take a fraction of a second)
+                    Toast.makeText(this, "Finding nearby stops...", Toast.LENGTH_SHORT).show()
+
+                    lifecycleScope.launch {
+                        // 1. Get the formatted text from the Manager
+                        val suggestionManager = SuggestionManager(this@SearchResultsActivity)
+                        val resultText = suggestionManager.getNearbySuggestionsText(fromStop, toStop)
+
+                        // 2. Create a selectable TextView
+                        val messageView = TextView(this@SearchResultsActivity).apply {
+                            text = resultText
+                            setTextIsSelectable(true) // THIS MAKES IT COPYABLE!
+                            textSize = 16f
+                            setPadding(60, 40, 60, 20) // Left, Top, Right, Bottom padding
+                        }
+
+                        // 3. Show standard AlertDialog with our custom selectable TextView
+                        AlertDialog.Builder(this@SearchResultsActivity)
+                            .setTitle("Nearby Suggestions")
+                            .setView(messageView)
+                            .setPositiveButton("Close") { dialog, _ -> dialog.dismiss() }
+                            .show()
+                    }
                     true
                 }
                 else -> false
