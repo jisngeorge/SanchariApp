@@ -155,128 +155,106 @@ class StopEditAdapter(
         }
     }
 
-    /**
-     * Updates the time for a stop, AUTO-SORTS the list using smart proximity logic,
-     * and highlights the item.
-     * Returns the new index.
-     */
     fun updateTime(position: Int, time: String): Int {
-        if (position in stops.indices) {
-            val stopToUpdate = stops[position]
-            stopToUpdate.scheduledTime = time
+        if (position !in stops.indices) return position
 
-            // Only sort if we have a valid time and other items to compare against
-            if (time.isNotBlank() && stops.size > 1) {
+        val stopToUpdate = stops[position]
+        stopToUpdate.scheduledTime = time
 
-                // 1. Build a temporary list of (Stop, LinearMinutes) for all OTHER stops
-                //    This establishes the "shape" of the current route's timeline.
-                val timeline = mutableListOf<Pair<EditableStop, Int>>()
-                var previousMins = -1
-                var dayOffset = 0
+        if (time.isBlank() || stops.size <= 1) {
+            highlightedPosition = position
+            notifyDataSetChanged()
+            return position
+        }
 
-                for (stop in stops) {
-                    if (stop === stopToUpdate) continue // Skip the one we are editing
+        val rawMins = parseMinutes(time)
+        if (rawMins == -1) {
+            highlightedPosition = position
+            notifyDataSetChanged()
+            return position
+        }
 
-                    val mins = parseMinutes(stop.scheduledTime)
-                    if (mins != -1) {
-                        // If time jumped backwards significantly, assume new day
-                        // (Simple heuristic for existing sorted list:
-                        // if current is much smaller than previous, add 24h)
-                        if (previousMins != -1 && mins < previousMins) {
-                            // Only if the jump isn't just a small disorder (e.g. 12:00 -> 11:55)
-                            // We assume existing list is mostly sorted.
-                            // Let's assume a "day wrap" if drop is > 12 hours?
-                            // Or just strictly increasing?
-                            // Strict increasing logic is safest for timeline construction.
-                            dayOffset += 1440
-                        }
+        // Precompute minutes for all stops once
+        val size = stops.size
+        val linearMins = IntArray(size) { -1 }
 
-                        // BUT: If the existing list was manually reordered to be 23:00 -> 00:30,
-                        // this loop will correctly assign 00:30 as 1470.
-                        // However, if the list is messy, this might be imperfect.
-                        // We rely on the user's manual ordering for the base truth.
+        var previousMins = -1
+        var dayOffset = 0
 
-                        // Let's simplify: Use the list order to determine day offsets.
-                        // If stop[i] < stop[i-1], we assume it's next day relative to previous.
+        // Build linear timeline for all except updated stop
+        for (i in 0 until size) {
+            val stop = stops[i]
+            if (stop === stopToUpdate) continue
 
-                        val adjustedMins = mins + dayOffset
-                        // Double check: if we accidentally added an offset but shouldn't have?
-                        // E.g. 23:00 -> 00:30 -> 01:00. Correct.
-
-                        timeline.add(stop to adjustedMins)
-                        previousMins = mins
-                    } else {
-                        // Keep stops with no time at the end? Or ignore for sorting context?
-                        // Let's ignore for timeline context, but they exist in the list.
-                    }
+            val mins = parseMinutes(stop.scheduledTime)
+            if (mins != -1) {
+                if (previousMins != -1 && mins < previousMins) {
+                    dayOffset += 1440
                 }
+                linearMins[i] = mins + dayOffset
+                previousMins = mins
+            }
+        }
 
-                // 2. Determine where the NEW time fits
-                if (timeline.isNotEmpty()) {
-                    val rawMins = parseMinutes(time)
-                    if (rawMins != -1) {
-                        val firstMins = timeline.first().second
-                        val lastMins = timeline.last().second
+        // Build reference timeline bounds
+        var firstMins = Int.MAX_VALUE
+        var lastMins = Int.MIN_VALUE
+        for (i in 0 until size) {
+            val v = linearMins[i]
+            if (v != -1) {
+                if (v < firstMins) firstMins = v
+                if (v > lastMins) lastMins = v
+            }
+        }
 
-                        val cand0 = rawMins          // Same day as start (approx)
-                        val cand1 = rawMins + 1440   // Next day
+        if (firstMins != Int.MAX_VALUE) {
+            val cand0 = rawMins
+            val cand1 = rawMins + 1440
 
-                        var finalMins = cand0
+            val fits0 = cand0 in firstMins..lastMins
+            val fits1 = cand1 in firstMins..lastMins
 
-                        // Logic: Check if cand0 fits nicely inside the range
-                        val fitsInRange = cand0 in firstMins..lastMins
-                        val cand1FitsInRange = cand1 in firstMins..lastMins
+            val finalMins = when {
+                fits0 -> cand0
+                fits1 -> cand1
+                else -> {
+                    val distToFirst = abs(cand0 - firstMins)
+                    val distToLast = abs(cand1 - lastMins)
+                    if (distToLast < distToFirst) cand1 else cand0
+                }
+            }
 
-                        if (fitsInRange) {
-                            finalMins = cand0
-                        } else if (cand1FitsInRange) {
-                            finalMins = cand1
-                        } else {
-                            // Neither fits strictly inside. It's an extension (Start or End).
-                            // User Logic: "closer to time of last... next stop. closer to time of first... before 1st"
+            // Assign updated stop linear value
+            linearMins[position] = finalMins
 
-                            val distToFirst = abs(cand0 - firstMins)
-                            val distToLast = abs(cand1 - lastMins)
-
-                            if (distToLast < distToFirst) {
-                                // Closer to the end (wrapping to next day)
-                                finalMins = cand1
-                            } else {
-                                // Closer to the start
-                                finalMins = cand0
-                            }
+            // Assign MAX for blank times
+            for (i in 0 until size) {
+                if (linearMins[i] == -1) {
+                    if (stops[i] !== stopToUpdate) {
+                        val mins = parseMinutes(stops[i].scheduledTime)
+                        if (mins == -1) {
+                            linearMins[i] = Int.MAX_VALUE
                         }
-
-                        // 3. Re-sort the whole list based on these calculated Linear Minutes
-                        // We need to map every stop to its linear value now.
-                        val allStopsWithMins = mutableListOf<Pair<EditableStop, Int>>()
-                        allStopsWithMins.addAll(timeline)
-                        allStopsWithMins.add(stopToUpdate to finalMins)
-
-                        // Add back any blank-time stops that were skipped (put them at end)
-                        for (stop in stops) {
-                            if (stop !== stopToUpdate && parseMinutes(stop.scheduledTime) == -1) {
-                                allStopsWithMins.add(stop to Int.MAX_VALUE)
-                            }
-                        }
-
-                        // Sort by linear minutes
-                        allStopsWithMins.sortBy { it.second }
-
-                        // Update the main list
-                        stops.clear()
-                        stops.addAll(allStopsWithMins.map { it.first })
                     }
                 }
             }
 
-            // Find new index
-            val newIndex = stops.indexOf(stopToUpdate)
-            highlightedPosition = newIndex
-            notifyDataSetChanged()
-            return newIndex
+            // Sort using index mapping (no Pair allocations)
+            val indexed = stops.indices.sortedBy { linearMins[it] }
+
+            val newList = ArrayList<EditableStop>(size)
+            for (i in indexed) {
+                newList.add(stops[i])
+            }
+
+            stops.clear()
+            stops.addAll(newList)
         }
-        return position
+
+        val newIndex = stops.indexOf(stopToUpdate)
+        highlightedPosition = newIndex
+        notifyDataSetChanged()
+        return newIndex
     }
 
     /**
