@@ -63,6 +63,10 @@ class BusServiceAdapter(
                     binding.serviceIcon.setImageResource(R.drawable.ic_bus_ordinary)
                     binding.serviceType.text = context.getString(R.string.label_bus_ordinary)
                 }
+                "CITY SERVICE" -> {
+                    binding.serviceIcon.setImageResource(R.drawable.ic_bus_city_service)
+                    binding.serviceType.text = context.getString(R.string.label_bus_city_service)
+                }
                 "LIMITED STOP" -> {
                     binding.serviceIcon.setImageResource(R.drawable.ic_bus_limited_stop)
                     binding.serviceType.text = context.getString(R.string.label_bus_ls)

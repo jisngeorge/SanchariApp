@@ -59,6 +59,7 @@
     <string name="label_bus_express">Express</string>
     <string name="label_bus_deluxe">Super Deluxe</string>
     <string name="label_bus_minnal">Minnal</string>
+    <string name="label_bus_city_service">City Service</string>
     <string name="label_bus_unspecified">Unspecified type</string>
     <string name="label_message_to_admin">Message To Admin</string>
     <string name="yes">Yes</string>
