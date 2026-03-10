@@ -245,7 +245,7 @@ class SuggestionManager(private val context: Context) {
         stringBuilder.append("Try out these stops:\n\n")
 
         if (foundSourceStops.isNotEmpty() || foundDestStops.isNotEmpty()) {
-            stringBuilder.append("Format: \n <Stop Name> [Dist. from Source | Dist. to Destination | Unique Buses Services | Total Buses Services]\n\n")
+            stringBuilder.append("Format: \n <Stop Name> [Dist. from Source | Dist. to Destination | Unique Bus Services | Total Bus Services]\n\n")
             stringBuilder.append("⚠️ Note: Distances are geometric (straight-line) and may not reflect actual road distances.\n\n\n")
         }
 
