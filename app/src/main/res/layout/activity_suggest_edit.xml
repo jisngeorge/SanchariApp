@@ -15,7 +15,21 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="Suggest an Edit" />
+            app:title="Suggest an Edit">
+
+            <!-- History Icon placed on the right side -->
+            <ImageView
+                android:id="@+id/btn_history"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginEnd="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/desc_history"
+                android:padding="12dp"
+                android:src="@drawable/ic_history" />
+
+        </com.google.android.material.appbar.MaterialToolbar>
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -100,11 +114,41 @@
                     android:gravity="top"/>
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- Save and Discard Horizontal Container -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:orientation="horizontal"
+                android:baselineAligned="false">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonDiscardDraft"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    app:strokeColor="@color/design_default_color_error"
+                    android:textColor="@color/design_default_color_error"
+                    android:text="Discard" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonSaveDraft"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="Save Draft" />
+
+            </LinearLayout>
+
             <Button
                 android:id="@+id/buttonApplyChanges"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
+                android:layout_marginTop="16dp"
                 android:text="@string/btn_apply_proceed" />
 
         </LinearLayout>

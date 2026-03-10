@@ -14,6 +14,7 @@ import com.sanchari.bus.data.local.SuggestionStorageManager
 import com.sanchari.bus.data.model.User
 import com.sanchari.bus.data.manager.UserDataManager
 import com.sanchari.bus.databinding.ActivityConfirmBinding
+import com.sanchari.bus.ui.helper.DraftManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -23,10 +24,12 @@ class ConfirmationActivity : AppCompatActivity() {
     private lateinit var binding: ActivityConfirmBinding
     private var suggestionJson: String? = null
     private var currentUser: User? = null
+    private var draftFileName: String? = null
 
     companion object {
         private const val TAG = "ConfirmationActivity"
         private const val EXTRA_JSON_PAYLOAD = "EXTRA_JSON_PAYLOAD"
+        const val EXTRA_DRAFT_FILE_NAME = "EXTRA_DRAFT_FILE_NAME"
 
         fun newIntent(context: Context, jsonPayload: String): Intent {
             return Intent(context, ConfirmationActivity::class.java).apply {
@@ -43,8 +46,10 @@ class ConfirmationActivity : AppCompatActivity() {
         // Setup Toolbar
         binding.toolbar.setNavigationOnClickListener { finish() }
 
-        // Get the JSON payload
+        // Get the JSON payload and potential draft file name
         suggestionJson = intent.getStringExtra(EXTRA_JSON_PAYLOAD)
+        draftFileName = intent.getStringExtra(EXTRA_DRAFT_FILE_NAME)
+
         if (suggestionJson == null) {
             Log.e(TAG, "No JSON payload provided. Finishing activity.")
             Toast.makeText(this, "An error occurred.", Toast.LENGTH_SHORT).show()
@@ -131,7 +136,7 @@ class ConfirmationActivity : AppCompatActivity() {
             }
         """.trimIndent()
 
-        // --- UPDATED LOGIC: Try Upload, Save on Failure ---
+        // --- Try Upload, Save on Failure ---
         uploadOrSave(finalPayloadJson)
     }
 
@@ -149,17 +154,26 @@ class ConfirmationActivity : AppCompatActivity() {
                 binding.buttonApplySuggestion.isEnabled = true
 
                 if (success) {
+                    deleteDraftIfExists()
                     showSuccessDialog("Your suggestion has been submitted successfully.")
                 } else {
                     // If upload fails, save locally
                     val savedLocally = SuggestionStorageManager.saveSuggestion(applicationContext, jsonPayload)
                     if (savedLocally) {
+                        deleteDraftIfExists()
                         showSuccessDialog("Network unavailable. Suggestion saved offline and will sync later.")
                     } else {
                         showErrorDialog("Failed to submit or save suggestion.")
                     }
                 }
             }
+        }
+    }
+
+    private fun deleteDraftIfExists() {
+        draftFileName?.let { fileName ->
+            Log.d(TAG, "Deleting draft: $fileName")
+            DraftManager.deleteDraft(applicationContext, fileName)
         }
     }
 

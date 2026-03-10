@@ -85,4 +85,5 @@
     <string name="desc_feat_add"><b>Add New:</b> Know a bus route that is missing? Use "Add a New Bus Service" to submit it to the community.</string>
     <string name="desc_feat_update"><b>Update:</b> Use "Check for Updates" regularly to download the latest schedules, ratings, and comments.</string>
     <string name="desc_feat_contribute"><b>Contribute:</b> Open any bus detail page to rate the service, add comments, or suggest corrections to the schedule.</string>
+    <string name="desc_history">History</string>
 </resources>

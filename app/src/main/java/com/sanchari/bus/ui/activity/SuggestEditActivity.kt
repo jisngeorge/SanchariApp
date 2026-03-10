@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -26,7 +27,9 @@ class SuggestEditActivity : AppCompatActivity() {
     private val editableStops = mutableListOf<EditableStop>()
     private var originalService: BusService? = null
 
-    // Refactored Handler
+    // Tracks the current draft if loaded from history
+    var currentDraftFileName: String? = null
+
     private lateinit var handler: SuggestEditHandler
 
     companion object {
@@ -54,8 +57,6 @@ class SuggestEditActivity : AppCompatActivity() {
         binding = ActivitySuggestEditBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.toolbar.setNavigationOnClickListener { finish() }
-
         setupRecyclerView()
 
         // Initialize Handler
@@ -63,29 +64,59 @@ class SuggestEditActivity : AppCompatActivity() {
 
         if (savedInstanceState == null) {
             handler.showInstructionsDialog()
-        }
-
-        if (savedInstanceState != null) {
+        } else {
             Log.i(TAG, "Restoring state from savedInstanceState")
             restoreFromSavedState(savedInstanceState)
-        } else {
+        }
+
+        if (savedInstanceState == null) {
             Log.i(TAG, "Loading from intent (new or edit)")
             loadFromIntent()
+        }
+
+        // Intercept Back Press to prompt "Save Draft"
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                handler.promptSaveDraftAndExit()
+            }
+        })
+
+        // Toolbar Back Button
+        binding.toolbar.setNavigationOnClickListener {
+            handler.promptSaveDraftAndExit()
+        }
+
+        // History Icon
+        binding.btnHistory.setOnClickListener {
+            handler.showEditHistory()
         }
 
         binding.buttonAddStop.setOnClickListener {
             addNewStop()
         }
 
+        binding.buttonSaveDraft.setOnClickListener {
+            handler.saveDraft()
+        }
+
+        binding.buttonDiscardDraft.setOnClickListener {
+            handler.discardDraft()
+        }
+
         binding.buttonApplyChanges.setOnClickListener {
-            // Delegate to handler
             handler.applyChanges(originalService)
         }
     }
 
+
+    // Expose Original Service to Handler
+    fun getOriginalService(): BusService? = originalService
+    fun setOriginalService(service: BusService?) {
+        originalService = service
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        Log.i(TAG, "onSaveInstanceState: Saving user edits...")
         outState.putString(KEY_SERVICE_NAME, binding.editTextServiceName.text.toString())
         outState.putString(KEY_SERVICE_TYPE, binding.editTextServiceType.text.toString())
         outState.putParcelableArrayList(KEY_STOPS, ArrayList(adapter.getStopsData()))
@@ -141,7 +172,6 @@ class SuggestEditActivity : AppCompatActivity() {
                 adapter.notifyItemRangeChanged(position, editableStops.size)
             },
             onTimeClicked = { position ->
-                // Delegate to handler
                 handler.showTimePicker(position)
             }
         )
@@ -165,10 +195,8 @@ class SuggestEditActivity : AppCompatActivity() {
     }
 
     private fun addNewStop() {
-        // Pass -1 for new stops
         editableStops.add(EditableStop("", "", editableStops.size + 1, -1))
         adapter.notifyItemInserted(editableStops.size - 1)
-        // Scroll to the new bottom item
         binding.recyclerViewStopsEditor.smoothScrollToPosition(editableStops.size - 1)
     }
 }

@@ -8,20 +8,16 @@ import com.google.android.material.timepicker.MaterialTimePicker
 import com.google.android.material.timepicker.TimeFormat
 import com.sanchari.bus.data.model.BusService
 import com.sanchari.bus.data.model.EditableStop
+import com.sanchari.bus.data.model.SavedDraft
 import com.sanchari.bus.databinding.ActivitySuggestEditBinding
 import com.sanchari.bus.ui.activity.ConfirmationActivity
+import com.sanchari.bus.ui.activity.SuggestEditActivity
 import com.sanchari.bus.ui.adapter.StopEditAdapter
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
 import java.util.UUID
 
-/**
- * Handles logic for SuggestEditActivity:
- * - Validations
- * - Dialogs (Instructions, TimePicker)
- * - JSON Generation
- */
 class SuggestEditHandler(
     private val activity: AppCompatActivity,
     private val binding: ActivitySuggestEditBinding,
@@ -44,6 +40,146 @@ class SuggestEditHandler(
             .show()
     }
 
+    fun showEditHistory() {
+        val drafts = DraftManager.getDrafts(activity)
+        if (drafts.isEmpty()) {
+            Toast.makeText(activity, "No saved drafts yet.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val displayNames = drafts.map { it.displayName }.toTypedArray()
+
+        AlertDialog.Builder(activity)
+            .setTitle("Saved Drafts")
+            .setItems(displayNames) { _, which ->
+                loadDraftIntoUI(drafts[which])
+            }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun loadDraftIntoUI(draft: SavedDraft) {
+        try {
+            val root = JSONObject(draft.jsonPayload)
+            val service = root.getJSONObject("service")
+
+            binding.editTextServiceName.setText(service.optString("name"))
+            binding.editTextServiceType.setText(service.optString("type"))
+            binding.editTextEditNotes.setText(root.optString("editNotes"))
+
+            editableStops.clear()
+            val stopsArray = root.getJSONArray("stops")
+            for (i in 0 until stopsArray.length()) {
+                val stopObj = stopsArray.getJSONObject(i)
+                val stopIdRaw = stopObj.optString("stopId", "NEW")
+                val originalStopId = if (stopIdRaw == "NEW") -1 else stopIdRaw.toIntOrNull() ?: -1
+
+                editableStops.add(
+                    EditableStop(
+                        stopName = stopObj.optString("locationName"),
+                        scheduledTime = stopObj.optString("scheduledTime"),
+                        stopOrder = stopObj.optInt("stopOrder", i + 1),
+                        originalStopId = originalStopId
+                    )
+                )
+            }
+            adapter.notifyDataSetChanged()
+
+            val suggestActivity = activity as SuggestEditActivity
+            suggestActivity.currentDraftFileName = draft.fileName
+
+            val sId = service.optString("serviceId", "")
+
+            if (sId.isNotBlank()) {
+                val bus = BusService(
+                    serviceId = sId,
+                    name = service.optString("name"),
+                    type = service.optString("type"),
+                    isRunning = service.optBoolean("isRunning", true),
+                    lastReportedTime = service.optLong("lastReportedTime", 0L),
+                    fromTime = service.optString("fromTime", ""),
+                    toTime = service.optString("toTime", "")
+                )
+                suggestActivity.setOriginalService(bus)
+            } else {
+                suggestActivity.setOriginalService(null)
+            }
+
+            Toast.makeText(activity, "Draft loaded successfully", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load draft", e)
+            Toast.makeText(activity, "Error reading draft file", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Explicit action for the Save Draft button
+    fun saveDraft() {
+        val suggestActivity = activity as SuggestEditActivity
+        val serviceName = binding.editTextServiceName.text.toString().trim()
+        val stopsData = adapter.getStopsData()
+
+        if (serviceName.isEmpty() && stopsData.isEmpty()) {
+            Toast.makeText(activity, "Nothing to save", Toast.LENGTH_SHORT).show()
+            activity.finish()
+            return
+        }
+
+        val json = buildJsonPayload(
+            suggestActivity.getOriginalService(),
+            serviceName,
+            binding.editTextServiceType.text.toString().trim(),
+            stopsData,
+            binding.editTextEditNotes.text.toString().trim()
+        )
+        DraftManager.saveDraft(activity, json, suggestActivity.currentDraftFileName)
+        Toast.makeText(activity, "Draft Saved", Toast.LENGTH_SHORT).show()
+        activity.finish()
+    }
+
+    // Explicit action for the Discard Draft button
+    fun discardDraft() {
+        val suggestActivity = activity as SuggestEditActivity
+        AlertDialog.Builder(activity)
+            .setTitle("Discard Draft")
+            .setMessage("Are you sure you want to discard your current changes? This cannot be undone.")
+            .setPositiveButton("Discard") { _, _ ->
+                suggestActivity.currentDraftFileName?.let {
+                    DraftManager.deleteDraft(activity, it)
+                }
+                Toast.makeText(activity, "Draft Discarded", Toast.LENGTH_SHORT).show()
+                activity.finish()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    // For intercepting the back button/up navigation
+    fun promptSaveDraftAndExit() {
+        val suggestActivity = activity as SuggestEditActivity
+        val serviceName = binding.editTextServiceName.text.toString().trim()
+        val stopsData = adapter.getStopsData()
+
+        if (serviceName.isEmpty() && stopsData.isEmpty()) {
+            activity.finish()
+            return
+        }
+
+        AlertDialog.Builder(activity)
+            .setTitle("Save Draft?")
+            .setMessage("Do you want to save your progress to history?")
+            .setPositiveButton("Save") { _, _ ->
+                saveDraft() // Reusing the function above
+            }
+            .setNegativeButton("Discard") { _, _ ->
+                suggestActivity.currentDraftFileName?.let {
+                    DraftManager.deleteDraft(activity, it)
+                }
+                activity.finish()
+            }
+            .setNeutralButton("Cancel", null)
+            .show()
+    }
+
     fun showTimePicker(position: Int) {
         val currentStop = editableStops[position]
         var initialHour = 9
@@ -58,7 +194,7 @@ class SuggestEditHandler(
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error parsing time: ${currentStop.scheduledTime}", e)
+            Log.e(TAG, "Error parsing time", e)
         }
 
         val picker = MaterialTimePicker.Builder()
@@ -69,15 +205,9 @@ class SuggestEditHandler(
             .build()
 
         picker.addOnPositiveButtonClickListener {
-            val hour = picker.hour
-            val minute = picker.minute
-            val formattedTime = String.format(Locale.getDefault(), "%02d:%02d", hour, minute)
-
-            // Just update the time; auto-sorting is handled by adapter.
-            // --- REMOVED: Scrolling logic ---
+            val formattedTime = String.format(Locale.getDefault(), "%02d:%02d", picker.hour, picker.minute)
             adapter.updateTime(position, formattedTime)
         }
-
         picker.show(activity.supportFragmentManager, "TimePicker")
     }
 
@@ -87,23 +217,16 @@ class SuggestEditHandler(
         val stopsData = adapter.getStopsData()
         val editNotes = binding.editTextEditNotes.text.toString().trim()
 
-        if (serviceName.isEmpty()) {
-            Toast.makeText(activity, "Please enter a bus service name.", Toast.LENGTH_SHORT).show()
-            return
-        }
-        if (stopsData.isEmpty()) {
-            Toast.makeText(activity, "Please add at least one stop.", Toast.LENGTH_SHORT).show()
-            return
-        }
-        if (stopsData.any { it.stopName.isBlank() || it.scheduledTime.isBlank() }) {
-            Toast.makeText(activity, "Please fill in all stop names and times.", Toast.LENGTH_SHORT).show()
+        if (serviceName.isEmpty() || stopsData.isEmpty()) {
+            Toast.makeText(activity, "Please fill required fields", Toast.LENGTH_SHORT).show()
             return
         }
 
         val json = buildJsonPayload(originalService, serviceName, serviceType, stopsData, editNotes)
-        Log.d(TAG, "Generated JSON: $json")
-
         val intent = ConfirmationActivity.newIntent(activity, json)
+        (activity as SuggestEditActivity).currentDraftFileName?.let {
+            intent.putExtra("EXTRA_DRAFT_FILE_NAME", it)
+        }
         activity.startActivity(intent)
     }
 
@@ -116,43 +239,37 @@ class SuggestEditHandler(
     ): String {
         val root = JSONObject()
         val service = JSONObject()
-        service.put("serviceId", originalService?.serviceId ?: "NEW-${UUID.randomUUID()}")
+
+        val serviceId = originalService?.serviceId ?: "NEW-${UUID.randomUUID()}"
+
+        service.put("serviceId", serviceId)
         service.put("name", name)
         service.put("type", type)
-        service.put("isRunning", 1)
-        service.put("lastReportedTime", 0L)
+        service.put("isRunning", originalService?.isRunning ?: true)
+        service.put("lastReportedTime", originalService?.lastReportedTime ?: 0L)
+
+        val fromTime = if (stops.isNotEmpty()) stops.first().scheduledTime else ""
+        val toTime = if (stops.isNotEmpty()) stops.last().scheduledTime else ""
+
+        service.put("fromTime", fromTime)
+        service.put("toTime", toTime)
 
         val stopsArray = JSONArray()
         stops.forEachIndexed { index, stop ->
             val stopJson = JSONObject()
-
-            // Use "NEW" for new stops, preserve ID for existing
-            if (stop.originalStopId != -1) {
-                stopJson.put("stopId", stop.originalStopId)
-            } else {
-                stopJson.put("stopId", "NEW")
-            }
-
+            stopJson.put("stopId", if (stop.originalStopId != -1) stop.originalStopId else "NEW")
             stopJson.put("locationName", stop.stopName.trim())
             stopJson.put("scheduledTime", stop.scheduledTime.trim())
             stopJson.put("stopOrder", index + 1)
-
             stopsArray.put(stopJson)
         }
-
-        // Use Unix Timestamp (Seconds)
-        val timestamp = System.currentTimeMillis() / 1000
 
         root.put("service", service)
         root.put("stops", stopsArray)
         root.put("editNotes", editNotes)
-        root.put("timestamp", timestamp)
+        root.put("timestamp", System.currentTimeMillis() / 1000)
 
-        if (originalService != null) {
-            root.put("type", "edit_schedule")
-        } else {
-            root.put("type", "new_schedule")
-        }
+        root.put("type", if (serviceId.startsWith("NEW-")) "new_schedule" else "edit_schedule")
 
         return root.toString(2)
     }

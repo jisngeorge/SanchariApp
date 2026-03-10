@@ -3,7 +3,6 @@ package com.sanchari.bus.data.manager
 import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
-import android.database.sqlite.SQLiteException
 import android.util.Log
 import com.sanchari.bus.data.local.DatabaseConstants.RecentViewTable
 import com.sanchari.bus.data.local.DatabaseConstants.UserTable
