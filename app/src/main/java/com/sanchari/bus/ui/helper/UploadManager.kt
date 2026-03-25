@@ -17,9 +17,9 @@ class UploadManager(private val context: Context) {
         private const val TAG = "UploadManager"
     }
 
-    suspend fun retryPendingUploads() {
+    suspend fun retryPendingUploads() = withContext(Dispatchers.IO) {
         val pendingFiles = SuggestionStorageManager.getPendingSuggestions(context)
-        if (pendingFiles.isEmpty()) return
+        if (pendingFiles.isEmpty()) return@withContext
 
         Log.i(TAG, "Found ${pendingFiles.size} pending suggestions. Attempting to sync...")
         var failureCount = 0

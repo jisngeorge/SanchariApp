@@ -31,7 +31,7 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
         localTimetableVersion: Int,
         localCommunityVersion: Int,
         onUpdateAvailable: ((Boolean) -> Unit)? = null,
-        onUpdateComplete: (() -> Unit)? = null // Restored this callback
+        onUpdateComplete: (() -> Unit)? = null
     ) {
         activity.lifecycleScope.launch(Dispatchers.IO) {
 
@@ -174,9 +174,7 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
                 val success = NetworkManager.downloadFile(apkUrl, apkFile)
 
                 if (success) {
-                    withContext(Dispatchers.Main) {
-                        installApk(apkFile)
-                    }
+                    installApk(apkFile) // No context switch needed, handled internally
                 } else {
                     withContext(Dispatchers.Main) {
                         Toast.makeText(activity, "Download failed.", Toast.LENGTH_SHORT).show()
@@ -188,7 +186,8 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
         }
     }
 
-    private fun installApk(file: File) {
+    // Now a suspend function to offload FileProvider logic to IO thread
+    private suspend fun installApk(file: File) = withContext(Dispatchers.IO) {
         try {
             val uri = FileProvider.getUriForFile(
                 activity,
@@ -200,10 +199,15 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
                 setDataAndType(uri, "application/vnd.android.package-archive")
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
             }
-            activity.startActivity(intent)
+
+            withContext(Dispatchers.Main) {
+                activity.startActivity(intent)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error installing APK", e)
-            Toast.makeText(activity, "Error launching installer.", Toast.LENGTH_SHORT).show()
+            withContext(Dispatchers.Main) {
+                Toast.makeText(activity, "Error launching installer.", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -240,7 +244,6 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
 
             if (timetableSuccess && communitySuccess) {
                 Log.i(TAG, "All databases updated successfully.")
-                // --- RESET FLAG AND NOTIFY ---
                 LocalVersionManager.setUpdateAvailable(activity, false)
 
                 withContext(Dispatchers.Main) {

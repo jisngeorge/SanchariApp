@@ -22,8 +22,11 @@ import java.io.IOException
 object NetworkManager {
 
     private const val TAG = "NetworkManager"
-    private val client = OkHttpClient()
-    private val jsonParser = Json { ignoreUnknownKeys = true }
+
+    // By lazy ensures that OkHttpClient and Json serializers are ONLY initialized
+    // when first needed, on the background thread, avoiding UI freezing on first access.
+    private val client by lazy { OkHttpClient() }
+    private val jsonParser by lazy { Json { ignoreUnknownKeys = true } }
 
     /**
      * Uploads a JSON payload to the Google Script URL found in configuration.
@@ -64,7 +67,6 @@ object NetworkManager {
         }
     }
 
-    // ... (rest of the existing methods: fetchVersionInfo, downloadFile, parseJson, handleUnsuccessfulResponse) ...
     suspend fun fetchVersionInfo(context: Context): ServerVersionInfo? {
         return withContext(Dispatchers.IO) {
 
