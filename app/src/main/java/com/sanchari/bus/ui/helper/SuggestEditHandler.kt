@@ -112,7 +112,6 @@ class SuggestEditHandler(
         }
     }
 
-    // Explicit action for the Save Draft button
     fun saveDraft() {
         val suggestActivity = activity as SuggestEditActivity
         val serviceName = binding.editTextServiceName.text.toString().trim()
@@ -131,12 +130,15 @@ class SuggestEditHandler(
             stopsData,
             binding.editTextEditNotes.text.toString().trim()
         )
-        DraftManager.saveDraft(activity, json, suggestActivity.currentDraftFileName)
+
+        // Save and ensure we strictly track the exact updated UUID file name
+        val newDraftFileName = DraftManager.saveDraft(activity, json, suggestActivity.currentDraftFileName)
+        suggestActivity.currentDraftFileName = newDraftFileName
+
         Toast.makeText(activity, "Draft Saved", Toast.LENGTH_SHORT).show()
         activity.finish()
     }
 
-    // Explicit action for the Discard Draft button
     fun discardDraft() {
         val suggestActivity = activity as SuggestEditActivity
         AlertDialog.Builder(activity)
@@ -153,7 +155,6 @@ class SuggestEditHandler(
             .show()
     }
 
-    // For intercepting the back button/up navigation
     fun promptSaveDraftAndExit() {
         val suggestActivity = activity as SuggestEditActivity
         val serviceName = binding.editTextServiceName.text.toString().trim()
@@ -168,7 +169,7 @@ class SuggestEditHandler(
             .setTitle("Save Draft?")
             .setMessage("Do you want to save your progress to history?")
             .setPositiveButton("Save") { _, _ ->
-                saveDraft() // Reusing the function above
+                saveDraft()
             }
             .setNegativeButton("Discard") { _, _ ->
                 suggestActivity.currentDraftFileName?.let {
