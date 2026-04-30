@@ -13,8 +13,11 @@ import com.sanchari.bus.databinding.ActivitySuggestEditBinding
 import com.sanchari.bus.ui.activity.ConfirmationActivity
 import com.sanchari.bus.ui.activity.SuggestEditActivity
 import com.sanchari.bus.ui.adapter.StopEditAdapter
+import com.sanchari.bus.data.manager.UserDataManager
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
@@ -42,8 +45,15 @@ class SuggestEditHandler(
 
     fun showEditHistory() {
         val drafts = DraftManager.getDrafts(activity)
-        if (drafts.isEmpty()) {
-            Toast.makeText(activity, "No saved drafts yet.", Toast.LENGTH_SHORT).show()
+        val hasLogs = UserDataManager.getSubmissionLogs(activity).isNotEmpty()
+
+        if (drafts.isEmpty() && !hasLogs) {
+            Toast.makeText(activity, "No saved drafts or submissions yet.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (drafts.isEmpty() && hasLogs) {
+            showSubmissionLogs()
             return
         }
 
@@ -54,8 +64,41 @@ class SuggestEditHandler(
             .setItems(displayNames) { _, which ->
                 loadDraftIntoUI(drafts[which])
             }
+            .setNeutralButton("Submissions") { _, _ ->
+                showSubmissionLogs()
+            }
             .setNegativeButton("Close", null)
             .show()
+    }
+
+    private fun showSubmissionLogs() {
+        val logs = UserDataManager.getSubmissionLogs(activity)
+        if (logs.isEmpty()) {
+            Toast.makeText(activity, "No submissions yet.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val dateFormat = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
+        val items = logs.map { log ->
+            val date = dateFormat.format(Date(log.submittedAt))
+            "${log.busName} (${log.busType}) - ${log.startingPlace}\n$date"
+        }.toTypedArray()
+
+        AlertDialog.Builder(activity)
+            .setTitle("Submission History")
+            .setItems(items, null)
+            .setPositiveButton("OK", null)
+            .show()
+    }
+
+    fun loadDraftByFileName(fileName: String) {
+        val drafts = DraftManager.getDrafts(activity)
+        val draft = drafts.find { it.fileName == fileName }
+        if (draft != null) {
+            loadDraftIntoUI(draft)
+        } else {
+            Toast.makeText(activity, "Draft not found.", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun loadDraftIntoUI(draft: SavedDraft) {

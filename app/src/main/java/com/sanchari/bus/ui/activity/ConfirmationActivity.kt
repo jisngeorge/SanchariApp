@@ -18,6 +18,7 @@ import com.sanchari.bus.ui.helper.DraftManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 class ConfirmationActivity : AppCompatActivity() {
 
@@ -154,6 +155,7 @@ class ConfirmationActivity : AppCompatActivity() {
                 binding.buttonApplySuggestion.isEnabled = true
 
                 if (success) {
+                    logSubmission(jsonPayload)
                     deleteDraftIfExists()
                     showSuccessDialog("Your suggestion has been submitted successfully.")
                 } else {
@@ -174,6 +176,26 @@ class ConfirmationActivity : AppCompatActivity() {
         draftFileName?.let { fileName ->
             Log.d(TAG, "Deleting draft: $fileName")
             DraftManager.deleteDraft(applicationContext, fileName)
+        }
+    }
+
+    private fun logSubmission(jsonPayload: String) {
+        try {
+            val root = JSONObject(jsonPayload)
+            val suggestion = root.getJSONObject("suggestion")
+            val service = suggestion.getJSONObject("service")
+            val busName = service.optString("name", "Unknown")
+            val busType = service.optString("type", "")
+            val stopsArray = suggestion.optJSONArray("stops")
+            val startingPlace = if (stopsArray != null && stopsArray.length() > 0) {
+                stopsArray.getJSONObject(0).optString("locationName", "")
+            } else ""
+
+            lifecycleScope.launch(Dispatchers.IO) {
+                UserDataManager.addSubmissionLog(applicationContext, busName, busType, startingPlace)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error logging submission", e)
         }
     }
 

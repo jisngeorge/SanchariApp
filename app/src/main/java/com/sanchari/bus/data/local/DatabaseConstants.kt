@@ -9,7 +9,7 @@ object DatabaseConstants {
 
     // --- Database Version Constants ---
     // For UserDatabaseHelper
-    const val USER_DATABASE_VERSION = 1
+    const val USER_DATABASE_VERSION = 2
 
     // For SharedPreferences version tracking of downloaded DBs
     const val DEFAULT_DB_VERSION = 1 // The version bundled with the app
@@ -174,6 +174,26 @@ object DatabaseConstants {
                 $COLUMN_SERVICE_ID TEXT NOT NULL,
                 $COLUMN_SERVICE_NAME TEXT,
                 $COLUMN_VIEWED_TIMESTAMP INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+    }
+
+    // --- Table: SubmissionLog (UserDatabase) ---
+    object SubmissionLogTable {
+        const val TABLE_NAME = "SubmissionLog"
+        const val COLUMN_LOG_ID = "logId"
+        const val COLUMN_BUS_NAME = "busName"
+        const val COLUMN_BUS_TYPE = "busType"
+        const val COLUMN_STARTING_PLACE = "startingPlace"
+        const val COLUMN_SUBMITTED_AT = "submittedAt" // Long (epoch millis)
+
+        const val CREATE_TABLE = """
+            CREATE TABLE IF NOT EXISTS $TABLE_NAME (
+                $COLUMN_LOG_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                $COLUMN_BUS_NAME TEXT NOT NULL,
+                $COLUMN_BUS_TYPE TEXT,
+                $COLUMN_STARTING_PLACE TEXT,
+                $COLUMN_SUBMITTED_AT INTEGER NOT NULL
             )
         """
     }

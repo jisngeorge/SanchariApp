@@ -27,24 +27,17 @@ class UserDatabaseHelper(context: Context) :
         try {
             db?.execSQL(DatabaseConstants.UserTable.CREATE_TABLE)
             db?.execSQL(DatabaseConstants.RecentViewTable.CREATE_TABLE)
+            db?.execSQL(DatabaseConstants.SubmissionLogTable.CREATE_TABLE)
             Log.i(TAG, "UserDatabase tables created successfully.")
-
-            // We can also insert the initial User row with a UUID here
-            // (Or we can do it from the MainActivity on first launch)
         } catch (e: Exception) {
             Log.e(TAG, "Error creating UserDatabase", e)
         }
     }
 
-    /**
-     * Called when the database needs to be upgraded.
-     * (Not needed for v1)
-     */
     override fun onUpgrade(db: SQLiteDatabase?, oldVersion: Int, newVersion: Int) {
-        // For now, we can just drop and recreate if needed,
-        // but a real app would need a migration strategy.
-        // db?.execSQL("DROP TABLE IF EXISTS ${DatabaseConstants.UserTable.TABLE_NAME}")
-        // db?.execSQL("DROP TABLE IF EXISTS ${DatabaseConstants.RecentViewTable.TABLE_NAME}")
-        // onCreate(db)
+        if (oldVersion < 2) {
+            db?.execSQL(DatabaseConstants.SubmissionLogTable.CREATE_TABLE)
+            Log.i(TAG, "UserDatabase upgraded to version 2: added SubmissionLog table")
+        }
     }
 }

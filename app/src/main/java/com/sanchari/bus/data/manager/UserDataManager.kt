@@ -5,9 +5,11 @@ import android.content.ContentValues
 import android.content.Context
 import android.util.Log
 import com.sanchari.bus.data.local.DatabaseConstants.RecentViewTable
+import com.sanchari.bus.data.local.DatabaseConstants.SubmissionLogTable
 import com.sanchari.bus.data.local.DatabaseConstants.UserTable
 import com.sanchari.bus.data.local.UserDatabaseHelper
 import com.sanchari.bus.data.model.RecentSearch
+import com.sanchari.bus.data.model.SubmissionLog
 import com.sanchari.bus.data.model.User
 import java.util.UUID
 
@@ -207,5 +209,70 @@ object UserDataManager {
             db.close()
         }
         return recentSearches
+    }
+
+    /**
+     * Adds a submission log entry after a successful suggestion upload.
+     */
+    fun addSubmissionLog(context: Context, busName: String, busType: String, startingPlace: String) {
+        val dbHelper = UserDatabaseHelper(context)
+        val db = dbHelper.writableDatabase
+        try {
+            val values = ContentValues().apply {
+                put(SubmissionLogTable.COLUMN_BUS_NAME, busName)
+                put(SubmissionLogTable.COLUMN_BUS_TYPE, busType)
+                put(SubmissionLogTable.COLUMN_STARTING_PLACE, startingPlace)
+                put(SubmissionLogTable.COLUMN_SUBMITTED_AT, System.currentTimeMillis())
+            }
+            db.insert(SubmissionLogTable.TABLE_NAME, null, values)
+            Log.i(TAG, "Submission log added: $busName")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error adding submission log", e)
+        } finally {
+            db.close()
+        }
+    }
+
+    /**
+     * Retrieves all submission logs, most recent first.
+     */
+    @SuppressLint("Range")
+    fun getSubmissionLogs(context: Context): List<SubmissionLog> {
+        val dbHelper = UserDatabaseHelper(context)
+        val db = dbHelper.readableDatabase
+        val logs = mutableListOf<SubmissionLog>()
+
+        try {
+            db.query(
+                SubmissionLogTable.TABLE_NAME,
+                null, null, null, null, null,
+                "${SubmissionLogTable.COLUMN_SUBMITTED_AT} DESC"
+            ).use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val logIdIndex = cursor.getColumnIndex(SubmissionLogTable.COLUMN_LOG_ID)
+                    val busNameIndex = cursor.getColumnIndex(SubmissionLogTable.COLUMN_BUS_NAME)
+                    val busTypeIndex = cursor.getColumnIndex(SubmissionLogTable.COLUMN_BUS_TYPE)
+                    val startingPlaceIndex = cursor.getColumnIndex(SubmissionLogTable.COLUMN_STARTING_PLACE)
+                    val submittedAtIndex = cursor.getColumnIndex(SubmissionLogTable.COLUMN_SUBMITTED_AT)
+
+                    do {
+                        logs.add(
+                            SubmissionLog(
+                                logId = if (logIdIndex != -1) cursor.getInt(logIdIndex) else 0,
+                                busName = if (busNameIndex != -1) cursor.getString(busNameIndex) else "",
+                                busType = if (busTypeIndex != -1) cursor.getString(busTypeIndex) ?: "" else "",
+                                startingPlace = if (startingPlaceIndex != -1) cursor.getString(startingPlaceIndex) ?: "" else "",
+                                submittedAt = if (submittedAtIndex != -1) cursor.getLong(submittedAtIndex) else 0L
+                            )
+                        )
+                    } while (cursor.moveToNext())
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting submission logs", e)
+        } finally {
+            db.close()
+        }
+        return logs
     }
 }

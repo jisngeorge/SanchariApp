@@ -35,6 +35,7 @@ class SuggestEditActivity : AppCompatActivity() {
     companion object {
         private const val TAG = "SuggestEditActivity"
         private const val EXTRA_BUS_SERVICE = "EXTRA_BUS_SERVICE"
+        const val EXTRA_LOAD_DRAFT_FILE = "EXTRA_LOAD_DRAFT_FILE"
 
         private const val KEY_SERVICE_NAME = "KEY_SERVICE_NAME"
         private const val KEY_SERVICE_TYPE = "KEY_SERVICE_TYPE"
@@ -152,6 +153,14 @@ class SuggestEditActivity : AppCompatActivity() {
         } else {
             @Suppress("DEPRECATION")
             intent.getParcelableExtra(EXTRA_BUS_SERVICE)
+        }
+
+        // Check if we should auto-load a specific draft
+        val draftFileToLoad = intent.getStringExtra(EXTRA_LOAD_DRAFT_FILE)
+        if (draftFileToLoad != null) {
+            binding.toolbar.title = "Add New Bus Service"
+            handler.loadDraftByFileName(draftFileToLoad)
+            return
         }
 
         if (originalService != null) {
