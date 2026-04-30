@@ -27,7 +27,6 @@ class StopEditAdapter(
 ) : RecyclerView.Adapter<StopEditAdapter.StopEditViewHolder>() {
 
     private var highlightedPosition = RecyclerView.NO_POSITION
-    private val textWatchers = mutableMapOf<Int, TextWatcher>()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): StopEditViewHolder {
         val binding = ItemEditStopBinding.inflate(
@@ -39,13 +38,8 @@ class StopEditAdapter(
     }
 
     override fun onBindViewHolder(holder: StopEditViewHolder, position: Int) {
-        // Use bindingAdapterPosition
-        val currentPos = holder.bindingAdapterPosition
-
-        // Remove existing watcher
-        textWatchers[currentPos]?.let {
-            holder.binding.editTextStopName.removeTextChangedListener(it)
-        }
+        // Detach previous watcher BEFORE setting text to prevent stale callbacks
+        holder.detachWatcher()
 
         holder.bind(stops[position])
 
@@ -59,18 +53,10 @@ class StopEditAdapter(
         // --- Stop Order & Arrows ---
         holder.binding.textViewStopOrder.text = "${position + 1}"
 
-        // Visibility logic for arrows
-        if (position == 0) {
-            holder.binding.buttonMoveUp.visibility = View.INVISIBLE
-        } else {
-            holder.binding.buttonMoveUp.visibility = View.VISIBLE
-        }
-
-        if (position == stops.size - 1) {
-            holder.binding.buttonMoveDown.visibility = View.INVISIBLE
-        } else {
-            holder.binding.buttonMoveDown.visibility = View.VISIBLE
-        }
+        holder.binding.buttonMoveUp.visibility =
+            if (position == 0) View.INVISIBLE else View.VISIBLE
+        holder.binding.buttonMoveDown.visibility =
+            if (position == stops.size - 1) View.INVISIBLE else View.VISIBLE
 
         // Click Listeners for Move
         holder.binding.buttonMoveUp.setOnClickListener {
@@ -81,20 +67,8 @@ class StopEditAdapter(
             moveItem(holder.bindingAdapterPosition, 1)
         }
 
-        // Text Watcher
-        val stopNameWatcher = object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable?) {
-                val adapterPos = holder.bindingAdapterPosition
-                if (adapterPos != RecyclerView.NO_POSITION) {
-                    stops[adapterPos].stopName = s.toString()
-                }
-            }
-        }
-
-        holder.binding.editTextStopName.addTextChangedListener(stopNameWatcher)
-        textWatchers[currentPos] = stopNameWatcher
+        // Attach a fresh watcher AFTER text is set so the bind() above doesn't trigger it
+        holder.attachWatcher()
 
         holder.binding.buttonRemoveStop.setOnClickListener {
             val adapterPos = holder.bindingAdapterPosition
@@ -116,20 +90,45 @@ class StopEditAdapter(
         }
     }
 
+    override fun onViewRecycled(holder: StopEditViewHolder) {
+        super.onViewRecycled(holder)
+        holder.detachWatcher()
+    }
+
     override fun getItemCount(): Int = stops.size
 
     inner class StopEditViewHolder(val binding: ItemEditStopBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
+        private var watcher: TextWatcher? = null
+
         fun bind(stop: EditableStop) {
             binding.editTextStopName.setText(stop.stopName)
             binding.editTextScheduledTime.setText(stop.scheduledTime)
         }
+
+        fun attachWatcher() {
+            val w = object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    val pos = bindingAdapterPosition
+                    if (pos != RecyclerView.NO_POSITION) {
+                        stops[pos].stopName = s?.toString().orEmpty()
+                    }
+                }
+            }
+            binding.editTextStopName.addTextChangedListener(w)
+            watcher = w
+        }
+
+        fun detachWatcher() {
+            watcher?.let { binding.editTextStopName.removeTextChangedListener(it) }
+            watcher = null
+        }
     }
 
-    fun getStopsData(): List<EditableStop> {
-        return stops
-    }
+    fun getStopsData(): List<EditableStop> = stops
 
     /**
      * Moves an item up (-1) or down (+1) manually.
@@ -142,7 +141,6 @@ class StopEditAdapter(
         if (targetPos in 0 until stops.size) {
             Collections.swap(stops, currentPos, targetPos)
 
-            // Track the highlight if we moved the highlighted item
             if (highlightedPosition == currentPos) {
                 highlightedPosition = targetPos
             } else if (highlightedPosition == targetPos) {
@@ -150,7 +148,6 @@ class StopEditAdapter(
             }
 
             notifyItemMoved(currentPos, targetPos)
-            // Update order numbers and arrows
             notifyItemRangeChanged(minOf(currentPos, targetPos), 2)
         }
     }
@@ -161,6 +158,9 @@ class StopEditAdapter(
         val stopToUpdate = stops[position]
         stopToUpdate.scheduledTime = time
 
+        // Early-exit cases: blank time, single-row list, or unparseable time.
+        // We still need notifyDataSetChanged() so the previously-highlighted row
+        // (if any) is rebound and clears its yellow background.
         if (time.isBlank() || stops.size <= 1) {
             highlightedPosition = position
             notifyDataSetChanged()
@@ -227,7 +227,7 @@ class StopEditAdapter(
             // Assign updated stop linear value
             linearMins[position] = finalMins
 
-            // Assign MAX for blank times
+            // Assign MAX for blank times (so they sort to the end)
             for (i in 0 until size) {
                 if (linearMins[i] == -1) {
                     if (stops[i] !== stopToUpdate) {
@@ -239,7 +239,7 @@ class StopEditAdapter(
                 }
             }
 
-            // Sort using index mapping (no Pair allocations)
+            // Sort using index mapping (stable; no Pair allocations)
             val indexed = stops.indices.sortedBy { linearMins[it] }
 
             val newList = ArrayList<EditableStop>(size)
@@ -253,6 +253,9 @@ class StopEditAdapter(
 
         val newIndex = stops.indexOf(stopToUpdate)
         highlightedPosition = newIndex
+        // Full rebind: ensures the previously-highlighted row clears its yellow
+        // background AND that the reorder is reliably reflected in the UI even
+        // when the time-edit EditText currently has focus.
         notifyDataSetChanged()
         return newIndex
     }
@@ -263,14 +266,11 @@ class StopEditAdapter(
      */
     private fun parseMinutes(time: String): Int {
         return try {
-            if (time.contains(":")) {
-                val parts = time.split(":")
-                val h = parts[0].trim().toInt()
-                val m = parts[1].trim().toInt()
-                (h * 60) + m
-            } else {
-                -1
-            }
+            val colonIdx = time.indexOf(':')
+            if (colonIdx <= 0) return -1
+            val h = time.substring(0, colonIdx).trim().toInt()
+            val m = time.substring(colonIdx + 1).trim().toInt()
+            (h * 60) + m
         } catch (e: Exception) {
             -1
         }
