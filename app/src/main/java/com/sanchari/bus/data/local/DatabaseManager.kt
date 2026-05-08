@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.sanchari.bus.data.remote.NetworkManager
 import com.sanchari.bus.data.model.AppConfig
+import com.sanchari.bus.data.manager.SearchManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -101,6 +102,13 @@ object DatabaseManager {
 
                 if (tempFile.renameTo(dbPath)) {
                     Log.i(TAG, "Successfully swapped temp file to ${dbPath.name}")
+
+                    // Reset cached DB helper / search caches so the next query opens
+                    // the freshly-downloaded file rather than the stale (now-deleted) one.
+                    if (dbName == DatabaseConstants.TIMETABLE_DATABASE_NAME) {
+                        TimetableDatabaseHelper.resetInstance()
+                        SearchManager.invalidateStopSuggestionsCache()
+                    }
 
                     // Sync the new version from the new file to Prefs
                     LocalVersionManager.syncVersionsFromDbFiles(context)

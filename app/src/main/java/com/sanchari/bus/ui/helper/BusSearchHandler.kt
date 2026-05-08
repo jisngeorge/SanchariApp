@@ -16,6 +16,8 @@ import com.sanchari.bus.databinding.ActivityMainBinding
 import com.sanchari.bus.ui.activity.BusDetailsActivity
 import com.sanchari.bus.ui.activity.SearchResultsActivity
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.ArrayList
@@ -71,21 +73,28 @@ class BusSearchHandler(
         val adapter = ArrayAdapter<BusSearchItem>(activity, R.layout.simple_dropdown_item_1line)
         binding.busNameAutocomplete.setAdapter(adapter)
 
+        var searchJob: Job? = null
+
         binding.busNameAutocomplete.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 val query = s.toString().trim()
-                if (query.length >= 1) {
-                    activity.lifecycleScope.launch(Dispatchers.IO) {
-                        val results = SearchManager.searchBusServicesByName(activity, query)
-                        val searchItems = results.map { BusSearchItem(it) }
+                // Cancel any previous in-flight search to avoid stale results
+                // and a flood of DB queries while the user is typing.
+                searchJob?.cancel()
+                if (query.isEmpty()) return
 
-                        withContext(Dispatchers.Main) {
-                            adapter.clear()
-                            adapter.addAll(searchItems)
-                            adapter.notifyDataSetChanged()
-                        }
+                searchJob = activity.lifecycleScope.launch(Dispatchers.IO) {
+                    // Light debounce — collapse rapid keystrokes
+                    delay(150)
+                    val results = SearchManager.searchBusServicesByName(activity, query)
+                    val searchItems = results.map { BusSearchItem(it) }
+
+                    withContext(Dispatchers.Main) {
+                        adapter.clear()
+                        adapter.addAll(searchItems)
+                        adapter.notifyDataSetChanged()
                     }
                 }
             }

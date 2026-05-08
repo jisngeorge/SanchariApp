@@ -9,12 +9,36 @@ import android.util.Log
  * This is a read-only helper for the Timetable Database.
  * It does NOT create or upgrade the database. Its only job is to open
  * the database file that is downloaded or copied from assets.
+ *
+ * Singleton: SQLiteOpenHelper manages a single shared connection.
+ * Frequent open/close on the underlying DB is extremely expensive,
+ * so callers should reuse the same instance and never call db.close().
  */
-class TimetableDatabaseHelper(context: Context) :
+class TimetableDatabaseHelper private constructor(context: Context) :
     SQLiteOpenHelper(context, DatabaseConstants.TIMETABLE_DATABASE_NAME, null, 1) {
 
     companion object {
         private const val TAG = "TimetableDbHelper"
+
+        @Volatile
+        private var INSTANCE: TimetableDatabaseHelper? = null
+
+        fun getInstance(context: Context): TimetableDatabaseHelper {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: TimetableDatabaseHelper(context.applicationContext).also { INSTANCE = it }
+            }
+        }
+
+        /**
+         * Closes and clears the cached instance. Call this after the underlying
+         * .db file is replaced by an OTA update so the next query opens the new file.
+         */
+        fun resetInstance() {
+            synchronized(this) {
+                INSTANCE?.close()
+                INSTANCE = null
+            }
+        }
     }
 
     override fun onCreate(db: SQLiteDatabase?) {

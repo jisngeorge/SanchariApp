@@ -178,7 +178,12 @@ class SuggestEditActivity : AppCompatActivity() {
             onRemoveClicked = { position ->
                 editableStops.removeAt(position)
                 adapter.notifyItemRemoved(position)
-                adapter.notifyItemRangeChanged(position, editableStops.size)
+                // Refresh from the previous neighbor onwards so order numbers
+                // and arrow visibility (for the new last item) update correctly.
+                val refreshStart = (position - 1).coerceAtLeast(0)
+                if (editableStops.size > refreshStart) {
+                    adapter.notifyItemRangeChanged(refreshStart, editableStops.size - refreshStart)
+                }
             },
             onTimeClicked = { position ->
                 handler.showTimePicker(position)
@@ -204,8 +209,13 @@ class SuggestEditActivity : AppCompatActivity() {
     }
 
     private fun addNewStop() {
-        editableStops.add(EditableStop("", "", editableStops.size + 1, -1))
-        adapter.notifyItemInserted(editableStops.size - 1)
-        binding.recyclerViewStopsEditor.smoothScrollToPosition(editableStops.size - 1)
+        val newPos = editableStops.size
+        editableStops.add(EditableStop("", "", newPos + 1, -1))
+        adapter.notifyItemInserted(newPos)
+        // The previous-last item now needs its down-arrow shown.
+        if (newPos > 0) {
+            adapter.notifyItemChanged(newPos - 1)
+        }
+        binding.recyclerViewStopsEditor.smoothScrollToPosition(newPos)
     }
 }
