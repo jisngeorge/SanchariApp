@@ -24,9 +24,10 @@ flows. Do not infer backend approval rules or spreadsheet layout from the client
 - Coroutines and `lifecycleScope` for asynchronous work; OkHttp for HTTP.
 - Kotlin serialization for configuration/version models; `org.json` for contribution payloads.
 - Gradle Kotlin DSL and version catalog in `gradle\libs.versions.toml`.
-  Current versions: Gradle 8.13, AGP 8.13.0, Kotlin 2.0.21.
+  Current versions: Gradle 8.13, AGP 8.13.2, Kotlin 2.0.21.
 - Android minimum SDK 24; compile/target SDK 36; Java/Kotlin compilation target 11.
-  Use JDK 17 or another JDK supported by the current Gradle/AGP combination to run builds.
+  Android Studio selects Temurin JDK 21 to run Gradle. Use a full JDK 21 for
+  command-line builds as well; the compilation target remains 11.
 
 All paths below are relative to the repository root. Kotlin source lives under
 `app\src\main\java\com\sanchari\bus`.
@@ -240,6 +241,8 @@ using FileProvider. Relevant permissions and provider registration are in
 
 Use the checked-in Gradle wrapper from the project root. Android SDK 36 and a
 compatible build JDK must be available; SDK location is environment-specific.
+Set `JAVA_HOME` to your full JDK 21 installation for command-line builds, not a
+JRE. Gradle 8.13 does not support running on Android Studio's bundled JDK 25.
 On Windows PowerShell:
 
 ```powershell
