@@ -2,8 +2,21 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
+        android:id="@+id/action_sort_duration"
+        android:icon="@drawable/ic_sort_duration"
+        android:title="@string/sort_results"
+        app:iconTint="@android:color/white"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/action_filter_bus_type"
+        android:icon="@drawable/ic_filter_bus_type"
+        android:title="@string/filter_bus_types"
+        app:iconTint="@android:color/white"
+        app:showAsAction="always" />
+    <item
         android:id="@+id/action_suggest_nearby"
         android:icon="@drawable/ic_suggestion"
         android:title="@string/title_alternative_routes"
+        app:iconTint="@android:color/white"
         app:showAsAction="always" />
 </menu>
