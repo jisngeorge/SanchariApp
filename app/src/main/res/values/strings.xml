@@ -1,5 +1,38 @@
 <resources>
     <string name="app_name">Sanchari</string>
+    <string name="route_search_title">%1$s &#8594; %2$s</string>
+    <string name="sort_results">Sort results</string>
+    <string name="sort_departure_time">Departure time</string>
+    <string name="sort_shortest_journey">Shortest journey first</string>
+    <string name="sort_longest_journey">Longest journey first</string>
+    <string name="sort_next_departure">Next departures first</string>
+    <string name="filter_bus_types">Filter bus types</string>
+    <string name="filter_bus_types_active">Filter bus types (active)</string>
+    <string name="filter_all_types">All types</string>
+    <string name="filter_apply">Apply</string>
+    <string name="no_filtered_results">No services match the selected bus types. Use the filter icon to change your selection.</string>
+    <string name="results_summary">Services: %1$d\u0020\u0020\u0020Average time: %2$s</string>
+    <string name="results_summary_details">%1$s\n%2$s</string>
+    <plurals name="statistics_coverage">
+        <item quantity="one">Scheduled estimate based on %1$d of %2$d displayed service. Includes services marked not running.</item>
+        <item quantity="other">Scheduled estimate based on %1$d of %2$d displayed services. Includes services marked not running.</item>
+    </plurals>
+    <string name="statistics_exclusions">Missing, invalid or identical departure/arrival times are excluded.</string>
+    <string name="statistics_unavailable">--</string>
+    <string name="duration_compact">%1$dh %2$02dm</string>
+    <string name="finding_nearby_stops">Finding nearby stops...</string>
+    <string name="close">Close</string>
+    <string name="nearby_database_missing">Timetable data is unavailable. Please download it and try again.</string>
+    <string name="nearby_coordinates_missing">Coordinates are unavailable for %1$s.</string>
+    <string name="nearby_suggestions_error">Unable to load alternative stops. Please try again.</string>
+    <string name="nearby_no_suggestions">No additional services were found at nearby stops for %1$s to %2$s.</string>
+    <string name="nearby_distance_note">Distances are straight-line estimates, not road or walking distances.</string>
+    <string name="nearby_boarding_heading">Board near %1$s</string>
+    <string name="nearby_alighting_heading">Alight near %1$s</string>
+    <string name="nearby_stop_name">%1$d. %2$s</string>
+    <string name="nearby_stop_distances">From %1$s: %2$.1f km\nTo %3$s: %4$.1f km</string>
+    <string name="nearby_stop_services">Additional services: %1$d\nTotal services: %2$d</string>
+    <string name="nearby_additional_note">Additional services are not available on the original %1$s to %2$s route. Services and distances are shown for each alternative stop separately.</string>
 
     <!-- Common Actions -->
     <string name="btn_save_continue">Save and Continue</string>

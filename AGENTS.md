@@ -99,8 +99,38 @@ opens `BusDetailsActivity`. Details load ordered route stops and community data;
 contribution actions are handled by `BusSubmissionHandler`. Non-running services
 remain visible, with warning styling rather than being removed from searches.
 
+Route results show the service count and average scheduled A-to-B duration
+(rounded to the nearest minute) together above the list as
+`Services: N   Average time: Hh MMm`. Unavailable averages show `--`.
+There is no separate
+statistics panel or fastest-service display. Calculations use the currently
+filtered results' matched endpoint times, including services marked not running.
+`RouteSearchStatistics` accepts strict 24-hour `HH:mm` times, treats earlier arrivals
+as next day, and excludes missing, invalid or identical endpoint times. Timed
+coverage and exclusions are available through the summary's long-press tooltip
+and accessibility description. These are timetable estimates, not live times.
+Toolbar icons offer sorting, bus-type multi-selection (with an All types reset),
+and alternative stops. The sort dialog includes next-departure ordering alongside
+shortest/longest journey and original departure-time order; there is no separate
+next-departure icon. `RouteResultsManager`
+applies these options without modifying the original search results. Next
+departures are ordered from the device's local current minute, wrapping passed
+departure times to tomorrow; this does not indicate live availability or
+day-specific operation. This order refreshes every minute while the activity is
+started and on returning to it. Missing/invalid times sort last. Default ordering
+restores the original SQL departure-time order. Sorting and selected bus types
+survive activity recreation. The alternative-route bulb remains visible in the
+toolbar. Empty filters show an
+explicit empty state; the screen remains open so the filter can be reset.
+
 `SuggestionManager` computes geographically nearby alternative stops using stored
 coordinates and route availability. Despite its name, it does **not** submit edits.
+Its selectable, scrollable dialog groups alternatives into "Board near" and
+"Alight near" sections, with bold stop names, labelled endpoint distances and
+additional/total service counts. Existing nearest-stop/new-service ranking is
+preserved. Distances remain straight-line estimates; additional services are
+counted relative to the original A-to-B route. No alternatives show an explicit
+empty message instead of blank section headings.
 
 `TimetableDatabaseHelper` is a shared singleton. Callers must not close its shared
 database after each query. `SearchManager` also caches stop autocomplete values.

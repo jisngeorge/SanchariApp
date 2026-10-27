@@ -3,11 +3,23 @@ package com.sanchari.bus.data.manager
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.location.Location
+import android.util.Log
+import androidx.core.text.bold
+import androidx.core.text.buildSpannedString
+import com.sanchari.bus.R
 import com.sanchari.bus.data.local.DatabaseConstants
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class SuggestionManager(private val context: Context) {
+
+    internal data class StopResult(
+        val name: String,
+        val distanceFromOriginalKm: Float,
+        val distanceToOppositeKm: Float,
+        val totalServiceCount: Int,
+        val newOptionCount: Int
+    )
 
     /**
      * Finds nearby stops and returns them as a formatted string ready for the popup.
@@ -16,26 +28,17 @@ class SuggestionManager(private val context: Context) {
     suspend fun getNearbySuggestionsText(
         fromLocation: String,
         toLocation: String
-    ): String = withContext(Dispatchers.IO) {
+    ): CharSequence = withContext(Dispatchers.IO) {
 
         val dbFile = context.getDatabasePath(DatabaseConstants.TIMETABLE_DATABASE_NAME)
         if (!dbFile.exists()) {
-            return@withContext "Database not found. Please ensure data is downloaded."
+            return@withContext context.getString(R.string.nearby_database_missing)
         }
 
         val db = SQLiteDatabase.openDatabase(
             dbFile.absolutePath,
             null,
             SQLiteDatabase.OPEN_READONLY
-        )
-
-        // Updated data class to hold our new sorting metrics
-        data class StopResult(
-            val name: String,
-            val distanceFromOriginalKm: Float, // Distance from Start (for source alts) or Dest (for dest alts)
-            val distanceToOppositeKm: Float,   // Distance to the other end of the trip
-            val totalServiceCount: Int,
-            val newOptionCount: Int
         )
 
         val foundSourceStops = mutableListOf<StopResult>()
@@ -71,10 +74,10 @@ class SuggestionManager(private val context: Context) {
             destCursor.close()
 
             if (sourceLat == 0.0 && sourceLng == 0.0) {
-                return@withContext "Could not find coordinates for $fromLocation."
+                return@withContext context.getString(R.string.nearby_coordinates_missing, fromLocation)
             }
             if (destLat == 0.0 && destLng == 0.0) {
-                return@withContext "Could not find coordinates for $toLocation."
+                return@withContext context.getString(R.string.nearby_coordinates_missing, toLocation)
             }
 
             // 2. Calculate dynamic bounds based on actual trip distance
@@ -225,57 +228,57 @@ class SuggestionManager(private val context: Context) {
             }
 
         } catch (e: Exception) {
-            e.printStackTrace()
-            return@withContext "Error calculating suggestions: ${e.message}"
+            Log.e("SuggestionManager", "Error calculating alternative stops", e)
+            return@withContext context.getString(R.string.nearby_suggestions_error)
         } finally {
             db.close()
         }
 
-        // ----------------------------------------------------------------------
-        // 6. Sort and Format the result
-        // ----------------------------------------------------------------------
+        formatSuggestions(fromLocation, toLocation, foundSourceStops, foundDestStops)
+    }
 
-        // Sort primarily by how close it is to the original stop (ascending),
-        // and secondarily by how many NEW bus services it provides (descending).
+    internal fun formatSuggestions(
+        fromLocation: String,
+        toLocation: String,
+        sourceStops: List<StopResult>,
+        destinationStops: List<StopResult>
+    ): CharSequence {
+        if (sourceStops.isEmpty() && destinationStops.isEmpty()) {
+            return context.getString(R.string.nearby_no_suggestions, fromLocation, toLocation)
+        }
         val resultComparator = compareBy<StopResult> { it.distanceFromOriginalKm }
             .thenByDescending { it.newOptionCount }
 
-        val stringBuilder = StringBuilder()
-
-        stringBuilder.append("Try out these stops:\n\n")
-
-        if (foundSourceStops.isNotEmpty() || foundDestStops.isNotEmpty()) {
-            stringBuilder.append("Format: \n <Stop Name> [Dist. from Source | Dist. to Destination | Unique Bus Services | Total Bus Services]\n\n")
-            stringBuilder.append("⚠️ Note: Distances are geometric (straight-line) and may not reflect actual road distances.\n\n\n")
-        }
-
-        if (foundSourceStops.isNotEmpty()) {
-            stringBuilder.append("Alternative stops near $fromLocation:\n\n")
-            foundSourceStops.sortedWith(resultComparator).forEachIndexed { index, stop ->
-                // For source alternatives: original = source, opposite = destination
-                val distFromSrc = String.format("%.1fkm", stop.distanceFromOriginalKm)
-                val distToDest = String.format("%.1fkm", stop.distanceToOppositeKm)
-
-                stringBuilder.append("${index + 1}. ${stop.name} [$distFromSrc | $distToDest | ${stop.newOptionCount} | ${stop.totalServiceCount}]\n")
+        return buildSpannedString {
+            append(context.getString(R.string.nearby_distance_note))
+            append("\n\n")
+            for ((isSource, stops) in listOf(true to sourceStops, false to destinationStops)) {
+                if (stops.isEmpty()) continue
+                bold {
+                    append(context.getString(
+                        if (isSource) R.string.nearby_boarding_heading else R.string.nearby_alighting_heading,
+                        if (isSource) fromLocation else toLocation
+                    ))
+                }
+                append("\n\n")
+                stops.sortedWith(resultComparator).forEachIndexed { index, stop ->
+                    bold { append(context.getString(R.string.nearby_stop_name, index + 1, stop.name)) }
+                    append("\n")
+                    append(context.getString(
+                        R.string.nearby_stop_distances,
+                        fromLocation,
+                        if (isSource) stop.distanceFromOriginalKm else stop.distanceToOppositeKm,
+                        toLocation,
+                        if (isSource) stop.distanceToOppositeKm else stop.distanceFromOriginalKm
+                    ))
+                    append("\n")
+                    append(context.getString(
+                        R.string.nearby_stop_services, stop.newOptionCount, stop.totalServiceCount
+                    ))
+                    append("\n\n")
+                }
             }
-            stringBuilder.append("\n")
+            append(context.getString(R.string.nearby_additional_note, fromLocation, toLocation))
         }
-
-        if (foundDestStops.isNotEmpty()) {
-            stringBuilder.append("Alternative stops near $toLocation:\n\n")
-            foundDestStops.sortedWith(resultComparator).forEachIndexed { index, stop ->
-                // For destination alternatives: original = destination, opposite = source
-                val distFromSrc = String.format("%.1fkm", stop.distanceToOppositeKm)
-                val distToDest = String.format("%.1fkm", stop.distanceFromOriginalKm)
-
-                stringBuilder.append("${index + 1}. ${stop.name} [$distFromSrc | $distToDest | ${stop.newOptionCount} | ${stop.totalServiceCount}]\n")
-            }
-        }
-
-        if (stringBuilder.isEmpty()) {
-            return@withContext "No useful alternative stops found.\nAll nearby buses already pass directly between $fromLocation and $toLocation."
-        }
-
-        return@withContext stringBuilder.toString().trimEnd()
     }
 }

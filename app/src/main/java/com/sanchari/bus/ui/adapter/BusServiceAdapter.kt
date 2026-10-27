@@ -1,18 +1,27 @@
 package com.sanchari.bus.ui.adapter
 
-import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import com.sanchari.bus.data.model.BusService
 import com.sanchari.bus.R
 import com.sanchari.bus.databinding.ItemBusServiceBinding
 import androidx.core.graphics.toColorInt
 
 class BusServiceAdapter(
-    private val services: List<BusService>,
     private val onItemClick: (BusService) -> Unit
-) : RecyclerView.Adapter<BusServiceAdapter.BusServiceViewHolder>() {
+) : ListAdapter<BusService, BusServiceAdapter.BusServiceViewHolder>(ServiceDiff) {
+
+    private object ServiceDiff : DiffUtil.ItemCallback<BusService>() {
+        override fun areItemsTheSame(oldItem: BusService, newItem: BusService): Boolean =
+            oldItem.serviceId == newItem.serviceId &&
+                oldItem.fromTime == newItem.fromTime && oldItem.toTime == newItem.toTime
+
+        override fun areContentsTheSame(oldItem: BusService, newItem: BusService): Boolean =
+            oldItem == newItem
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BusServiceViewHolder {
         val binding = ItemBusServiceBinding.inflate(
@@ -24,11 +33,9 @@ class BusServiceAdapter(
     }
 
     override fun onBindViewHolder(holder: BusServiceViewHolder, position: Int) {
-        val service = services[position]
+        val service = getItem(position)
         holder.bind(service)
     }
-
-    override fun getItemCount() = services.size
 
     inner class BusServiceViewHolder(private val binding: ItemBusServiceBinding) :
         RecyclerView.ViewHolder(binding.root) {
