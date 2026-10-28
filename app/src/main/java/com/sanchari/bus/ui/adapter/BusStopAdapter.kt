@@ -6,6 +6,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.sanchari.bus.databinding.ItemBusStopBinding
 import androidx.core.graphics.toColorInt
 import com.sanchari.bus.data.model.BusStop
+import com.sanchari.bus.ui.helper.TimetableTimeFormatter
 
 class BusStopAdapter(
     // We initially pass an empty list, data is set via updateStops
@@ -73,7 +74,8 @@ class BusStopAdapter(
             if (i + 1 < rawStops.size && rawStops[i + 1].locationName == current.locationName) {
                 val next = rawStops[i + 1]
                 // Merge them: "Arrival - Departure"
-                val combinedTime = "${current.scheduledTime} - ${next.scheduledTime}"
+                val combinedTime = "${TimetableTimeFormatter.format(current.scheduledTime)} - " +
+                    TimetableTimeFormatter.format(next.scheduledTime)
 
                 processed.add(DisplayStop(
                     locationName = current.locationName,
@@ -87,7 +89,7 @@ class BusStopAdapter(
                 // Normal stop
                 processed.add(DisplayStop(
                     locationName = current.locationName,
-                    timeText = current.scheduledTime,
+                    timeText = TimetableTimeFormatter.format(current.scheduledTime),
                     isHalt = false
                 ))
                 i++

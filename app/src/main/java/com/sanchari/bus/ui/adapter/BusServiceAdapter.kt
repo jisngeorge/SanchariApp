@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.ListAdapter
 import com.sanchari.bus.data.model.BusService
 import com.sanchari.bus.R
 import com.sanchari.bus.databinding.ItemBusServiceBinding
+import com.sanchari.bus.ui.helper.TimetableTimeFormatter
 import androidx.core.graphics.toColorInt
 
 class BusServiceAdapter(
@@ -49,8 +50,8 @@ class BusServiceAdapter(
             binding.serviceName.text = service.name
 
             // --- NEW: Set the from and to times ---
-            binding.fromTime.text = service.fromTime
-            binding.toTime.text = service.toTime
+            binding.fromTime.text = TimetableTimeFormatter.format(service.fromTime)
+            binding.toTime.text = TimetableTimeFormatter.format(service.toTime)
             // --- End of new code ---
 
             // --- UPDATED: Running Status Indication ---

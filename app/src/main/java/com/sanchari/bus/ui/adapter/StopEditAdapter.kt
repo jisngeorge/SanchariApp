@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.sanchari.bus.data.model.EditableStop
 import com.sanchari.bus.databinding.ItemEditStopBinding
+import com.sanchari.bus.ui.helper.TimetableTimeFormatter
 import java.util.Collections
 import kotlin.math.abs
 import androidx.core.graphics.toColorInt
@@ -104,7 +105,7 @@ class StopEditAdapter(
 
         fun bind(stop: EditableStop) {
             binding.editTextStopName.setText(stop.stopName)
-            binding.editTextScheduledTime.setText(stop.scheduledTime)
+            binding.editTextScheduledTime.setText(TimetableTimeFormatter.format(stop.scheduledTime))
         }
 
         fun attachWatcher() {

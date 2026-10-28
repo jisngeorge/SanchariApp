@@ -53,15 +53,14 @@
             android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle1"
             android:textStyle="bold"
             android:textColor="?attr/colorPrimary"
-            tools:text="08:30" />
+            tools:text="8:30 AM" />
 
         <TextView
             android:id="@+id/toTime"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
-            tools:text="10:15" />
+            tools:text="10:15 AM" />
     </LinearLayout>
 
 </LinearLayout>
-

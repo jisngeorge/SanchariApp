@@ -54,7 +54,7 @@
     <string name="hint_to">To</string>
     <string name="hint_search_bus_name">Or Search Bus by Name</string>
     <string name="hint_stop_name">Stop Name</string>
-    <string name="hint_scheduled_time">Scheduled Time (HH:mm)</string>
+    <string name="hint_scheduled_time">Scheduled Time</string>
     <string name="hint_bus_service_name">Bus Service Name</string>
     <string name="hint_bus_type">Bus Type (eg. Ordinary, LS, FP)</string>
     <string name="hint_notes_admin">Notes for Admin (Optional)</string>

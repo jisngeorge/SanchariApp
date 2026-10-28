@@ -61,6 +61,11 @@ names, and local user schema version. There are three distinct databases:
   to a stop, with `scheduledTime` and `stopOrder`; a stop can occur repeatedly on a route.
 - Stop times are strings normally formatted as `HH:mm`; missing displayed times
   use `--:--`. Route sequence is defined by `stopOrder`, not by sorting clock times.
+- Timetable times are displayed as `h:mm AM/PM` in service results, route stops
+  (including both ends of a halt), and the edit/new-service stop editor.
+  `TimetableTimeFormatter` changes presentation only; blank/unknown times remain
+  unchanged. The editor uses a 12-hour picker, but models, drafts, sorting,
+  calculations, and contribution JSON retain 24-hour `HH:mm` values.
 - `BusService` also carries `isRunning` and `lastReportedTime`.
 - `BusRating` stores aggregate punctuality, driving, behaviour, and rating count.
   `UserComment` stores service-linked comments and their dates.
@@ -143,7 +148,8 @@ Flow: `SuggestEditActivity` -> `SuggestEditHandler` -> `ConfirmationActivity`
 -> `NetworkManager.uploadDataToGoogleSheet`.
 
 The editor supports existing services and new services, editable/reorderable stops,
-24-hour time selection, notes, and local drafts. It preserves existing service IDs
+12-hour AM/PM time selection, notes, and local drafts. Selected times are stored
+in 24-hour `HH:mm` format. It preserves existing service IDs
 and gives new services an ID of `NEW-<UUID>`. A newly introduced stop is represented
 by `"stopId": "NEW"`; existing stop IDs remain integers. Submitted `stopOrder`
 is regenerated as a one-based sequence from the editor list.

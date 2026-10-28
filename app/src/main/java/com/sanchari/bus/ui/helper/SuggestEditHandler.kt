@@ -242,14 +242,14 @@ class SuggestEditHandler(
         }
 
         val picker = MaterialTimePicker.Builder()
-            .setTimeFormat(TimeFormat.CLOCK_24H)
+            .setTimeFormat(TimeFormat.CLOCK_12H)
             .setHour(initialHour)
             .setMinute(initialMinute)
             .setTitleText("Select Stop Time")
             .build()
 
         picker.addOnPositiveButtonClickListener {
-            val formattedTime = String.format(Locale.getDefault(), "%02d:%02d", picker.hour, picker.minute)
+            val formattedTime = String.format(Locale.ROOT, "%02d:%02d", picker.hour, picker.minute)
             adapter.updateTime(position, formattedTime)
         }
         picker.show(activity.supportFragmentManager, "TimePicker")
