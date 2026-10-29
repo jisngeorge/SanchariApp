@@ -120,9 +120,7 @@ class MainActivity : AppCompatActivity() {
                 onUpdateAvailable = { isAvailable ->
                     updateUpdateButtonUI(isAvailable)
                 },
-                onUpdateComplete = {
-                    updateUpdateButtonUI(false) // Reset UI on success
-                }
+                onUpdateComplete = ::onUpdatesCompleted
             )
         }
 
@@ -161,9 +159,7 @@ class MainActivity : AppCompatActivity() {
                                 onUpdateAvailable = { isAvailable ->
                                     updateUpdateButtonUI(isAvailable)
                                 },
-                                onUpdateComplete = {
-                                    updateUpdateButtonUI(false)
-                                }
+                                onUpdateComplete = ::onUpdatesCompleted
                             )
                         }
                     }
@@ -205,6 +201,13 @@ class MainActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 loadAppData()
             }
+        }
+    }
+
+    private fun onUpdatesCompleted() {
+        updateUpdateButtonUI(false)
+        lifecycleScope.launch {
+            busSearchHandler.loadStopSuggestions()
         }
     }
 
@@ -381,9 +384,7 @@ class MainActivity : AppCompatActivity() {
                     onUpdateAvailable = { isAvailable ->
                         updateUpdateButtonUI(isAvailable)
                     },
-                    onUpdateComplete = {
-                        updateUpdateButtonUI(false)
-                    }
+                    onUpdateComplete = ::onUpdatesCompleted
                 )
 
             } catch (e: Exception) {

@@ -140,6 +140,16 @@ The main From/To fields each show a wildcard button immediately before their cle
 button. It replaces only that field with `*` without opening autocomplete or
 submitting a search; clear removes only that field. There is no wildcard help
 message below the search button. Both-wildcard validation still applies.
+Leaving a From/To field validates its full stop name against the loaded stop
+suggestions; unknown names show an inline TextInputLayout error. Typing clears
+the field's error until it is validated again. Find Bus validates both fields and
+blocks invalid searches before querying routes. Blank fields require input on
+submission; a whole-field `*` is valid in one field only. Full names are accepted
+case-insensitively with outer whitespace trimmed, but route queries and result
+titles use the canonical stored spelling (exact-case matches take precedence).
+Stop validation does not query SQLite while typing. Suggestions/validation
+reload after database updates and before each route search; unavailable stop
+data shows an explicit message rather than labelling every name invalid.
 
 Wildcard searches fetch the ordered route rows for matching services in one
 bound SQL query. Consecutive place names are collapsed into visits retaining
@@ -153,7 +163,9 @@ identities separately from this route-order computation.
 opens `BusDetailsActivity`. Details load ordered route stops and community data;
 contribution actions are handled by `BusSubmissionHandler`. Non-running services
 remain visible, with warning styling rather than being removed from searches.
-Result cards label each endpoint place beside its corresponding AM/PM time.
+Wildcard result cards label each endpoint place beside its corresponding AM/PM
+time. Ordinary A-to-B results retain compact cards with the service icon/name/type
+and times on the right, without repeating From/To place names on every card.
 Only the underlying service is passed to detail/history/contribution flows.
 
 Route results show the service count and average scheduled A-to-B duration

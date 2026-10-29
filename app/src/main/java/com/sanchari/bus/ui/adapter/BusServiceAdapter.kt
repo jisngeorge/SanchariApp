@@ -2,6 +2,9 @@ package com.sanchari.bus.ui.adapter
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import android.widget.LinearLayout
+import androidx.core.view.isVisible
+import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -13,6 +16,7 @@ import com.sanchari.bus.ui.helper.TimetableTimeFormatter
 import androidx.core.graphics.toColorInt
 
 class BusServiceAdapter(
+    private val showEndpoints: Boolean = false,
     private val onItemClick: (BusService) -> Unit
 ) : ListAdapter<RouteSearchResult, BusServiceAdapter.BusServiceViewHolder>(ServiceDiff) {
 
@@ -31,6 +35,22 @@ class BusServiceAdapter(
             parent,
             false
         )
+        binding.fromPlace.isVisible = showEndpoints
+        binding.toPlace.isVisible = showEndpoints
+        if (showEndpoints) {
+            binding.root.orientation = LinearLayout.VERTICAL
+            binding.serviceHeader.updateLayoutParams<LinearLayout.LayoutParams> {
+                width = ViewGroup.LayoutParams.MATCH_PARENT
+                weight = 0f
+            }
+            binding.endpointTimes.updateLayoutParams<LinearLayout.LayoutParams> {
+                width = ViewGroup.LayoutParams.MATCH_PARENT
+            }
+        } else {
+            binding.endpointTimes.updateLayoutParams<LinearLayout.LayoutParams> {
+                topMargin = 0
+            }
+        }
         return BusServiceViewHolder(binding)
     }
 
@@ -51,12 +71,10 @@ class BusServiceAdapter(
 
             binding.serviceName.text = service.name
 
-            // --- NEW: Set the from and to times ---
             binding.fromTime.text = TimetableTimeFormatter.format(service.fromTime)
             binding.toTime.text = TimetableTimeFormatter.format(service.toTime)
             binding.fromPlace.text = context.getString(R.string.result_from_place, result.fromPlace)
             binding.toPlace.text = context.getString(R.string.result_to_place, result.toPlace)
-            // --- End of new code ---
 
             // --- UPDATED: Running Status Indication ---
             // Changed from dimming to text color change based on user feedback

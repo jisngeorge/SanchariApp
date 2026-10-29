@@ -4,6 +4,9 @@
     <string name="wildcard_any_destination">Use any destination (*)</string>
     <string name="clear_from_stop">Clear From stop</string>
     <string name="clear_to_stop">Clear To stop</string>
+    <string name="stop_name_not_found">No stop found with this name. Select a stop from the suggestions.</string>
+    <string name="stop_name_required">Enter a stop name or use *.</string>
+    <string name="stop_names_unavailable">Stop names are unavailable. Please try again.</string>
     <string name="wildcard_both_invalid">Enter a stop name in at least one field. Only one field can be *.</string>
     <string name="any_origin">Any origin</string>
     <string name="any_destination">Any destination</string>

@@ -40,6 +40,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="@string/hint_from"
+                    app:errorIconDrawable="@null"
                     app:endIconMode="none">
 
                     <com.google.android.material.textfield.MaterialAutoCompleteTextView
@@ -56,9 +57,9 @@
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="48dp"
-                    android:layout_gravity="end|bottom"
+                    android:layout_gravity="end|top"
                     android:layout_marginEnd="4dp"
-                    android:layout_marginBottom="4dp"
+                    android:layout_marginTop="12dp"
                     android:orientation="horizontal">
 
                     <androidx.appcompat.widget.AppCompatImageButton
@@ -106,6 +107,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="@string/hint_to"
+                    app:errorIconDrawable="@null"
                     app:endIconMode="none">
 
                     <com.google.android.material.textfield.MaterialAutoCompleteTextView
@@ -122,9 +124,9 @@
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="48dp"
-                    android:layout_gravity="end|bottom"
+                    android:layout_gravity="end|top"
                     android:layout_marginEnd="4dp"
-                    android:layout_marginBottom="4dp"
+                    android:layout_marginTop="12dp"
                     android:orientation="horizontal">
 
                     <androidx.appcompat.widget.AppCompatImageButton

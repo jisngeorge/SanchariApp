@@ -231,7 +231,7 @@ class SearchResultsActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        adapter = BusServiceAdapter { service ->
+        adapter = BusServiceAdapter(showEndpoints = searchMode != RouteSearchMode.FIXED_ROUTE) { service ->
             Log.i("SearchResults", "Clicked on service: ${service.name} (ID: ${service.serviceId})")
             lifecycleScope.launch(Dispatchers.IO) {
                 UserDataManager.addRecentView(applicationContext, service.serviceId, service.name)

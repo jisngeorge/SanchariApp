@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.SystemClock
 import android.view.View
 import android.widget.TextView
+import android.widget.LinearLayout
 import androidx.recyclerview.widget.RecyclerView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
@@ -27,6 +28,33 @@ import java.util.Calendar
 
 @RunWith(AndroidJUnit4::class)
 class SearchResultsActivityTest {
+    @Test
+    fun ordinaryRouteUsesCompactCardsWithoutRepeatingEndpointNames() {
+        launch(listOf(service("Compact service", "08:00", "09:30"))).use { scenario ->
+            awaitNames(scenario, listOf("Compact service"))
+            fun assertCompactRow() {
+                scenario.onActivity { activity ->
+                    val recycler = activity.findViewById<RecyclerView>(R.id.searchResultsRecyclerView)
+                    val row = requireNotNull(recycler.findViewHolderForAdapterPosition(0)).itemView
+                    assertEquals(LinearLayout.HORIZONTAL, (row as LinearLayout).orientation)
+                    assertEquals(View.GONE, row.findViewById<View>(R.id.fromPlace).visibility)
+                    assertEquals(View.GONE, row.findViewById<View>(R.id.toPlace).visibility)
+                    assertEquals("Compact service", row.findViewById<TextView>(R.id.serviceName).text.toString())
+                    assertEquals("8:00 AM", row.findViewById<TextView>(R.id.fromTime).text.toString())
+                    assertEquals("9:30 AM", row.findViewById<TextView>(R.id.toTime).text.toString())
+                    val header = row.findViewById<View>(R.id.serviceHeader)
+                    val times = row.findViewById<View>(R.id.endpointTimes)
+                    assertTrue(header.right <= times.left)
+                    assertEquals(0, (times.layoutParams as LinearLayout.LayoutParams).topMargin)
+                }
+            }
+            assertCompactRow()
+            scenario.recreate()
+            awaitNames(scenario, listOf("Compact service"))
+            assertCompactRow()
+        }
+    }
+
     @Test
     fun summaryShowsCountAndAverageWithAlternativeRouteBulbVisible() {
         launch(results()).use { scenario ->
