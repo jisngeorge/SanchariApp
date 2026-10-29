@@ -342,6 +342,15 @@ Uploads do not update local timetable or community snapshots immediately.
 - `DraftManager` stores unfinished, unwrapped editor JSON in the private directory
   returned by `context.getDir("suggest_edits_drafts", MODE_PRIVATE)`. UUID filenames
   and `draftId` distinguish drafts independently of bus name/type.
+- The editor automatically saves the latest changes on Back, toolbar exit and
+  backgrounding, and before opening history or confirmation. Incomplete drafts
+  are allowed; untouched empty new editors do not create files. Repeated saves
+  retain the filename and service ID. Only explicit confirmed Discard deletes
+  work; cancellation and ordinary navigation preserve it.
+- Draft writes are atomic and queued with deletions on an application-owned
+  coroutine scope, so leaving/recreating the editor does not cancel persistence
+  or let a late save recreate a discarded/submitted draft. Unchanged snapshots
+  are not rewritten; the saved-content marker survives editor recreation.
 - `SuggestionStorageManager` stores failed uploads as complete wrapped payloads in
   `filesDir\suggestions\suggestion_<timestamp>.json`.
 - Confirmation removes the associated draft only after upload success or successful

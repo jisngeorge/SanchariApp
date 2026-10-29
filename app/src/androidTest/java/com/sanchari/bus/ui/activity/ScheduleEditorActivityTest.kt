@@ -31,6 +31,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Before
+import org.junit.After
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -38,9 +39,23 @@ import org.junit.runner.RunWith
 class ScheduleEditorActivityTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context = instrumentation.targetContext
+    private var initialDraftFiles = emptySet<String>()
 
     @Before
-    fun initializeLocalData() = runBlocking { DatabaseManager.initializeDatabases(context) }
+    fun initializeLocalData() {
+        runBlocking {
+            DatabaseManager.initializeDatabases(context)
+            DraftManager.deleteDraftAsync(context, DraftManager.newDraftFileName()).await()
+        }
+        initialDraftFiles = DraftManager.getDrafts(context).map { it.fileName }.toSet()
+    }
+
+    @After
+    fun removeTestAutosaves() {
+        runBlocking { DraftManager.deleteDraftAsync(context, DraftManager.newDraftFileName()).await() }
+        DraftManager.getDrafts(context).filter { it.fileName !in initialDraftFiles }
+            .forEach { DraftManager.deleteDraft(context, it.fileName) }
+    }
 
     @Test
     fun freshNewAndEditSessionsShowQuickTipsButRecreationDoesNotRepeatThem() {
@@ -269,6 +284,8 @@ class ScheduleEditorActivityTest {
                     assertEquals(4, adapter(activity).itemCount)
                     activity.findViewById<android.view.View>(R.id.buttonApplyChanges).performClick()
                 }
+                val deadline = System.currentTimeMillis() + 5_000
+                while (captured == null && System.currentTimeMillis() < deadline) Thread.sleep(25)
                 val intent = requireNotNull(captured)
                 assertEquals(filename, intent.getStringExtra("EXTRA_DRAFT_FILE_NAME"))
                 val json = JSONObject(requireNotNull(intent.getStringExtra("EXTRA_JSON_PAYLOAD")))
@@ -316,6 +333,7 @@ class ScheduleEditorActivityTest {
                     activity.findViewById<android.view.View>(R.id.buttonSaveDraft).performClick()
                 }
             }
+            runBlocking { DraftManager.deleteDraftAsync(context, DraftManager.newDraftFileName()).await() }
             val saved = JSONObject(DraftManager.getDrafts(context).single { it.fileName == filename }.jsonPayload)
             assertEquals("new_schedule", saved.getString("type"))
             assertEquals("NEW-editor-test", saved.getJSONObject("service").getString("serviceId"))

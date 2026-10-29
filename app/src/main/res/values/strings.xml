@@ -142,6 +142,9 @@
     <string name="desc_history">History</string>
     <string name="editor_edit_title">Suggest an Edit</string>
     <string name="editor_new_title">Add New Bus Service</string>
+    <string name="editor_draft_save_failed">Could not save your latest changes. Please return to the editor and try saving again.</string>
+    <string name="editor_draft_discard_failed">Could not discard the draft. Please try again.</string>
+    <string name="editor_draft_cleanup_failed">Suggestion saved, but its draft could not be removed.</string>
     <string name="editor_new_stop">New stop</string>
     <string name="editor_ambiguous_stop">More than one stop has this name. Choose one from the suggestions.</string>
     <string name="editor_lookup_unavailable">Stop and bus-type suggestions are unavailable. You can still enter values manually.</string>

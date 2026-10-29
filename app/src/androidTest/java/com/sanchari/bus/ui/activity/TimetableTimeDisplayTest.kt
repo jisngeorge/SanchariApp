@@ -20,15 +20,35 @@ import com.sanchari.bus.data.model.RouteSearchResult
 import com.sanchari.bus.ui.adapter.BusServiceAdapter
 import com.sanchari.bus.ui.adapter.BusStopAdapter
 import com.sanchari.bus.ui.adapter.StopEditAdapter
+import com.sanchari.bus.ui.helper.DraftManager
+import com.sanchari.bus.data.local.DatabaseManager
+import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Test
+import org.junit.Before
+import org.junit.After
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class TimetableTimeDisplayTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
+    private var initialDraftFiles = emptySet<String>()
+
+    @Before
+    fun initializeLocalData() {
+        runBlocking { DatabaseManager.initializeDatabases(instrumentation.targetContext) }
+        initialDraftFiles = DraftManager.getDrafts(instrumentation.targetContext).map { it.fileName }.toSet()
+    }
+
+    @After
+    fun removeTestAutosaves() {
+        val context = instrumentation.targetContext
+        runBlocking { DraftManager.deleteDraftAsync(context, DraftManager.newDraftFileName()).await() }
+        DraftManager.getDrafts(context).filter { it.fileName !in initialDraftFiles }
+            .forEach { DraftManager.deleteDraft(context, it.fileName) }
+    }
 
     @Test
     fun serviceAndHaltRowsDisplayAmPmWithoutChangingSourceTimes() {
@@ -117,7 +137,7 @@ class TimetableTimeDisplayTest {
                     adapter.updateTime(1, "16:05")
                     activity.findViewById<android.view.View>(R.id.buttonApplyChanges).performClick()
                 }
-                assertPayload(requireNotNull(capturedIntent), "new_schedule", "14:30", "16:05")
+                assertPayload(waitForIntent { capturedIntent }, "new_schedule", "14:30", "16:05")
                 capturedIntent = null
 
                 scenario.onActivity { activity ->
@@ -126,11 +146,17 @@ class TimetableTimeDisplayTest {
                     )
                     activity.findViewById<android.view.View>(R.id.buttonApplyChanges).performClick()
                 }
-                assertPayload(requireNotNull(capturedIntent), "edit_schedule", "14:30", "16:05")
+                assertPayload(waitForIntent { capturedIntent }, "edit_schedule", "14:30", "16:05")
             }
         } finally {
             instrumentation.removeMonitor(monitor)
         }
+    }
+
+    private fun waitForIntent(intent: () -> Intent?): Intent {
+        val deadline = System.currentTimeMillis() + 5_000
+        while (intent() == null && System.currentTimeMillis() < deadline) Thread.sleep(25)
+        return requireNotNull(intent())
     }
 
     private fun assertPayload(intent: Intent, type: String, from: String, to: String) {

@@ -67,6 +67,8 @@ class SuggestEditActivity : AppCompatActivity() {
         private const val KEY_ORIGINAL_SERVICE = "KEY_ORIGINAL_SERVICE"
         private const val KEY_DRAFT_FILE = "KEY_DRAFT_FILE"
         private const val KEY_INITIAL_LOADING = "KEY_INITIAL_LOADING"
+        private const val KEY_SAVED_DRAFT_CONTENT = "KEY_SAVED_DRAFT_CONTENT"
+        private const val KEY_DRAFT_DISCARDED = "KEY_DRAFT_DISCARDED"
 
         fun newIntentForEdit(context: Context, service: BusService): Intent {
             return Intent(context, SuggestEditActivity::class.java).apply {
@@ -106,16 +108,15 @@ class SuggestEditActivity : AppCompatActivity() {
             loadFromIntent()
         }
 
-        // Intercept Back Press to prompt "Save Draft"
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                handler.promptSaveDraftAndExit()
+                handler.saveDraftAndExit()
             }
         })
 
         // Toolbar Back Button
         binding.toolbar.setNavigationOnClickListener {
-            handler.promptSaveDraftAndExit()
+            handler.saveDraftAndExit()
         }
 
         // History Icon
@@ -136,7 +137,7 @@ class SuggestEditActivity : AppCompatActivity() {
         }
 
         binding.buttonApplyChanges.setOnClickListener {
-            handler.applyChanges(originalService)
+            handler.applyChanges()
         }
         binding.buttonReverseStops.setOnClickListener { showReverseDialog() }
         binding.editTextServiceType.doAfterTextChanged { invalidateEstimate() }
@@ -164,6 +165,8 @@ class SuggestEditActivity : AppCompatActivity() {
         outState.putParcelable(KEY_ORIGINAL_SERVICE, originalService)
         outState.putString(KEY_DRAFT_FILE, currentDraftFileName)
         outState.putBoolean(KEY_INITIAL_LOADING, initialLoading)
+        outState.putString(KEY_SAVED_DRAFT_CONTENT, handler.lastSavedContent)
+        outState.putBoolean(KEY_DRAFT_DISCARDED, handler.isDiscarded)
     }
 
     private fun restoreFromSavedState(savedInstanceState: Bundle) {
@@ -196,6 +199,11 @@ class SuggestEditActivity : AppCompatActivity() {
             }
         )
         currentDraftFileName = savedInstanceState.getString(KEY_DRAFT_FILE)
+        handler.lastSavedContent = savedInstanceState.getString(KEY_SAVED_DRAFT_CONTENT)
+        if (savedInstanceState.getBoolean(KEY_DRAFT_DISCARDED)) {
+            handler.discardAndExit()
+            return
+        }
         if (savedInstanceState.getBoolean(KEY_INITIAL_LOADING)) {
             originalService?.let(::preFillData)
         }
@@ -289,7 +297,8 @@ class SuggestEditActivity : AppCompatActivity() {
     private fun setInitialLoading(loading: Boolean) {
         initialLoading = loading
         listOf(binding.buttonAddStop, binding.buttonReverseStops, binding.buttonApplyChanges,
-            binding.buttonSaveDraft, binding.btnHistory).forEach { it.isEnabled = !loading }
+            binding.buttonSaveDraft, binding.btnHistory, binding.editTextServiceName,
+            binding.editTextServiceType, binding.editTextEditNotes).forEach { it.isEnabled = !loading }
     }
 
     fun prepareEditorForAction(forDraft: Boolean = false): Boolean {
@@ -476,5 +485,10 @@ class SuggestEditActivity : AppCompatActivity() {
         estimateDialog?.dismiss()
         reverseDialog?.dismiss()
         super.onDestroy()
+    }
+
+    override fun onPause() {
+        if (::handler.isInitialized && !initialLoading) handler.autoSaveDraft()
+        super.onPause()
     }
 }

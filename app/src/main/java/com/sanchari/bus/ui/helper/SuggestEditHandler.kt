@@ -4,6 +4,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.timepicker.MaterialTimePicker
 import com.google.android.material.timepicker.TimeFormat
 import com.sanchari.bus.data.model.BusService
@@ -17,6 +18,10 @@ import com.sanchari.bus.data.manager.UserDataManager
 import com.sanchari.bus.R
 import org.json.JSONArray
 import org.json.JSONObject
+import org.json.JSONException
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.launch
+import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -33,6 +38,13 @@ class SuggestEditHandler(
         private const val TAG = "SuggestEditHandler"
     }
 
+    var lastSavedContent: String? = null
+    var isDiscarded = false
+        private set
+    private var pendingSave: Deferred<String>? = null
+    private var pendingContent: String? = null
+    private var transitionInProgress = false
+
     fun showInstructionsDialog() {
         AlertDialog.Builder(activity)
             .setTitle(R.string.editor_quick_tips)
@@ -42,6 +54,10 @@ class SuggestEditHandler(
     }
 
     fun showEditHistory() {
+        runAfterSaving { showSavedHistory() }
+    }
+
+    private fun showSavedHistory() {
         val drafts = DraftManager.getDrafts(activity)
         val hasLogs = UserDataManager.getSubmissionLogs(activity).isNotEmpty()
 
@@ -146,6 +162,8 @@ class SuggestEditHandler(
                 suggestActivity.setOriginalService(null)
             }
 
+            isDiscarded = false
+            lastSavedContent = currentContent()
             Toast.makeText(activity, "Draft loaded successfully", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to load draft", e)
@@ -154,73 +172,139 @@ class SuggestEditHandler(
     }
 
     fun saveDraft() {
-        val suggestActivity = activity as SuggestEditActivity
-        if (!suggestActivity.prepareEditorForAction(forDraft = true)) return
-        val serviceName = binding.editTextServiceName.text.toString().trim()
-        val stopsData = adapter.getStopsData()
-
-        if (serviceName.isEmpty() && stopsData.isEmpty()) {
-            Toast.makeText(activity, "Nothing to save", Toast.LENGTH_SHORT).show()
+        runAfterSaving(force = true) {
+            Toast.makeText(activity,
+                if ((activity as SuggestEditActivity).currentDraftFileName == null) "Nothing to save" else "Draft Saved",
+                Toast.LENGTH_SHORT).show()
             activity.finish()
-            return
         }
+    }
 
-        val json = buildJsonPayload(
+    fun saveDraftAndExit() {
+        runAfterSaving { activity.finish() }
+    }
+
+    fun autoSaveDraft() {
+        if (isDiscarded) return
+        val save = persistDraft() ?: return
+        activity.lifecycleScope.launch {
+            try {
+                save.await()
+            } catch (e: IOException) {
+                showSaveError()
+            } catch (e: JSONException) {
+                showSaveError()
+            }
+        }
+    }
+
+    private fun currentContent(): String {
+        val suggestActivity = activity as SuggestEditActivity
+        val root = JSONObject(buildJsonPayload(
             suggestActivity.getOriginalService(),
-            serviceName,
+            binding.editTextServiceName.text.toString().trim(),
             binding.editTextServiceType.text.toString().trim(),
-            stopsData,
-            binding.editTextEditNotes.text.toString().trim()
-        )
+            adapter.getStopsData(),
+            binding.editTextEditNotes.text.toString().trim(),
+            serviceId = suggestActivity.getOriginalService()?.serviceId ?: "NEW-unsaved"
+        ))
+        root.remove("timestamp")
+        val service = root.getJSONObject("service")
+        // A new service receives its permanent UUID on the first save.
+        if (service.getString("serviceId").startsWith("NEW-")) service.put("serviceId", "NEW")
+        return root.toString()
+    }
 
-        // Save and ensure we strictly track the exact updated UUID file name
-        val newDraftFileName = DraftManager.saveDraft(activity, json, suggestActivity.currentDraftFileName)
-        suggestActivity.currentDraftFileName = newDraftFileName
+    private fun persistDraft(force: Boolean = false): Deferred<String>? {
+        if (isDiscarded) return null
+        adapter.commitNames()
+        val suggestActivity = activity as SuggestEditActivity
+        val name = binding.editTextServiceName.text.toString().trim()
+        val type = binding.editTextServiceType.text.toString().trim()
+        val notes = binding.editTextEditNotes.text.toString().trim()
+        val stops = adapter.getStopsData()
+        if (suggestActivity.currentDraftFileName == null && name.isEmpty() && type.isEmpty() &&
+            notes.isEmpty() && stops.none { it.stopName.isNotBlank() || it.scheduledTime.isNotBlank() }) return null
+        val content = currentContent()
+        if (pendingSave != null && pendingContent == content) return pendingSave
+        if (!force && pendingSave == null && lastSavedContent == content) return null
+        val json = buildJsonPayload(suggestActivity.getOriginalService(), name, type, stops, notes)
+        if (suggestActivity.getOriginalService() == null) {
+            val service = JSONObject(json).getJSONObject("service")
+            suggestActivity.setOriginalService(BusService(
+                service.getString("serviceId"), name, type, true, 0L,
+                service.getString("fromTime"), service.getString("toTime")
+            ))
+        }
+        val fileName = suggestActivity.currentDraftFileName ?: DraftManager.newDraftFileName()
+        suggestActivity.currentDraftFileName = fileName
+        val save = DraftManager.saveDraftAsync(activity, json, fileName)
+        pendingSave = save
+        pendingContent = content
+        save.invokeOnCompletion { error ->
+            if (error == null) lastSavedContent = content
+            if (pendingSave === save) {
+                pendingSave = null
+                pendingContent = null
+            }
+        }
+        return save
+    }
 
-        Toast.makeText(activity, "Draft Saved", Toast.LENGTH_SHORT).show()
-        activity.finish()
+    private fun runAfterSaving(force: Boolean = false, forSubmission: Boolean = false, action: () -> Unit) {
+        if (transitionInProgress || isDiscarded) return
+        if (!(activity as SuggestEditActivity).prepareEditorForAction(forDraft = true)) return
+        transitionInProgress = true
+        activity.lifecycleScope.launch {
+            try {
+                var forceSave = force
+                while (true) {
+                    if (forSubmission && !validateSubmission()) return@launch
+                    val save = persistDraft(forceSave) ?: break
+                    forceSave = false
+                    save.await()
+                }
+                if (!isDiscarded) action()
+            } catch (e: IOException) {
+                showSaveError()
+            } catch (e: JSONException) {
+                showSaveError()
+            } finally {
+                transitionInProgress = false
+            }
+        }
+    }
+
+    private fun showSaveError() {
+        Toast.makeText(activity, R.string.editor_draft_save_failed, Toast.LENGTH_LONG).show()
     }
 
     fun discardDraft() {
-        val suggestActivity = activity as SuggestEditActivity
         AlertDialog.Builder(activity)
             .setTitle("Discard Draft")
             .setMessage("Are you sure you want to discard your current changes? This cannot be undone.")
             .setPositiveButton("Discard") { _, _ ->
-                suggestActivity.currentDraftFileName?.let {
-                    DraftManager.deleteDraft(activity, it)
-                }
-                Toast.makeText(activity, "Draft Discarded", Toast.LENGTH_SHORT).show()
-                activity.finish()
+                discardAndExit()
             }
             .setNegativeButton("Cancel", null)
             .show()
     }
 
-    fun promptSaveDraftAndExit() {
+    fun discardAndExit() {
         val suggestActivity = activity as SuggestEditActivity
-        val serviceName = binding.editTextServiceName.text.toString().trim()
-        val stopsData = adapter.getStopsData()
-
-        if (serviceName.isEmpty() && stopsData.isEmpty()) {
-            activity.finish()
-            return
-        }
-
-        AlertDialog.Builder(activity)
-            .setTitle("Save Draft?")
-            .setMessage("Do you want to save your progress to history?")
-            .setPositiveButton("Save") { _, _ ->
-                saveDraft()
-            }
-            .setNegativeButton("Discard") { _, _ ->
+        isDiscarded = true
+        activity.lifecycleScope.launch {
+            try {
                 suggestActivity.currentDraftFileName?.let {
-                    DraftManager.deleteDraft(activity, it)
+                    DraftManager.deleteDraftAsync(activity, it).await()
                 }
+                Toast.makeText(activity, "Draft Discarded", Toast.LENGTH_SHORT).show()
                 activity.finish()
+            } catch (e: IOException) {
+                isDiscarded = false
+                Toast.makeText(activity, R.string.editor_draft_discard_failed, Toast.LENGTH_LONG).show()
             }
-            .setNeutralButton("Cancel", null)
-            .show()
+        }
     }
 
     fun showTimePicker(position: Int) {
@@ -254,24 +338,33 @@ class SuggestEditHandler(
         picker.show(activity.supportFragmentManager, "TimePicker")
     }
 
-    fun applyChanges(originalService: BusService?) {
-        if (!(activity as SuggestEditActivity).prepareEditorForAction()) return
+    fun applyChanges() {
+        if (!validateSubmission()) return
+        runAfterSaving(forSubmission = true) {
+            val suggestActivity = activity as SuggestEditActivity
+            val json = buildJsonPayload(
+                suggestActivity.getOriginalService(), binding.editTextServiceName.text.toString().trim(),
+                binding.editTextServiceType.text.toString().trim(), adapter.getStopsData(),
+                binding.editTextEditNotes.text.toString().trim()
+            )
+            val intent = ConfirmationActivity.newIntent(activity, json)
+            suggestActivity.currentDraftFileName?.let {
+                intent.putExtra(ConfirmationActivity.EXTRA_DRAFT_FILE_NAME, it)
+            }
+            activity.startActivity(intent)
+        }
+    }
+
+    private fun validateSubmission(): Boolean {
+        if (!(activity as SuggestEditActivity).prepareEditorForAction()) return false
         val serviceName = binding.editTextServiceName.text.toString().trim()
-        val serviceType = binding.editTextServiceType.text.toString().trim()
         val stopsData = adapter.getStopsData()
-        val editNotes = binding.editTextEditNotes.text.toString().trim()
 
         if (serviceName.isEmpty() || stopsData.isEmpty() || stopsData.any { it.stopName.isBlank() }) {
             Toast.makeText(activity, "Please fill required fields", Toast.LENGTH_SHORT).show()
-            return
+            return false
         }
-
-        val json = buildJsonPayload(originalService, serviceName, serviceType, stopsData, editNotes)
-        val intent = ConfirmationActivity.newIntent(activity, json)
-        (activity as SuggestEditActivity).currentDraftFileName?.let {
-            intent.putExtra("EXTRA_DRAFT_FILE_NAME", it)
-        }
-        activity.startActivity(intent)
+        return true
     }
 
     private fun buildJsonPayload(
@@ -279,12 +372,11 @@ class SuggestEditHandler(
         name: String,
         type: String,
         stops: List<EditableStop>,
-        editNotes: String
+        editNotes: String,
+        serviceId: String = originalService?.serviceId ?: "NEW-${UUID.randomUUID()}"
     ): String {
         val root = JSONObject()
         val service = JSONObject()
-
-        val serviceId = originalService?.serviceId ?: "NEW-${UUID.randomUUID()}"
 
         service.put("serviceId", serviceId)
         service.put("name", name)

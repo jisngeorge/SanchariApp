@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.IOException
 
 class ConfirmationActivity : AppCompatActivity() {
 
@@ -172,10 +173,13 @@ class ConfirmationActivity : AppCompatActivity() {
         }
     }
 
-    private fun deleteDraftIfExists() {
+    private suspend fun deleteDraftIfExists() {
         draftFileName?.let { fileName ->
-            Log.d(TAG, "Deleting draft: $fileName")
-            DraftManager.deleteDraft(applicationContext, fileName)
+            try {
+                DraftManager.deleteDraftAsync(applicationContext, fileName).await()
+            } catch (e: IOException) {
+                Toast.makeText(this, com.sanchari.bus.R.string.editor_draft_cleanup_failed, Toast.LENGTH_LONG).show()
+            }
         }
     }
 
