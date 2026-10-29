@@ -240,6 +240,35 @@ and gives new services an ID of `NEW-<UUID>`. A newly introduced stop is represe
 by `"stopId": "NEW"`; existing stop IDs remain integers. Submitted `stopOrder`
 is regenerated as a one-based sequence from the editor list.
 
+Stop names have local autocomplete with ID-bearing choices. Users may still enter
+new places; these retain the `"NEW"` stop ID. Renaming a stop must not retain an
+unrelated existing ID. Duplicate-name choices remain distinct. Bus type is also
+an editable local dropdown and permits new values.
+
+The suggestion editor groups service details, route stops, and optional notes.
+Each stop uses a card with a header for order/move/remove controls and full-width
+outlined name/time fields. Keep Material outlined styles on autocomplete fields
+so floating labels have their own space; do not shrink their internal padding.
+Time edits highlight the card outline using theme colours, not a fixed background.
+
+`Reverse and append` copies any named contiguous section in reverse, retaining
+stop identities and halt rows but leaving copied times blank. Reversing A-B-C-D
+appends D-C-B-A, including the duplicated turnaround. Time edits never reorder
+the route; only explicit up/down actions change the sequence.
+
+`Suggest time` estimates one row from its immediately preceding timed row.
+It first averages valid direction-specific A-to-B pairs already in the editor
+(including intermediate stops, with normal nearest repeated-endpoint matching,
+excluding the target pair), then same-type timetable intervals, then all types.
+It does not borrow reverse-direction samples or estimate same-place halt
+durations. Existing scheduled interval rules apply, including next-day clock
+rollover and exclusion of invalid/identical times. Non-running services remain
+eligible timetable samples. The preview shows source and sample count and changes
+nothing until explicitly accepted. Accepted values remain `HH:mm`; estimate
+metadata is not part of drafts or contribution JSON. Route/type/time changes
+invalidate pending estimates. Service identity and draft filename survive editor
+recreation.
+
 Schedule suggestion JSON has these fields:
 
 ```text

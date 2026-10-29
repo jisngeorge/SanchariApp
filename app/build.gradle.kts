@@ -50,6 +50,10 @@ android {
         jvmTarget = "11"
     }
 
+    testOptions {
+        animationsDisabled = true
+    }
+
     // Enable View Binding (optional but recommended for XML)
     buildFeatures {
         viewBinding = true

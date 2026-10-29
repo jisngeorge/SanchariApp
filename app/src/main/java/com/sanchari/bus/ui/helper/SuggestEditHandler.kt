@@ -14,6 +14,7 @@ import com.sanchari.bus.ui.activity.ConfirmationActivity
 import com.sanchari.bus.ui.activity.SuggestEditActivity
 import com.sanchari.bus.ui.adapter.StopEditAdapter
 import com.sanchari.bus.data.manager.UserDataManager
+import com.sanchari.bus.R
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -35,10 +36,7 @@ class SuggestEditHandler(
     fun showInstructionsDialog() {
         AlertDialog.Builder(activity)
             .setTitle("Instructions")
-            .setMessage("• Add only important stops and junctions to bus routes.\n\n" +
-                    "• Please use notes to convey any other details, like running status on Sundays, stops for which time unknown etc.\n\n" +
-                    "• For naming the bus, you can use place, depo names and numbers to make it easy to identify.\n\n" +
-                    "• For adding a halt, add same stop name with arrival and departure time.")
+            .setMessage(R.string.editor_instructions)
             .setPositiveButton("Got it", null)
             .show()
     }
@@ -107,7 +105,7 @@ class SuggestEditHandler(
             val service = root.getJSONObject("service")
 
             binding.editTextServiceName.setText(service.optString("name"))
-            binding.editTextServiceType.setText(service.optString("type"))
+            binding.editTextServiceType.setText(service.optString("type"), false)
             binding.editTextEditNotes.setText(root.optString("editNotes"))
 
             editableStops.clear()
@@ -126,7 +124,7 @@ class SuggestEditHandler(
                     )
                 )
             }
-            adapter.notifyDataSetChanged()
+            adapter.routeReplaced()
 
             val suggestActivity = activity as SuggestEditActivity
             suggestActivity.currentDraftFileName = draft.fileName
@@ -157,6 +155,7 @@ class SuggestEditHandler(
 
     fun saveDraft() {
         val suggestActivity = activity as SuggestEditActivity
+        if (!suggestActivity.prepareEditorForAction(forDraft = true)) return
         val serviceName = binding.editTextServiceName.text.toString().trim()
         val stopsData = adapter.getStopsData()
 
@@ -256,12 +255,13 @@ class SuggestEditHandler(
     }
 
     fun applyChanges(originalService: BusService?) {
+        if (!(activity as SuggestEditActivity).prepareEditorForAction()) return
         val serviceName = binding.editTextServiceName.text.toString().trim()
         val serviceType = binding.editTextServiceType.text.toString().trim()
         val stopsData = adapter.getStopsData()
         val editNotes = binding.editTextEditNotes.text.toString().trim()
 
-        if (serviceName.isEmpty() || stopsData.isEmpty()) {
+        if (serviceName.isEmpty() || stopsData.isEmpty() || stopsData.any { it.stopName.isBlank() }) {
             Toast.makeText(activity, "Please fill required fields", Toast.LENGTH_SHORT).show()
             return
         }

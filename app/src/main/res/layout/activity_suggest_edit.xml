@@ -15,19 +15,21 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="Suggest an Edit">
+            app:titleTextColor="?attr/colorOnPrimary"
+            app:title="@string/editor_edit_title">
 
             <!-- History Icon placed on the right side -->
-            <ImageView
+            <androidx.appcompat.widget.AppCompatImageButton
                 android:id="@+id/btn_history"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:layout_gravity="end"
                 android:layout_marginEnd="8dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/desc_history"
                 android:padding="12dp"
-                android:src="@drawable/ic_history" />
+                android:src="@drawable/ic_history"
+                app:tint="?attr/colorOnPrimary" />
 
         </com.google.android.material.appbar.MaterialToolbar>
 
@@ -36,6 +38,7 @@
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:fillViewport="true"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
@@ -44,9 +47,18 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <com.google.android.material.textfield.TextInputLayout
+            <TextView
+                android:id="@+id/serviceDetailsHeading"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:text="@string/editor_service_details"
+                android:textAppearance="?attr/textAppearanceHeadline6" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
                 android:hint="@string/hint_bus_service_name">
 
                 <com.google.android.material.textfield.TextInputEditText
@@ -58,59 +70,90 @@
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/serviceTypeLayout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="@string/hint_bus_type">
+                android:hint="@string/editor_bus_type"
+                app:helperText="@string/editor_bus_type_help">
 
-                <com.google.android.material.textfield.TextInputEditText
+                <com.google.android.material.textfield.MaterialAutoCompleteTextView
                     android:id="@+id/editTextServiceType"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:inputType="textCapWords" />
+                    android:inputType="textCapWords"
+                    android:completionThreshold="1" />
 
             </com.google.android.material.textfield.TextInputLayout>
 
             <TextView
+                android:id="@+id/routeStopsHeading"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
-                android:textSize="18sp"
                 android:text="@string/title_bus_stops"
-                android:textAppearance="?attr/textAppearanceTitleMedium" />
+                android:textAppearance="?attr/textAppearanceHeadline6" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/editor_route_help"
+                android:textAppearance="?attr/textAppearanceBody2"
+                android:textColor="?android:attr/textColorSecondary" />
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recyclerViewStopsEditor"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
+                android:clipToPadding="false"
+                android:padding="2dp"
                 android:nestedScrollingEnabled="false"
                 tools:itemCount="2"
                 tools:listitem="@layout/item_edit_stop" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonAddStop"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/btn_add_stop"
+                app:iconGravity="textStart"
+                app:icon="@drawable/ic_add" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonReverseStops"
                 style="@style/Widget.MaterialComponents.Button.TextButton"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:layout_marginTop="8dp"
-                android:text="@string/btn_add_stop"
-                app:icon="@drawable/ic_add" />
+                android:text="@string/editor_reverse_append" />
+
+            <TextView
+                android:id="@+id/notesHeading"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="@string/editor_notes_title"
+                android:textAppearance="?attr/textAppearanceHeadline6" />
 
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
+                android:layout_marginTop="12dp"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                android:hint="@string/hint_notes_admin">
+                android:hint="@string/editor_notes_hint"
+                app:helperText="@string/editor_notes_help">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/editTextEditNotes"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:inputType="textMultiLine|textCapSentences"
-                    android:lines="3"
+                    android:minLines="3"
+                    android:maxLines="6"
                     android:gravity="top"/>
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -129,9 +172,9 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginEnd="8dp"
-                    app:strokeColor="@color/design_default_color_error"
-                    android:textColor="@color/design_default_color_error"
-                    android:text="Discard" />
+                    app:strokeColor="?attr/colorError"
+                    android:textColor="?attr/colorError"
+                    android:text="@string/editor_discard" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/buttonSaveDraft"
@@ -140,11 +183,11 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginStart="8dp"
-                    android:text="Save Draft" />
+                    android:text="@string/editor_save_draft" />
 
             </LinearLayout>
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonApplyChanges"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

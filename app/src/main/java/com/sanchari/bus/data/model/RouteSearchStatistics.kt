@@ -34,9 +34,11 @@ data class RouteSearchStatistics(
             )
         }
 
-        fun journeyMinutes(service: BusService): Int? {
-            val departure = parseMinutes(service.fromTime) ?: return null
-            val arrival = parseMinutes(service.toTime) ?: return null
+        fun journeyMinutes(service: BusService): Int? = journeyMinutes(service.fromTime, service.toTime)
+
+        fun journeyMinutes(fromTime: String, toTime: String): Int? {
+            val departure = parseMinutes(fromTime) ?: return null
+            val arrival = parseMinutes(toTime) ?: return null
             val duration = (arrival - departure + 1440) % 1440
             // Identical clock times cannot distinguish zero-duration and full-day journeys.
             return duration.takeIf { it > 0 }

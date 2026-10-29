@@ -8,8 +8,10 @@ import com.sanchari.bus.data.local.DatabaseConstants
 import com.sanchari.bus.data.local.TimetableDatabaseHelper
 import com.sanchari.bus.data.model.BusService
 import com.sanchari.bus.data.model.BusStop
+import com.sanchari.bus.data.model.EditorStopOption
 import com.sanchari.bus.data.model.RouteSearchMode
 import com.sanchari.bus.data.model.RouteSearchResult
+import java.util.Locale
 
 object SearchManager {
 
@@ -17,6 +19,53 @@ object SearchManager {
 
     private fun db(context: Context) =
         TimetableDatabaseHelper.getInstance(context).readableDatabase
+
+    private fun editorDb(context: Context): SQLiteDatabase {
+        if (!context.getDatabasePath(DatabaseConstants.TIMETABLE_DATABASE_NAME).isFile) {
+            throw SQLiteException("Timetable database has not been installed")
+        }
+        return db(context)
+    }
+
+    fun getEditorStopOptions(context: Context): List<EditorStopOption> = getEditorStopOptions(editorDb(context))
+
+    internal fun getEditorStopOptions(database: SQLiteDatabase): List<EditorStopOption> {
+        val stop = DatabaseConstants.StopTable
+        val options = mutableListOf<EditorStopOption>()
+        database.rawQuery(
+            "SELECT ${stop.COLUMN_STOP_ID}, ${stop.COLUMN_LOCATION_NAME} FROM ${stop.TABLE_NAME} " +
+                "ORDER BY ${stop.COLUMN_LOCATION_NAME}, ${stop.COLUMN_STOP_ID}", null
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                options.add(EditorStopOption(cursor.getInt(0), cursor.getString(1)))
+            }
+        }
+        val duplicateNames = options.groupingBy { it.name.trim().uppercase(Locale.ROOT) }
+            .eachCount().filterValues { it > 1 }.keys
+        return options.map {
+            if (it.name.trim().uppercase(Locale.ROOT) in duplicateNames) {
+                it.copy(label = "${it.name} (#${it.id})")
+            } else it
+        }
+    }
+
+    fun getEditorBusTypes(context: Context): List<String> = getEditorBusTypes(editorDb(context))
+
+    internal fun getEditorBusTypes(database: SQLiteDatabase): List<String> {
+        val bus = DatabaseConstants.BusServiceTable
+        val types = mutableListOf<String>()
+        database.rawQuery(
+            "SELECT DISTINCT ${bus.COLUMN_TYPE} FROM ${bus.TABLE_NAME} " +
+                "WHERE ${bus.COLUMN_TYPE} IS NOT NULL ORDER BY ${bus.COLUMN_TYPE}", null
+        ).use { cursor ->
+            while (cursor.moveToNext()) cursor.getString(0).trim().takeIf { it.isNotEmpty() }?.let(types::add)
+        }
+        return types.distinctBy(RouteResultsManager::busTypeKey)
+    }
+
+    // Editor callers distinguish unavailable data from a valid empty result.
+    fun getEditorRouteResults(context: Context, from: String, to: String): List<RouteSearchResult> =
+        findFixedRouteResults(editorDb(context), from, to)
 
     /**
      * Finds bus services that travel from 'from' to 'to'.
@@ -324,8 +373,17 @@ object SearchManager {
      * Gets all stops for a specific bus service, ordered by stopOrder.
      */
     fun getBusStops(context: Context, serviceId: String): List<BusStop> {
+        return try {
+            getEditorBusStops(context, serviceId)
+        } catch (e: SQLiteException) {
+            Log.e(TAG, "Error getting bus stops", e)
+            emptyList()
+        }
+    }
+
+    fun getEditorBusStops(context: Context, serviceId: String): List<BusStop> {
         val stops = mutableListOf<BusStop>()
-        val db = db(context)
+        val db = editorDb(context)
 
         val query = """
             SELECT 
@@ -345,34 +403,30 @@ object SearchManager {
                 rs.${DatabaseConstants.RouteStopTable.COLUMN_STOP_ORDER} ASC
         """.trimIndent()
 
-        try {
-            db.rawQuery(query, arrayOf(serviceId)).use { cursor ->
-                val stopIdIndex = cursor.getColumnIndex(DatabaseConstants.StopTable.COLUMN_STOP_ID)
-                val locationNameIndex = cursor.getColumnIndex(DatabaseConstants.StopTable.COLUMN_LOCATION_NAME)
-                val latitudeIndex = cursor.getColumnIndex(DatabaseConstants.StopTable.COLUMN_LATITUDE)
-                val longitudeIndex = cursor.getColumnIndex(DatabaseConstants.StopTable.COLUMN_LONGITUDE)
-                val scheduledTimeIndex = cursor.getColumnIndex(DatabaseConstants.RouteStopTable.COLUMN_SCHEDULED_TIME)
-                val stopOrderIndex = cursor.getColumnIndex(DatabaseConstants.RouteStopTable.COLUMN_STOP_ORDER)
+        db.rawQuery(query, arrayOf(serviceId)).use { cursor ->
+            val stopIdIndex = cursor.getColumnIndex(DatabaseConstants.StopTable.COLUMN_STOP_ID)
+            val locationNameIndex = cursor.getColumnIndex(DatabaseConstants.StopTable.COLUMN_LOCATION_NAME)
+            val latitudeIndex = cursor.getColumnIndex(DatabaseConstants.StopTable.COLUMN_LATITUDE)
+            val longitudeIndex = cursor.getColumnIndex(DatabaseConstants.StopTable.COLUMN_LONGITUDE)
+            val scheduledTimeIndex = cursor.getColumnIndex(DatabaseConstants.RouteStopTable.COLUMN_SCHEDULED_TIME)
+            val stopOrderIndex = cursor.getColumnIndex(DatabaseConstants.RouteStopTable.COLUMN_STOP_ORDER)
 
-                while (cursor.moveToNext()) {
-                    val scheduledTime = if (scheduledTimeIndex != -1 && !cursor.isNull(scheduledTimeIndex))
-                        cursor.getString(scheduledTimeIndex) else null
+            while (cursor.moveToNext()) {
+                val scheduledTime = if (scheduledTimeIndex != -1 && !cursor.isNull(scheduledTimeIndex))
+                    cursor.getString(scheduledTimeIndex) else null
 
-                    stops.add(
-                        BusStop(
-                            stopId = if (stopIdIndex != -1) cursor.getInt(stopIdIndex) else 0,
-                            serviceId = serviceId,
-                            locationName = if (locationNameIndex != -1) cursor.getString(locationNameIndex) else "Unknown Stop",
-                            latitude = if (latitudeIndex != -1) cursor.getDouble(latitudeIndex) else 0.0,
-                            longitude = if (longitudeIndex != -1) cursor.getDouble(longitudeIndex) else 0.0,
-                            scheduledTime = scheduledTime ?: "--:--",
-                            stopOrder = if (stopOrderIndex != -1) cursor.getInt(stopOrderIndex) else 0
-                        )
+                stops.add(
+                    BusStop(
+                        stopId = if (stopIdIndex != -1) cursor.getInt(stopIdIndex) else 0,
+                        serviceId = serviceId,
+                        locationName = if (locationNameIndex != -1) cursor.getString(locationNameIndex) else "Unknown Stop",
+                        latitude = if (latitudeIndex != -1) cursor.getDouble(latitudeIndex) else 0.0,
+                        longitude = if (longitudeIndex != -1) cursor.getDouble(longitudeIndex) else 0.0,
+                        scheduledTime = scheduledTime ?: "--:--",
+                        stopOrder = if (stopOrderIndex != -1) cursor.getInt(stopOrderIndex) else 0
                     )
-                }
+                )
             }
-        } catch (e: SQLiteException) {
-            Log.e(TAG, "Error getting bus stops", e)
         }
 
         Log.i(TAG, "Found ${stops.size} stops for serviceId $serviceId")
