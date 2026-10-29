@@ -25,6 +25,7 @@ import com.sanchari.bus.ui.helper.TimetableTimeFormatter
 import com.sanchari.bus.databinding.ActivityMainBinding
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -184,6 +185,38 @@ class WildcardSearchResultsTest {
             onView(withText(R.string.filter_all_types)).perform(click())
             awaitResults(scenario, listOf(10, 4, 16))
             onView(withId(R.id.resultsSummary)).check(matches(withText("Services: 3")))
+        }
+    }
+
+    @Test
+    fun wildcardModesNeverShowSlowJourneyColourButKeepNotRunningRed() {
+        val services = listOf(
+            BusService("fast", "Fast", "ORDINARY", true, 0L, "08:00", "08:30"),
+            BusService("another-fast", "Another fast", "ORDINARY", true, 0L, "08:00", "08:30"),
+            BusService("slow", "Slow", "ORDINARY", true, 0L, "08:00", "10:00"),
+            BusService("stopped", "Stopped", "ORDINARY", false, 0L, "08:00", "10:00")
+        )
+        for ((from, to) in listOf("A" to "*", "*" to "A")) {
+            val results = services.mapIndexed { index, service ->
+                RouteSearchResult(service, if (from == "*") "Origin" else "A",
+                    if (to == "*") "Destination" else "A", index * 2, index * 2 + 1)
+            }
+            launch(from, to, results).use { scenario ->
+                awaitResults(scenario, listOf(0, 2, 4, 6))
+                scenario.onActivity { activity ->
+                    val recycler = activity.findViewById<RecyclerView>(R.id.searchResultsRecyclerView)
+                    fun nameAt(position: Int): TextView =
+                        requireNotNull(recycler.findViewHolderForAdapterPosition(position)).itemView
+                            .findViewById(R.id.serviceName)
+                    val normal = nameAt(0).currentTextColor
+                    assertEquals(normal, nameAt(2).currentTextColor)
+                    assertNull(nameAt(2).contentDescription)
+                    assertEquals(
+                        androidx.core.content.ContextCompat.getColor(activity, R.color.service_not_running),
+                        nameAt(3).currentTextColor
+                    )
+                }
+            }
         }
     }
 

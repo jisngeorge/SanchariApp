@@ -5,19 +5,32 @@ import kotlin.math.roundToInt
 data class RouteSearchStatistics(
     val totalCount: Int,
     val timedCount: Int,
-    val averageMinutes: Int?
+    val averageMinutes: Int?,
+    private val totalJourneyMinutes: Long
 ) {
+    fun isSlow(service: BusService): Boolean {
+        val duration = journeyMinutes(service) ?: return false
+        return timedCount > 0 && duration.toLong() * 2 * timedCount > totalJourneyMinutes * 3
+    }
+
     companion object {
         private val clockTime = Regex("([01][0-9]|2[0-3]):[0-5][0-9]")
 
         fun fromServices(services: List<BusService>): RouteSearchStatistics {
-            val durations = services.mapNotNull { journeyMinutes(it) }
+            var timedCount = 0
+            var total = 0L
+            for (service in services) {
+                val duration = journeyMinutes(service) ?: continue
+                timedCount++
+                total += duration
+            }
             return RouteSearchStatistics(
                 totalCount = services.size,
-                timedCount = durations.size,
-                averageMinutes = if (durations.isEmpty()) null else {
-                    (durations.sumOf { it.toLong() }.toDouble() / durations.size).roundToInt()
-                }
+                timedCount = timedCount,
+                averageMinutes = if (timedCount == 0) null else {
+                    (total.toDouble() / timedCount).roundToInt()
+                },
+                totalJourneyMinutes = total
             )
         }
 

@@ -34,6 +34,9 @@
         <item quantity="other">Scheduled estimate based on %1$d of %2$d displayed services. Includes services marked not running.</item>
     </plurals>
     <string name="statistics_exclusions">Missing, invalid or identical departure/arrival times are excluded.</string>
+    <string name="service_slow_warning">Longer scheduled journey: more than 1.5 times the average for the current results.</string>
+    <string name="service_not_running_warning">Service marked as not running.</string>
+    <string name="service_colour_note">Yellow-orange names indicate journeys longer than 1.5 times the current average. Red names indicate services marked as not running and take priority. Colours do not confirm which route a bus takes.</string>
     <string name="statistics_unavailable">--</string>
     <string name="duration_compact">%1$dh %2$02dm</string>
     <string name="finding_nearby_stops">Finding nearby stops...</string>

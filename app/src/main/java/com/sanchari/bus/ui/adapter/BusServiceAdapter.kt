@@ -5,20 +5,46 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
+import androidx.core.content.ContextCompat
+import androidx.appcompat.widget.TooltipCompat
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import com.sanchari.bus.data.model.RouteSearchResult
 import com.sanchari.bus.data.model.BusService
+import com.sanchari.bus.data.model.RouteSearchStatistics
 import com.sanchari.bus.R
 import com.sanchari.bus.databinding.ItemBusServiceBinding
 import com.sanchari.bus.ui.helper.TimetableTimeFormatter
-import androidx.core.graphics.toColorInt
 
 class BusServiceAdapter(
     private val showEndpoints: Boolean = false,
     private val onItemClick: (BusService) -> Unit
 ) : ListAdapter<RouteSearchResult, BusServiceAdapter.BusServiceViewHolder>(ServiceDiff) {
+    private var slowResults: Set<RouteSearchResult> = emptySet()
+    private object WarningChanged
+
+    override fun onCurrentListChanged(
+        previousList: List<RouteSearchResult>,
+        currentList: List<RouteSearchResult>
+    ) {
+        val updated = if (showEndpoints) null else {
+            RouteSearchStatistics.fromServices(currentList.map { it.service })
+        }
+        val previousSlow = slowResults
+        slowResults = if (updated == null) emptySet() else {
+            currentList.filterTo(HashSet()) { it.service.isRunning && updated.isSlow(it.service) }
+        }
+        if (previousList.isNotEmpty()) {
+            currentList.forEachIndexed { index, result ->
+                if ((result in previousSlow) != (result in slowResults)) {
+                    // Filtering can change a warning without changing the route result itself.
+                    notifyItemChanged(index, WarningChanged)
+                }
+            }
+        }
+        super.onCurrentListChanged(previousList, currentList)
+    }
 
     private object ServiceDiff : DiffUtil.ItemCallback<RouteSearchResult>() {
         override fun areItemsTheSame(oldItem: RouteSearchResult, newItem: RouteSearchResult): Boolean =
@@ -59,6 +85,18 @@ class BusServiceAdapter(
         holder.bind(service)
     }
 
+    override fun onBindViewHolder(
+        holder: BusServiceViewHolder,
+        position: Int,
+        payloads: MutableList<Any>
+    ) {
+        if (payloads.isNotEmpty() && payloads.all { it === WarningChanged }) {
+            holder.bindWarning(getItem(position))
+        } else {
+            super.onBindViewHolder(holder, position, payloads)
+        }
+    }
+
     inner class BusServiceViewHolder(private val binding: ItemBusServiceBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
@@ -76,16 +114,9 @@ class BusServiceAdapter(
             binding.fromPlace.text = context.getString(R.string.result_from_place, result.fromPlace)
             binding.toPlace.text = context.getString(R.string.result_to_place, result.toPlace)
 
-            // --- UPDATED: Running Status Indication ---
-            // Changed from dimming to text color change based on user feedback
             binding.root.alpha = 1.0f // Reset alpha in case view is recycled
 
-            if (service.isRunning) {
-                binding.serviceName.setTextColor(defaultTextColor)
-            } else {
-                binding.serviceName.setTextColor("#D32F2F".toColorInt()) // Red for warning
-            }
-            // ------------------------------------------
+            bindWarning(result)
 
             // Set the icon based on the service type
             when (service.type.uppercase()) {
@@ -131,6 +162,24 @@ class BusServiceAdapter(
             binding.root.setOnClickListener {
                 onItemClick(service)
             }
+        }
+
+        fun bindWarning(result: RouteSearchResult) {
+            val service = result.service
+            val context = binding.root.context
+            val isSlow = result in slowResults
+            val warning = when {
+                !service.isRunning -> context.getString(R.string.service_not_running_warning)
+                isSlow -> context.getString(R.string.service_slow_warning)
+                else -> null
+            }
+            binding.serviceName.setTextColor(when {
+                !service.isRunning -> ContextCompat.getColor(context, R.color.service_not_running)
+                isSlow -> ContextCompat.getColor(context, R.color.service_slow)
+                else -> defaultTextColor
+            })
+            binding.serviceName.contentDescription = warning?.let { "${service.name}. $it" }
+            TooltipCompat.setTooltipText(binding.serviceName, warning)
         }
     }
 }

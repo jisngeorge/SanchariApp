@@ -166,6 +166,18 @@ remain visible, with warning styling rather than being removed from searches.
 Wildcard result cards label each endpoint place beside its corresponding AM/PM
 time. Ordinary A-to-B results retain compact cards with the service icon/name/type
 and times on the right, without repeating From/To place names on every card.
+For ordinary A-to-B results, running services with valid journey durations
+strictly greater than 1.5 times the currently filtered results' unrounded average
+have yellow-orange names, with theme-specific amber shades distinguishable from
+red. Use the same timed coverage as the summary, including
+non-running services in the average; missing/invalid/identical times are excluded.
+Red for not-running services takes priority. Filtering recomputes the threshold
+and updates only names whose cached warning state changes; sorting does not
+alter the warning state. Statistics aggregate durations in one pass without an
+intermediate duration list. Wildcard results never
+use the orange warning. The colour is a scheduled-duration warning, not proof of
+an alternate route. Name tooltips/accessibility descriptions explain warnings;
+the summary tooltip/accessibility description explains the colour meanings.
 Only the underlying service is passed to detail/history/contribution flows.
 
 Route results show the service count and average scheduled A-to-B duration

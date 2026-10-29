@@ -218,6 +218,7 @@ class SearchResultsActivity : AppCompatActivity() {
             if (statistics.timedCount < statistics.totalCount) {
                 append(" ").append(getString(R.string.statistics_exclusions))
             }
+            append(" ").append(getString(R.string.service_colour_note))
         }
         binding.resultsSummary.text = summary
         binding.resultsSummary.contentDescription = getString(R.string.results_summary_details, summary, details)

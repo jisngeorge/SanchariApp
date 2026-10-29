@@ -2,6 +2,8 @@ package com.sanchari.bus.data.model
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RouteSearchStatisticsTest {
@@ -76,6 +78,54 @@ class RouteSearchStatisticsTest {
         assertEquals(2, statistics.timedCount)
         assertEquals(45, statistics.averageMinutes)
         assertEquals(listOf(first, second), results)
+    }
+
+    @Test
+    fun slowWarningRequiresStrictlyMoreThanOneAndAHalfTimesAverage() {
+        val fast = service("fast", "08:00", "08:30")
+        val average = service("average", "08:00", "09:00")
+        val boundary = service("boundary", "08:00", "09:30")
+        val statistics = RouteSearchStatistics.fromServices(listOf(fast, average, boundary))
+        assertEquals(60, statistics.averageMinutes)
+        assertFalse(statistics.isSlow(fast))
+        assertFalse(statistics.isSlow(average))
+        assertFalse(statistics.isSlow(boundary))
+        assertTrue(statistics.isSlow(service("above", "08:00", "09:31")))
+    }
+
+    @Test
+    fun slowWarningUsesTheUnroundedAverage() {
+        val services = listOf(
+            service("one", "08:00", "08:01"), service("another-one", "08:00", "08:01"),
+            service("two", "08:00", "08:02"), service("three", "08:00", "08:03")
+        )
+        val statistics = RouteSearchStatistics.fromServices(services)
+        assertEquals(2, statistics.averageMinutes)
+        assertTrue(statistics.isSlow(services.last()))
+        assertFalse(statistics.isSlow(services[2]))
+    }
+
+    @Test
+    fun slowWarningIncludesNonRunningServicesInAverageAndHandlesMidnight() {
+        val stopped = service("stopped", "08:00", "08:30", isRunning = false)
+        val fast = service("fast", "23:30", "00:00")
+        val slow = service("slow", "23:00", "01:00")
+        val unknown = service("unknown", "--:--", "--:--")
+        val equal = service("equal", "08:00", "08:00")
+        val statistics = RouteSearchStatistics.fromServices(listOf(stopped, fast, slow, unknown, equal))
+        assertEquals(60, statistics.averageMinutes)
+        assertTrue(statistics.isSlow(slow))
+        assertFalse(statistics.isSlow(unknown))
+        assertFalse(statistics.isSlow(equal))
+    }
+
+    @Test
+    fun slowWarningIsUnavailableWithoutTimedServicesAndNeverFlagsASingleService() {
+        val slow = service("slow", "08:00", "12:00")
+        assertFalse(RouteSearchStatistics.fromServices(emptyList()).isSlow(slow))
+        assertFalse(RouteSearchStatistics.fromServices(listOf(slow)).isSlow(slow))
+        val unknown = service("unknown", "invalid", "12:00")
+        assertFalse(RouteSearchStatistics.fromServices(listOf(unknown)).isSlow(unknown))
     }
 
     @Test

@@ -1,11 +1,14 @@
 package com.sanchari.bus.ui.activity
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.SystemClock
 import android.view.View
 import android.widget.TextView
 import android.widget.LinearLayout
 import androidx.recyclerview.widget.RecyclerView
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
@@ -28,6 +31,29 @@ import java.util.Calendar
 
 @RunWith(AndroidJUnit4::class)
 class SearchResultsActivityTest {
+    @Test
+    fun slowWarningUsesReadableYellowOrangeDistinctFromRedInBothThemes() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        for (night in listOf(false, true)) {
+            val configuration = Configuration(context.resources.configuration).apply {
+                uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
+                    if (night) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
+            }
+            val themed = context.createConfigurationContext(configuration)
+            val amber = ContextCompat.getColor(themed, R.color.service_slow)
+            val red = ContextCompat.getColor(themed, R.color.service_not_running)
+            val amberHsl = FloatArray(3)
+            val redHsl = FloatArray(3)
+            ColorUtils.colorToHSL(amber, amberHsl)
+            ColorUtils.colorToHSL(red, redHsl)
+            assertTrue(amberHsl[0] in 35f..55f)
+            assertTrue(amberHsl[0] - redHsl[0] >= 30f)
+            assertTrue(ColorUtils.calculateContrast(
+                amber, if (night) 0xFF121212.toInt() else 0xFFFAFAFA.toInt()
+            ) >= 4.5)
+        }
+    }
+
     @Test
     fun ordinaryRouteUsesCompactCardsWithoutRepeatingEndpointNames() {
         launch(listOf(service("Compact service", "08:00", "09:30"))).use { scenario ->
@@ -142,6 +168,84 @@ class SearchResultsActivityTest {
     }
 
     @Test
+    fun slowNamesUseFilteredAverageWithRedPriorityAndRefreshAfterFiltering() {
+        val services = listOf(
+            service("Fast A", "08:00", "08:30", "EXPRESS"),
+            service("Fast B", "08:00", "08:30", "EXPRESS"),
+            service("Slow", "08:00", "10:00"),
+            service("Stopped", "08:00", "10:00").copy(isRunning = false),
+            service("Unknown", "--:--", "--:--")
+        )
+        launch(services).use { scenario ->
+            awaitNames(scenario, services.map { it.name })
+            var orange = 0
+            var red = 0
+            var normal = 0
+            val warningUpdates = mutableListOf<String>()
+            var fullUpdates = 0
+            lateinit var observer: RecyclerView.AdapterDataObserver
+            scenario.onActivity { activity ->
+                orange = ContextCompat.getColor(activity, R.color.service_slow)
+                red = ContextCompat.getColor(activity, R.color.service_not_running)
+                val recycler = activity.findViewById<RecyclerView>(R.id.searchResultsRecyclerView)
+                normal = requireNotNull(recycler.findViewHolderForAdapterPosition(0)).itemView
+                    .findViewById<TextView>(R.id.serviceName).currentTextColor
+                assertTrue(normal != orange && normal != red)
+            }
+            awaitNameColour(scenario, "Slow", orange)
+            awaitNameColour(scenario, "Stopped", red)
+            awaitNameColour(scenario, "Unknown", normal)
+            assertSummary(scenario, 5, "1h 15m")
+            scenario.onActivity { activity ->
+                val recycler = activity.findViewById<RecyclerView>(R.id.searchResultsRecyclerView)
+                val row = requireNotNull(recycler.findViewHolderForAdapterPosition(2)).itemView
+                assertTrue(row.findViewById<TextView>(R.id.serviceName).contentDescription
+                    .contains(activity.getString(R.string.service_slow_warning)))
+                val adapter = recycler.adapter as BusServiceAdapter
+                observer = object : RecyclerView.AdapterDataObserver() {
+                    override fun onItemRangeChanged(positionStart: Int, itemCount: Int, payload: Any?) {
+                        if (payload == null) {
+                            fullUpdates += itemCount
+                        } else {
+                            warningUpdates.addAll(
+                                adapter.currentList.subList(positionStart, positionStart + itemCount)
+                                    .map { it.service.name }
+                            )
+                        }
+                    }
+                }
+                adapter.registerAdapterDataObserver(observer)
+            }
+            onView(withId(R.id.action_filter_bus_type)).perform(click())
+            onView(withText("EXPRESS")).perform(click())
+            onView(withText(R.string.filter_apply)).perform(click())
+            awaitNames(scenario, listOf("Slow", "Stopped", "Unknown"))
+            awaitNameColour(scenario, "Slow", normal)
+            awaitNameColour(scenario, "Stopped", red)
+            assertSummary(scenario, 3, "2h 00m")
+            scenario.onActivity { activity ->
+                assertEquals(listOf("Slow"), warningUpdates)
+                assertEquals(0, fullUpdates)
+                activity.findViewById<RecyclerView>(R.id.searchResultsRecyclerView).adapter
+                    ?.unregisterAdapterDataObserver(observer)
+            }
+            scenario.recreate()
+            awaitNames(scenario, listOf("Slow", "Stopped", "Unknown"))
+            awaitNameColour(scenario, "Slow", normal)
+            awaitNameColour(scenario, "Stopped", red)
+            onView(withId(R.id.action_filter_bus_type)).perform(click())
+            onView(withText(R.string.filter_all_types)).perform(click())
+            awaitNames(scenario, services.map { it.name })
+            awaitNameColour(scenario, "Slow", orange)
+            onView(withId(R.id.action_sort_duration)).perform(click())
+            onView(withText(R.string.sort_shortest_journey)).perform(click())
+            awaitNames(scenario, services.map { it.name })
+            awaitNameColour(scenario, "Slow", orange)
+            awaitNameColour(scenario, "Stopped", red)
+        }
+    }
+
+    @Test
     fun summaryKeepsCompactTextAndExplainsExcludedTimesAccessibly() {
         launch(listOf(
             service("Timed", "08:00", "08:30"),
@@ -205,6 +309,29 @@ class SearchResultsActivityTest {
     private fun time(minutes: Int): String {
         val clockMinutes = (minutes + 1440) % 1440
         return "${(clockMinutes / 60).toString().padStart(2, '0')}:${(clockMinutes % 60).toString().padStart(2, '0')}"
+    }
+
+    private fun awaitNameColour(
+        scenario: ActivityScenario<SearchResultsActivity>,
+        name: String,
+        expected: Int
+    ) {
+        val deadline = SystemClock.uptimeMillis() + 5_000
+        var actual: Int? = null
+        do {
+            scenario.onActivity { activity ->
+                val recycler = activity.findViewById<RecyclerView>(R.id.searchResultsRecyclerView)
+                val adapter = recycler.adapter as BusServiceAdapter
+                val position = adapter.currentList.indexOfFirst { it.service.name == name }
+                if (position >= 0) {
+                    actual = recycler.findViewHolderForAdapterPosition(position)?.itemView
+                        ?.findViewById<TextView>(R.id.serviceName)?.currentTextColor
+                }
+            }
+            if (actual == expected) return
+            SystemClock.sleep(25)
+        } while (SystemClock.uptimeMillis() < deadline)
+        assertEquals(expected, actual)
     }
 
     private fun results() = listOf(
