@@ -16,6 +16,7 @@ import com.google.android.material.timepicker.MaterialTimePicker
 import com.sanchari.bus.R
 import com.sanchari.bus.data.model.BusService
 import com.sanchari.bus.data.model.BusStop
+import com.sanchari.bus.data.model.RouteSearchResult
 import com.sanchari.bus.ui.adapter.BusServiceAdapter
 import com.sanchari.bus.ui.adapter.BusStopAdapter
 import com.sanchari.bus.ui.adapter.StopEditAdapter
@@ -38,7 +39,7 @@ class TimetableTimeDisplayTest {
                 val service = BusService("test", "Test", "ORDINARY", true, 0L, "00:15", "14:30")
                 val services = BusServiceAdapter {}
                 val serviceRow = services.onCreateViewHolder(parent, 0)
-                serviceRow.bind(service)
+                serviceRow.bind(RouteSearchResult(service, "Start", "End", 1, 2))
                 assertEquals("12:15 AM", serviceRow.itemView.findViewById<TextView>(R.id.fromTime).text.toString())
                 assertEquals("2:30 PM", serviceRow.itemView.findViewById<TextView>(R.id.toTime).text.toString())
                 assertEquals("00:15", service.fromTime)

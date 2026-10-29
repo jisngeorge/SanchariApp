@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
+import com.sanchari.bus.data.model.RouteSearchResult
 import com.sanchari.bus.data.model.BusService
 import com.sanchari.bus.R
 import com.sanchari.bus.databinding.ItemBusServiceBinding
@@ -13,14 +14,14 @@ import androidx.core.graphics.toColorInt
 
 class BusServiceAdapter(
     private val onItemClick: (BusService) -> Unit
-) : ListAdapter<BusService, BusServiceAdapter.BusServiceViewHolder>(ServiceDiff) {
+) : ListAdapter<RouteSearchResult, BusServiceAdapter.BusServiceViewHolder>(ServiceDiff) {
 
-    private object ServiceDiff : DiffUtil.ItemCallback<BusService>() {
-        override fun areItemsTheSame(oldItem: BusService, newItem: BusService): Boolean =
-            oldItem.serviceId == newItem.serviceId &&
-                oldItem.fromTime == newItem.fromTime && oldItem.toTime == newItem.toTime
+    private object ServiceDiff : DiffUtil.ItemCallback<RouteSearchResult>() {
+        override fun areItemsTheSame(oldItem: RouteSearchResult, newItem: RouteSearchResult): Boolean =
+            oldItem.service.serviceId == newItem.service.serviceId &&
+                oldItem.fromRouteStopId == newItem.fromRouteStopId && oldItem.toRouteStopId == newItem.toRouteStopId
 
-        override fun areContentsTheSame(oldItem: BusService, newItem: BusService): Boolean =
+        override fun areContentsTheSame(oldItem: RouteSearchResult, newItem: RouteSearchResult): Boolean =
             oldItem == newItem
     }
 
@@ -44,7 +45,8 @@ class BusServiceAdapter(
         // Store default text color to restore it for recycled views
         private val defaultTextColor = binding.serviceName.currentTextColor
 
-        fun bind(service: BusService) {
+        fun bind(result: RouteSearchResult) {
+            val service = result.service
             val context = binding.root.context
 
             binding.serviceName.text = service.name
@@ -52,6 +54,8 @@ class BusServiceAdapter(
             // --- NEW: Set the from and to times ---
             binding.fromTime.text = TimetableTimeFormatter.format(service.fromTime)
             binding.toTime.text = TimetableTimeFormatter.format(service.toTime)
+            binding.fromPlace.text = context.getString(R.string.result_from_place, result.fromPlace)
+            binding.toPlace.text = context.getString(R.string.result_to_place, result.toPlace)
             // --- End of new code ---
 
             // --- UPDATED: Running Status Indication ---

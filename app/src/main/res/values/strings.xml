@@ -1,5 +1,18 @@
 <resources>
     <string name="app_name">Sanchari</string>
+    <string name="wildcard_any_origin">Use any origin (*)</string>
+    <string name="wildcard_any_destination">Use any destination (*)</string>
+    <string name="clear_from_stop">Clear From stop</string>
+    <string name="clear_to_stop">Clear To stop</string>
+    <string name="wildcard_both_invalid">Enter a stop name in at least one field. Only one field can be *.</string>
+    <string name="any_origin">Any origin</string>
+    <string name="any_destination">Any destination</string>
+    <string name="result_from_place">From: %1$s</string>
+    <string name="result_to_place">To: %1$s</string>
+    <string name="sort_arrival_time">Arrival time</string>
+    <string name="sort_next_arrival">Next arrivals first</string>
+    <string name="wildcard_results_summary">Services: %1$d</string>
+    <string name="wildcard_results_note">Each eligible stop visit is a result; the same service may appear more than once. Times are timetable estimates, not live availability.</string>
     <string name="route_search_title">%1$s &#8594; %2$s</string>
     <string name="sort_results">Sort results</string>
     <string name="sort_departure_time">Departure time</string>

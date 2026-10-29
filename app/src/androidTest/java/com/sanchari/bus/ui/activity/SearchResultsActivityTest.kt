@@ -17,6 +17,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.google.android.material.appbar.MaterialToolbar
 import com.sanchari.bus.R
 import com.sanchari.bus.data.model.BusService
+import com.sanchari.bus.data.model.RouteSearchResult
 import com.sanchari.bus.ui.adapter.BusServiceAdapter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -146,7 +147,12 @@ class SearchResultsActivityTest {
     private fun launch(services: List<BusService>): ActivityScenario<SearchResultsActivity> {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val intent = Intent(context, SearchResultsActivity::class.java).apply {
-            putParcelableArrayListExtra(SearchResultsActivity.EXTRA_SEARCH_RESULTS, ArrayList(services))
+            putParcelableArrayListExtra(
+                SearchResultsActivity.EXTRA_ROUTE_RESULTS,
+                ArrayList(services.mapIndexed { index, service ->
+                    RouteSearchResult(service, "Test A", "Test B", index * 2, index * 2 + 1)
+                })
+            )
             putExtra(SearchResultsActivity.EXTRA_FROM_STOP, "Test A")
             putExtra(SearchResultsActivity.EXTRA_TO_STOP, "Test B")
         }
@@ -160,7 +166,7 @@ class SearchResultsActivityTest {
             scenario.onActivity {
                 val adapter = it.findViewById<RecyclerView>(R.id.searchResultsRecyclerView).adapter
                     as BusServiceAdapter
-                actual = adapter.currentList.map { service -> service.name }
+                actual = adapter.currentList.map { result -> result.service.name }
             }
             if (actual == expected) return
             SystemClock.sleep(50)

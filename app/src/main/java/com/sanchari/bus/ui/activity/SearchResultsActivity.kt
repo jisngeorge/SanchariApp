@@ -19,8 +19,9 @@ import com.sanchari.bus.data.manager.RouteResultsManager
 import com.sanchari.bus.data.manager.RouteResultsManager.SortOrder
 import com.sanchari.bus.data.manager.SuggestionManager
 import com.sanchari.bus.data.manager.UserDataManager
-import com.sanchari.bus.data.model.BusService
 import com.sanchari.bus.data.model.RouteSearchStatistics
+import com.sanchari.bus.data.model.RouteSearchMode
+import com.sanchari.bus.data.model.RouteSearchResult
 import com.sanchari.bus.databinding.ActivitySearchResultsBinding
 import com.sanchari.bus.databinding.DialogNearbySuggestionsBinding
 import com.sanchari.bus.ui.adapter.BusServiceAdapter
@@ -33,12 +34,13 @@ class SearchResultsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySearchResultsBinding
     private lateinit var adapter: BusServiceAdapter
-    private var allResults: List<BusService> = emptyList()
+    private var allResults: List<RouteSearchResult> = emptyList()
+    private var searchMode = RouteSearchMode.FIXED_ROUTE
     private var selectedTypes: Set<String>? = null
     private var sortOrder = SortOrder.DEPARTURE_TIME
 
     companion object {
-        const val EXTRA_SEARCH_RESULTS = "EXTRA_SEARCH_RESULTS"
+        const val EXTRA_ROUTE_RESULTS = "EXTRA_ROUTE_RESULTS"
         const val EXTRA_FROM_STOP = "EXTRA_FROM_STOP"
         const val EXTRA_TO_STOP = "EXTRA_TO_STOP"
         private const val STATE_SORT_ORDER = "sort_order"
@@ -50,7 +52,15 @@ class SearchResultsActivity : AppCompatActivity() {
         binding = ActivitySearchResultsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val results = getParcelableArrayList<BusService>(EXTRA_SEARCH_RESULTS)
+        val fromStop = intent.getStringExtra(EXTRA_FROM_STOP) ?: "Search"
+        val toStop = intent.getStringExtra(EXTRA_TO_STOP) ?: "Results"
+        if (fromStop == "*" && toStop == "*") {
+            Toast.makeText(this, R.string.wildcard_both_invalid, Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
+        searchMode = RouteSearchMode.fromStops(fromStop, toStop)
+        val results = getParcelableArrayList<RouteSearchResult>(EXTRA_ROUTE_RESULTS)
         if (results.isNullOrEmpty()) {
             Log.e("SearchResults", "No search results passed to activity.")
             Toast.makeText(this, "No results found.", Toast.LENGTH_LONG).show()
@@ -61,11 +71,13 @@ class SearchResultsActivity : AppCompatActivity() {
         selectedTypes = savedInstanceState?.getStringArrayList(STATE_SELECTED_TYPES)?.toSet()
         sortOrder = SortOrder.entries.firstOrNull {
             it.name == savedInstanceState?.getString(STATE_SORT_ORDER)
-        } ?: SortOrder.DEPARTURE_TIME
+        }?.takeIf { it in RouteResultsManager.sortOrders(searchMode) } ?: SortOrder.DEPARTURE_TIME
 
-        val fromStop = intent.getStringExtra(EXTRA_FROM_STOP) ?: "Search"
-        val toStop = intent.getStringExtra(EXTRA_TO_STOP) ?: "Results"
-        binding.tvToolbarTitle.text = getString(R.string.route_search_title, fromStop, toStop)
+        binding.tvToolbarTitle.text = getString(
+            R.string.route_search_title,
+            if (fromStop == "*") getString(R.string.any_origin) else fromStop,
+            if (toStop == "*") getString(R.string.any_destination) else toStop
+        )
         binding.tvToolbarTitle.isSelected = true
         binding.toolbar.setNavigationOnClickListener {
             onBackPressedDispatcher.onBackPressed()
@@ -86,6 +98,8 @@ class SearchResultsActivity : AppCompatActivity() {
 
     private fun setupMenu(fromStop: String, toStop: String) {
         binding.toolbar.inflateMenu(R.menu.menu_search_results)
+        binding.toolbar.menu.findItem(R.id.action_suggest_nearby).isVisible =
+            searchMode == RouteSearchMode.FIXED_ROUTE
         binding.toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.action_sort_duration -> {
@@ -111,14 +125,18 @@ class SearchResultsActivity : AppCompatActivity() {
     }
 
     private fun sortOrderLabel(order: SortOrder): Int = when (order) {
-        SortOrder.DEPARTURE_TIME -> R.string.sort_departure_time
+        SortOrder.DEPARTURE_TIME -> if (searchMode == RouteSearchMode.ARRIVALS) {
+            R.string.sort_arrival_time
+        } else R.string.sort_departure_time
         SortOrder.SHORTEST_JOURNEY -> R.string.sort_shortest_journey
         SortOrder.LONGEST_JOURNEY -> R.string.sort_longest_journey
-        SortOrder.NEXT_DEPARTURE -> R.string.sort_next_departure
+        SortOrder.NEXT_DEPARTURE -> if (searchMode == RouteSearchMode.ARRIVALS) {
+            R.string.sort_next_arrival
+        } else R.string.sort_next_departure
     }
 
     private fun showSortOptions() {
-        val orders = SortOrder.entries
+        val orders = RouteResultsManager.sortOrders(searchMode)
         val labels = orders.map { getString(sortOrderLabel(it)) }.toTypedArray()
         AlertDialog.Builder(this)
             .setTitle(R.string.sort_results)
@@ -131,7 +149,7 @@ class SearchResultsActivity : AppCompatActivity() {
     }
 
     private fun showBusTypeFilter() {
-        val types = allResults.map { RouteResultsManager.busTypeKey(it.type) }.distinct().sorted()
+        val types = allResults.map { RouteResultsManager.busTypeKey(it.service.type) }.distinct().sorted()
         val labels = types.map {
             it.ifEmpty { getString(R.string.label_bus_unspecified) }
         }.toTypedArray()
@@ -158,7 +176,9 @@ class SearchResultsActivity : AppCompatActivity() {
     private fun renderResults(resetScroll: Boolean = false) {
         val now = Calendar.getInstance()
         val currentMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
-        val results = RouteResultsManager.applyOptions(allResults, selectedTypes, sortOrder, currentMinutes)
+        val results = RouteResultsManager.applySearchOptions(
+            allResults, selectedTypes, sortOrder, currentMinutes, searchMode
+        )
         adapter.submitList(results) {
             if (resetScroll) binding.searchResultsRecyclerView.scrollToPosition(0)
         }
@@ -170,8 +190,17 @@ class SearchResultsActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateResultsSummary(results: List<BusService>) {
-        val statistics = RouteSearchStatistics.fromServices(results)
+    private fun updateResultsSummary(results: List<RouteSearchResult>) {
+        if (searchMode != RouteSearchMode.FIXED_ROUTE) {
+            val summary = getString(R.string.wildcard_results_summary, results.size)
+            binding.resultsSummary.text = summary
+            binding.resultsSummary.contentDescription = getString(
+                R.string.results_summary_details, summary, getString(R.string.wildcard_results_note)
+            )
+            TooltipCompat.setTooltipText(binding.resultsSummary, getString(R.string.wildcard_results_note))
+            return
+        }
+        val statistics = RouteSearchStatistics.fromServices(results.map { it.service })
         val average = statistics.averageMinutes
         val averageLabel = if (average == null) {
             getString(R.string.statistics_unavailable)

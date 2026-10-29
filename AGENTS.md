@@ -99,10 +99,62 @@ occurrence of either endpoint between them; preserve this repeated-stop behaviou
 Results are ordered by source scheduled-time text. Name search uses a partial
 `LIKE` match, limits results to 20, and is debounced by 150 ms in the UI.
 
-`SearchResultsActivity` receives Parcelable services through Intent extras and
+Route search also accepts a whole-field `*` in exactly one input. `A -> *` evaluates
+each distinct visit to A as an independent outbound leg. Start in `stopOrder` at
+that departure, treating A as visited and ignoring all earlier route history,
+including history before the first A. Consecutive rows with the same place name
+count as one visit, even with different stop IDs. Use only the last row of an A
+halt for departure and the first row of a destination halt for arrival:
+`A, A, B, C, D` yields one A-to-D result from the second A.
+Within each leg, the first return to a place after visiting a different place
+is a hard boundary. Ignore every stop at or after that return for this leg,
+even if a new place appears later. Use the last visit before the boundary as the
+destination. If no return occurs, use the final visit's first arrival row.
+Departures with no later different place are excluded; later A visits start new
+legs with fresh history and may reuse earlier destination names.
+Thus `A, K, L, M, M, L, K` ends at the first M, and
+`C, A, D, F, F, D, C` ends at the first F. `A, B, C, C, D` continues to D.
+`A, B, C, D, D, C, B, A, K, A` yields the first A-to-D leg and a later A-to-K leg;
+K does not replace the first D. `Origin, A, B, Origin` now ends at the later Origin.
+For `A, B, C, C, B, A, A, D, E, E, D, A, A, B, C, C, B, A`,
+with times t1 through t18, return A-to-C at t1-t3, A-to-E at t7-t9, and
+A-to-C at t13-t15. The final A has no onward result.
+`* -> A` mirrors this logic backwards independently from each A visit, ignoring
+all history after that arrival. Use the first A row of its halt as arrival and
+the last row of the selected origin halt as departure. Scan backwards until the
+first non-consecutive repeated place; ignore that row and every earlier row for
+this leg. If no return occurs, use the actual first visit's last departure row.
+Exclude arrivals with no earlier different place. The same 18-row example yields
+C-to-A at t4-t6, E-to-A at t10-t12, and C-to-A at t16-t18; the initial A has no
+inbound result. Repeated arrivals reset their reverse-scan history independently.
+All route sequence decisions
+follow `stopOrder`, not clock times. Both
+wildcards and blank inputs are rejected; embedded asterisks remain literal stop
+name characters. Wildcard searches do not expand into every possible stop pair.
+`RouteSearchResult` wraps a `BusService` with the displayed endpoint names and
+route-stop row IDs, preserving repeated visits even when their times are equal.
+`SearchManager.findRouteResults` returns these wrappers; `findBusServices` remains
+available for callers that only need the underlying services.
+
+The main From/To fields each show a wildcard button immediately before their clear
+button. It replaces only that field with `*` without opening autocomplete or
+submitting a search; clear removes only that field. There is no wildcard help
+message below the search button. Both-wildcard validation still applies.
+
+Wildcard searches fetch the ordered route rows for matching services in one
+bound SQL query. Consecutive place names are collapsed into visits retaining
+first-arrival and last-departure rows. A shared linear-time unique-place sliding
+window selects independent leg endpoints, scanning the visits backwards for
+arrivals. Process one service at a time; do not reintroduce per-result queries or
+nested repeated-stop scans. Preserve clock-time result ordering and endpoint row
+identities separately from this route-order computation.
+
+`SearchResultsActivity` receives Parcelable route-search results through Intent extras and
 opens `BusDetailsActivity`. Details load ordered route stops and community data;
 contribution actions are handled by `BusSubmissionHandler`. Non-running services
 remain visible, with warning styling rather than being removed from searches.
+Result cards label each endpoint place beside its corresponding AM/PM time.
+Only the underlying service is passed to detail/history/contribution flows.
 
 Route results show the service count and average scheduled A-to-B duration
 (rounded to the nearest minute) together above the list as
@@ -127,6 +179,16 @@ restores the original SQL departure-time order. Sorting and selected bus types
 survive activity recreation. The alternative-route bulb remains visible in the
 toolbar. Empty filters show an
 explicit empty state; the screen remains open so the filter can be reset.
+
+Wildcard results use "Any origin"/"Any destination" titles and show `Services: N`
+without a journey average. Duration sorting and alternative-stop suggestions
+are hidden for these modes; bus-type filtering remains available. Outbound
+wildcard sorting uses departure from the known stop. Inbound sorting uses arrival
+at the known stop, labelled "Arrival time"/"Next arrivals first". Invalid times
+sort last, and next-arrival ordering wraps to tomorrow and refreshes like
+next-departure ordering. Counts refer to eligible result visits, not distinct
+service IDs; the summary's tooltip/accessibility description explains this.
+Normal A-to-B repeated-stop rules and summary/sort options are unchanged.
 
 `SuggestionManager` computes geographically nearby alternative stops using stored
 coordinates and route availability. Despite its name, it does **not** submit edits.

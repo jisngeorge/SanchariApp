@@ -6,9 +6,12 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.widget.ArrayAdapter
+import android.widget.ImageButton
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.widget.addTextChangedListener
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import com.sanchari.bus.data.manager.SearchManager
 import com.sanchari.bus.data.manager.UserDataManager
 import com.sanchari.bus.data.model.BusService
@@ -46,10 +49,32 @@ class BusSearchHandler(
 
     fun setup() {
         setupBusNameSearch()
+        setupStopActions(binding.fromAutocomplete, binding.fromWildcardButton, binding.fromClearButton)
+        setupStopActions(binding.toAutocomplete, binding.toWildcardButton, binding.toClearButton)
 
         // Bind the "Find Bus" button
         binding.searchButton.setOnClickListener {
             handleRouteSearch()
+        }
+    }
+
+    private fun setupStopActions(
+        field: MaterialAutoCompleteTextView,
+        wildcard: ImageButton,
+        clear: ImageButton
+    ) {
+        wildcard.setOnClickListener {
+            field.setText("*", false)
+            field.setSelection(field.length())
+            field.dismissDropDown()
+        }
+        clear.setOnClickListener {
+            field.setText("", false)
+            field.dismissDropDown()
+        }
+        clear.isEnabled = !field.text.isNullOrEmpty()
+        field.addTextChangedListener {
+            clear.isEnabled = !it.isNullOrEmpty()
         }
     }
 
@@ -128,11 +153,15 @@ class BusSearchHandler(
             Toast.makeText(activity, "Please enter both 'From' and 'To' locations.", Toast.LENGTH_SHORT).show()
             return
         }
+        if (from == "*" && to == "*") {
+            Toast.makeText(activity, com.sanchari.bus.R.string.wildcard_both_invalid, Toast.LENGTH_SHORT).show()
+            return
+        }
 
         Log.i(TAG, "Searching for routes from '$from' to '$to'")
 
         activity.lifecycleScope.launch(Dispatchers.IO) {
-            val results = SearchManager.findBusServices(activity, from, to)
+            val results = SearchManager.findRouteResults(activity, from, to)
 
             withContext(Dispatchers.Main) {
                 if (results.isEmpty()) {
@@ -140,7 +169,7 @@ class BusSearchHandler(
                 } else {
                     Log.i(TAG, "Found ${results.size} routes. Launching SearchResultsActivity.")
                     val intent = Intent(activity, SearchResultsActivity::class.java).apply {
-                        putParcelableArrayListExtra(SearchResultsActivity.EXTRA_SEARCH_RESULTS, ArrayList(results))
+                        putParcelableArrayListExtra(SearchResultsActivity.EXTRA_ROUTE_RESULTS, ArrayList(results))
                         putExtra(SearchResultsActivity.EXTRA_FROM_STOP, from)
                         putExtra(SearchResultsActivity.EXTRA_TO_STOP, to)
                     }
