@@ -258,6 +258,8 @@ Each stop uses a card with a header for order/move/remove controls and full-widt
 outlined name/time fields. Keep Material outlined styles on autocomplete fields
 so floating labels have their own space; do not shrink their internal padding.
 Time edits highlight the card outline using theme colours, not a fixed background.
+Fresh add/edit sessions show a short Quick tips dialog. Opening a saved draft or
+recreating the editor skips it.
 
 `Reverse and append` copies any named contiguous section in reverse, retaining
 stop identities and halt rows but leaving copied times blank. Reversing A-B-C-D

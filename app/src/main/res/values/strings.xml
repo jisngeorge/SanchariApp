@@ -177,5 +177,7 @@
     <string name="editor_replace_current">\n\nCurrent time: %1$s</string>
     <string name="editor_use_time">Use time</string>
     <string name="editor_replace_time">Replace time</string>
-    <string name="editor_instructions">Choose existing stops from suggestions, or type a new stop name. Choose a bus type or enter a new one.\n\nUse Reverse and append to copy a section back along the route. Copied times are blank; the turnaround stop is kept.\n\nSuggest time offers an optional estimate from the previous row. Review its source before accepting. First-stop times and halt durations are entered manually.\n\nTimes never reorder stops. Use the up/down arrows to change route order. For a halt, enter the same stop twice with arrival and departure times.\n\nAdd important stops and junctions. Use notes for running days, unknown times and other details. Use recognisable places, depot names or numbers in the service name.</string>
+    <string name="editor_quick_tips">Quick tips</string>
+    <string name="editor_got_it">Got it</string>
+    <string name="editor_instructions">Add important stops in travel order. Choose suggested stops and bus types, or enter new ones.\n\nUse arrows to reorder. For a halt, add the same stop twice: arrival, then departure.\n\nReverse and append copies a return section with blank times. The bulb offers an optional time estimate.\n\nAdd running days or other details in Notes, then review and proceed.</string>
 </resources>

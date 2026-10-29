@@ -11,8 +11,10 @@ import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.action.ViewActions.replaceText
 import androidx.test.espresso.assertion.ViewAssertions.doesNotExist
+import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.RootMatchers.isPlatformPopup
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -39,6 +41,22 @@ class ScheduleEditorActivityTest {
 
     @Before
     fun initializeLocalData() = runBlocking { DatabaseManager.initializeDatabases(context) }
+
+    @Test
+    fun freshNewAndEditSessionsShowQuickTipsButRecreationDoesNotRepeatThem() {
+        val service = SearchManager.searchBusServicesByName(context, "").first()
+        for (intent in listOf(SuggestEditActivity.newIntentForNew(context),
+            SuggestEditActivity.newIntentForEdit(context, service))) {
+            ActivityScenario.launch<SuggestEditActivity>(intent).use { scenario ->
+                onView(withText(R.string.editor_quick_tips)).check(matches(isDisplayed()))
+                onView(withText(R.string.editor_instructions)).check(matches(isDisplayed()))
+                onView(withText(R.string.editor_got_it)).perform(click())
+                scenario.recreate()
+                onView(withText(R.string.editor_quick_tips)).check(doesNotExist())
+                onView(withText(R.string.editor_instructions)).check(doesNotExist())
+            }
+        }
+    }
 
     @Test
     fun autocompletePreservesSelectedIdAndFreeEntryResolvesOrClearsIdentity() {
@@ -318,7 +336,12 @@ class ScheduleEditorActivityTest {
 
     private fun launch(intent: Intent = SuggestEditActivity.newIntentForNew(context)): ActivityScenario<SuggestEditActivity> {
         val scenario = ActivityScenario.launch<SuggestEditActivity>(intent)
-        onView(withText("Got it")).perform(click())
+        if (intent.getStringExtra(SuggestEditActivity.EXTRA_LOAD_DRAFT_FILE) == null) {
+            onView(withText(R.string.editor_got_it)).perform(click())
+        } else {
+            onView(withText(R.string.editor_quick_tips)).check(doesNotExist())
+            onView(withText(R.string.editor_instructions)).check(doesNotExist())
+        }
         val deadline = System.currentTimeMillis() + 10_000
         var loaded = false
         while (!loaded && System.currentTimeMillis() < deadline) {

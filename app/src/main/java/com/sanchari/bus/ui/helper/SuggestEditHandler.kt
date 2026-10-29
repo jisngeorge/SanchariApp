@@ -35,9 +35,9 @@ class SuggestEditHandler(
 
     fun showInstructionsDialog() {
         AlertDialog.Builder(activity)
-            .setTitle("Instructions")
+            .setTitle(R.string.editor_quick_tips)
             .setMessage(R.string.editor_instructions)
-            .setPositiveButton("Got it", null)
+            .setPositiveButton(R.string.editor_got_it, null)
             .show()
     }
 

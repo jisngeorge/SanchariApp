@@ -93,7 +93,9 @@ class SuggestEditActivity : AppCompatActivity() {
         handler = SuggestEditHandler(this, binding, adapter, editableStops)
 
         if (savedInstanceState == null) {
-            handler.showInstructionsDialog()
+            if (intent.getStringExtra(EXTRA_LOAD_DRAFT_FILE) == null) {
+                handler.showInstructionsDialog()
+            }
         } else {
             Log.i(TAG, "Restoring state from savedInstanceState")
             restoreFromSavedState(savedInstanceState)
