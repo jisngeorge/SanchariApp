@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">Sanchari</string>
+    <string name="home_drafts">Drafts &amp; submissions</string>
+    <string name="desc_swap_locations">Swap Locations</string>
     <string name="wildcard_any_origin">Use any origin (*)</string>
     <string name="wildcard_any_destination">Use any destination (*)</string>
     <string name="clear_from_stop">Clear From stop</string>

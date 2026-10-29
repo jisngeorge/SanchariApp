@@ -29,6 +29,13 @@ flows. Do not infer backend approval rules or spreadsheet layout from the client
   Android Studio selects Temurin JDK 21 to run Gradle. Use a full JDK 21 for
   command-line builds as well; the compilation target remains 11.
 
+The shared theme uses blue branding and green primary-action buttons (Find Bus,
+Get Started, proceed, and submit). Use `Widget.Sanchari.Button.PrimaryAction`
+for these actions; its theme-aware selectors preserve disabled states.
+Blue headers keep white text/icons in both themes; use `brand_header` rather
+than the lighter night-mode `colorPrimary` for header backgrounds. Preserve
+red not-running and amber slow-service warning colours.
+
 All paths below are relative to the repository root. Kotlin source lives under
 `app\src\main\java\com\sanchari\bus`.
 
@@ -91,6 +98,14 @@ introduction on first run, then initializes data on `Dispatchers.IO`:
    and syncs their content versions into preferences. Existing snapshots are preserved.
 2. It launches `UploadManager.retryPendingUploads` without blocking the rest of initialization.
 3. It loads stop autocomplete options and local recent views, then checks for updates.
+
+The main page is a scrollable, search-first layout: route-search card, bus-name
+search card, Recent Services, then app actions. Preserve its original wording;
+do not add headings, taglines, descriptions or an icon beside the app title.
+Wildcard/clear controls retain separate 48dp targets; swapping stops does not
+submit a search. Drafts & submissions uses a labelled button with the history icon.
+Update availability uses a green highlight without changing the Update label.
+Home surfaces and outlines adapt to light/dark mode; content grows with text size.
 
 `BusSearchHandler` delegates SQL work to `SearchManager`. Route search matches
 source and destination location names and requires source `stopOrder` to precede
@@ -163,6 +178,11 @@ identities separately from this route-order computation.
 opens `BusDetailsActivity`. Details load ordered route stops and community data;
 contribution actions are handled by `BusSubmissionHandler`. Non-running services
 remain visible, with warning styling rather than being removed from searches.
+Bus details reuse the main page's rounded card styling and light/dark surfaces,
+preserving existing titles and wording. Stop times sit below stop names so halt
+ranges can wrap; rating labels sit above their stars, and comment dates below
+usernames. Keep the edit/rating/comment and running-status contribution flows
+unchanged, including the ability to add a rating when no aggregate exists.
 Wildcard result cards label each endpoint place beside its corresponding AM/PM
 time. Ordinary A-to-B results retain compact cards with the service icon/name/type
 and times on the right, without repeating From/To place names on every card.

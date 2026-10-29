@@ -4,26 +4,27 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/home_background"
     android:fitsSystemWindows="true"
     tools:context=".ui.activity.BusDetailsActivity">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar">
+        android:layout_height="wrap_content">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="?attr/colorPrimary"
-            app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
-
+            android:background="@color/brand_header" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/detailsScrollView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:fillViewport="true"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
@@ -34,297 +35,333 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonSuggestEdit"
-                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                style="@style/Widget.Sanchari.Button.PrimaryAction"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:minHeight="56dp"
+                android:padding="12dp"
                 android:text="@string/btn_suggest_edit"
-                app:icon="@drawable/ic_add" />
+                android:textAllCaps="false"
+                app:cornerRadius="14dp"
+                app:icon="@drawable/ic_add"
+                app:iconGravity="textStart" />
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/runningStatusCard"
+                style="@style/Widget.Sanchari.HomeCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                app:cardElevation="2dp"
-                app:contentPadding="16dp">
+                android:layout_marginTop="16dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="@string/label_is_bus_running"
-                        android:textAppearance="?attr/textAppearanceTitleMedium"
-                        android:textSize="18sp"
-                        android:textColor="?android:attr/textColorPrimary"/>
+                        android:textAppearance="@style/TextAppearance.Sanchari.HomeHeading" />
 
                     <com.google.android.material.button.MaterialButtonToggleGroup
                         android:id="@+id/toggleGroupStatus"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        app:singleSelection="true"
-                        app:selectionRequired="true">
+                        android:layout_marginTop="12dp"
+                        app:selectionRequired="true"
+                        app:singleSelection="true">
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/buttonStatusYes"
-                            style="?attr/materialButtonOutlinedStyle"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="@string/yes" />
+                            android:minHeight="48dp"
+                            android:text="@string/yes"
+                            android:textAllCaps="false"
+                            app:cornerRadius="12dp" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/buttonStatusNo"
-                            style="?attr/materialButtonOutlinedStyle"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="@string/no" />
+                            android:minHeight="48dp"
+                            android:text="@string/no"
+                            android:textAllCaps="false"
+                            app:cornerRadius="12dp" />
                     </com.google.android.material.button.MaterialButtonToggleGroup>
 
                     <TextView
                         android:id="@+id/textViewLastReported"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:textAppearance="?attr/textAppearanceBodySmall"
-                        android:textSize="14sp"
+                        android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                        android:textColor="?android:attr/textColorSecondary"
                         android:visibility="gone"
-                        tools:visibility="visible"
                         tools:text="Last reported: 12-Nov-2025"
-                        android:textColor="?android:attr/textColorPrimary" />
-
+                        tools:visibility="visible" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-
-            <!-- BUS STOPS SECTION -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="@string/title_bus_stops"
-                android:textAppearance="?attr/textAppearanceTitleMedium"
-                android:textSize="18sp"
-                android:textColor="?android:attr/textColorPrimary"/>
-
-            <ProgressBar
-                android:id="@+id/progressBar"
-                style="?android:attr/progressBarStyle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:visibility="gone"
-                tools:visibility="visible" />
-
-            <TextView
-                android:id="@+id/textViewError"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:text="@string/title_error_message"
-                android:visibility="gone"
-                tools:visibility="visible"
-                android:textColor="?android:attr/textColorPrimary" />
-
-            <!-- RATINGS SECTION -->
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerViewBusStops"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:nestedScrollingEnabled="false"
-                tools:listitem="@layout/item_bus_stop" />
-
             <com.google.android.material.card.MaterialCardView
-                android:id="@+id/ratingsCard"
+                android:id="@+id/busStopsCard"
+                style="@style/Widget.Sanchari.HomeCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                app:cardElevation="2dp"
-                app:contentPadding="16dp">
+                android:layout_marginTop="16dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/title_community_ratings"
-                        android:textAppearance="?attr/textAppearanceTitleMedium"
-                        android:textSize="18sp"
-                        android:textColor="?android:attr/textColorPrimary"/>
+                        android:text="@string/title_bus_stops"
+                        android:textAppearance="@style/TextAppearance.Sanchari.HomeHeading" />
+
+                    <ProgressBar
+                        android:id="@+id/progressBar"
+                        style="?android:attr/progressBarStyle"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginTop="12dp"
+                        android:visibility="gone"
+                        tools:visibility="visible" />
 
                     <TextView
-                        android:id="@+id/textViewRatingCount"
-                        android:layout_width="wrap_content"
+                        android:id="@+id/textViewError"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:textAppearance="?attr/textAppearanceBodySmall"
-                        android:textSize="14sp"
-                        tools:text="Based on 5 ratings"
-                        android:textColor="?android:attr/textColorPrimary" />
+                        android:layout_marginTop="12dp"
+                        android:text="@string/title_error_message"
+                        android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                        android:textColor="?android:attr/textColorSecondary"
+                        android:visibility="gone"
+                        tools:visibility="visible" />
 
-                    <!-- Punctuality -->
-                    <LinearLayout
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/recyclerViewBusStops"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:src="@drawable/ic_clock"
-                            app:tint="?android:attr/textColorSecondary" />
-
-                        <TextView
-                            android:layout_width="100dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:text="@string/label_punctuality_5"
-                            android:textColor="?android:attr/textColorPrimary" />
-
-                        <RatingBar
-                            android:id="@+id/ratingBarPunctuality"
-                            style="?android:attr/ratingBarStyleSmall"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:isIndicator="true"
-                            android:numStars="5"
-                            android:stepSize="0.1" />
-                    </LinearLayout>
-
-                    <!-- Driving -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:src="@drawable/ic_steering_wheel"
-                            app:tint="?android:attr/textColorSecondary" />
-
-                        <TextView
-                            android:layout_width="100dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:text="@string/label_driving_comfort_5"
-                            android:textColor="?android:attr/textColorPrimary" />
-
-                        <RatingBar
-                            android:id="@+id/ratingBarDrive"
-                            style="?android:attr/ratingBarStyleSmall"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:isIndicator="true"
-                            android:numStars="5"
-                            android:stepSize="0.1" />
-                    </LinearLayout>
-
-                    <!-- Behaviour -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:src="@drawable/ic_person"
-                            app:tint="?android:attr/textColorSecondary" />
-
-                        <TextView
-                            android:layout_width="100dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:text="@string/label_behaviour_5"
-                            android:textColor="?android:attr/textColorPrimary"/>
-
-                        <RatingBar
-                            android:id="@+id/ratingBarBehaviour"
-                            style="?android:attr/ratingBarStyleSmall"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:isIndicator="true"
-                            android:numStars="5"
-                            android:stepSize="0.1" />
-                    </LinearLayout>
-
-                    <!--
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/buttonAddRating"
-                        ... />
-                    -->
-
+                        android:nestedScrollingEnabled="false"
+                        tools:listitem="@layout/item_bus_stop" />
                 </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/ratingsCard"
+                style="@style/Widget.Sanchari.HomeCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/title_community_ratings"
+                        android:textAppearance="@style/TextAppearance.Sanchari.HomeHeading" />
+
+                    <TextView
+                        android:id="@+id/textViewRatingCount"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                        android:textColor="?android:attr/textColorSecondary"
+                        tools:text="Based on 5 ratings" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:orientation="horizontal">
+
+                        <androidx.appcompat.widget.AppCompatImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_marginEnd="12dp"
+                            android:importantForAccessibility="no"
+                            app:srcCompat="@drawable/ic_clock"
+                            app:tint="?attr/colorPrimary" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:labelFor="@id/ratingBarPunctuality"
+                                android:text="@string/label_punctuality_5"
+                                android:textAppearance="@style/TextAppearance.MaterialComponents.Body1" />
+
+                            <RatingBar
+                                android:id="@+id/ratingBarPunctuality"
+                                style="?android:attr/ratingBarStyleSmall"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:isIndicator="true"
+                                android:numStars="5"
+                                android:stepSize="0.1" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:orientation="horizontal">
+
+                        <androidx.appcompat.widget.AppCompatImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_marginEnd="12dp"
+                            android:importantForAccessibility="no"
+                            app:srcCompat="@drawable/ic_steering_wheel"
+                            app:tint="?attr/colorPrimary" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:labelFor="@id/ratingBarDrive"
+                                android:text="@string/label_driving_comfort_5"
+                                android:textAppearance="@style/TextAppearance.MaterialComponents.Body1" />
+
+                            <RatingBar
+                                android:id="@+id/ratingBarDrive"
+                                style="?android:attr/ratingBarStyleSmall"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:isIndicator="true"
+                                android:numStars="5"
+                                android:stepSize="0.1" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:orientation="horizontal">
+
+                        <androidx.appcompat.widget.AppCompatImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_marginEnd="12dp"
+                            android:importantForAccessibility="no"
+                            app:srcCompat="@drawable/ic_person"
+                            app:tint="?attr/colorPrimary" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:labelFor="@id/ratingBarBehaviour"
+                                android:text="@string/label_behaviour_5"
+                                android:textAppearance="@style/TextAppearance.MaterialComponents.Body1" />
+
+                            <RatingBar
+                                android:id="@+id/ratingBarBehaviour"
+                                style="?android:attr/ratingBarStyleSmall"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:isIndicator="true"
+                                android:numStars="5"
+                                android:stepSize="0.1" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonAddRating"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="end"
-                android:layout_marginTop="8dp"
-                android:text="@string/btn_add_rating" />
-
-
-            <!-- COMMENTS SECTION (MOVED TO LAST) -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="@string/title_comments"
-                android:textAppearance="?attr/textAppearanceTitleMedium"
-                android:textSize="18sp"
-                android:textColor="?android:attr/textColorPrimary"/>
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/commentsRecyclerView"
+                style="@style/Widget.Sanchari.Button.HomeSecondary"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:nestedScrollingEnabled="false"
-                tools:itemCount="2"
-                tools:listitem="@layout/item_comment" />
+                android:text="@string/btn_add_rating" />
 
-            <TextView
-                android:id="@+id/textViewNoComments"
-                android:layout_width="wrap_content"
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/commentsCard"
+                style="@style/Widget.Sanchari.HomeCard"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="8dp"
-                android:text="@string/label_no_comments"
-                android:textAppearance="?attr/textAppearanceBodySmall"
-                android:textSize="14sp"
-                android:visibility="gone"
-                android:textColor="?android:attr/textColorPrimary" />
+                android:layout_marginTop="16dp">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/buttonAddComment"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="end"
-                android:layout_marginTop="8dp"
-                android:text="@string/btn_add_comment" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/title_comments"
+                        android:textAppearance="@style/TextAppearance.Sanchari.HomeHeading" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/commentsRecyclerView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:nestedScrollingEnabled="false"
+                        tools:itemCount="2"
+                        tools:listitem="@layout/item_comment" />
+
+                    <TextView
+                        android:id="@+id/textViewNoComments"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="@string/label_no_comments"
+                        android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                        android:textColor="?android:attr/textColorSecondary"
+                        android:visibility="gone"
+                        tools:visibility="visible" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/buttonAddComment"
+                        style="@style/Widget.Sanchari.Button.HomeSecondary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="@string/btn_add_comment" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
-
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

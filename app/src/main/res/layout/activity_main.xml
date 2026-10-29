@@ -4,273 +4,304 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/home_background"
     android:fitsSystemWindows="true"
     tools:context=".ui.activity.MainActivity">
 
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/homeScrollView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:clipToPadding="false"
         android:fillViewport="true">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:paddingStart="16dp"
+            android:paddingTop="24dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="24dp">
 
             <TextView
                 android:id="@+id/textViewTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/app_name"
-                android:textAppearance="?attr/textAppearanceHeadline5"
-                android:textStyle="bold"
-                android:textColor="?attr/colorPrimary"
+                android:layout_marginBottom="24dp"
                 android:gravity="center"
-                android:layout_marginBottom="16dp" />
+                android:text="@string/app_name"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Headline4"
+                android:textColor="?attr/colorPrimary"
+                android:textSize="28sp"
+                android:textStyle="bold" />
 
-            <!-- Route Search Section -->
-            <FrameLayout
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/routeSearchCard"
+                style="@style/Widget.Sanchari.HomeCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/fromInputLayout"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="@string/hint_from"
-                    app:errorIconDrawable="@null"
-                    app:endIconMode="none">
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
-                        android:id="@+id/fromAutocomplete"
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/fromInputLayout"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="@string/hint_from"
+                            app:endIconMode="none"
+                            app:errorIconDrawable="@null">
+
+                            <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                                android:id="@+id/fromAutocomplete"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="text"
+                                android:minHeight="56dp"
+                                android:paddingStart="16dp"
+                                android:paddingEnd="108dp" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="48dp"
+                            android:layout_gravity="end|top"
+                            android:layout_marginTop="12dp"
+                            android:layout_marginEnd="4dp"
+                            android:orientation="horizontal">
+
+                            <androidx.appcompat.widget.AppCompatImageButton
+                                android:id="@+id/fromWildcardButton"
+                                android:layout_width="48dp"
+                                android:layout_height="48dp"
+                                android:background="?attr/selectableItemBackgroundBorderless"
+                                android:contentDescription="@string/wildcard_any_origin"
+                                android:padding="12dp"
+                                app:srcCompat="@drawable/ic_wildcard"
+                                app:tint="?attr/colorControlNormal" />
+
+                            <androidx.appcompat.widget.AppCompatImageButton
+                                android:id="@+id/fromClearButton"
+                                android:layout_width="48dp"
+                                android:layout_height="48dp"
+                                android:background="?attr/selectableItemBackgroundBorderless"
+                                android:contentDescription="@string/clear_from_stop"
+                                android:padding="12dp"
+                                app:srcCompat="@drawable/ic_clear"
+                                app:tint="?attr/colorControlNormal" />
+                        </LinearLayout>
+                    </FrameLayout>
+
+                    <androidx.appcompat.widget.AppCompatImageButton
+                        android:id="@+id/buttonSwapLocations"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:layout_gravity="end"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="4dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/desc_swap_locations"
+                        android:padding="12dp"
+                        app:srcCompat="@drawable/ic_swap_vertical"
+                        app:tint="?attr/colorPrimary" />
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/toInputLayout"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="@string/hint_to"
+                            app:endIconMode="none"
+                            app:errorIconDrawable="@null">
+
+                            <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                                android:id="@+id/toAutocomplete"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="text"
+                                android:minHeight="56dp"
+                                android:paddingStart="16dp"
+                                android:paddingEnd="108dp" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="48dp"
+                            android:layout_gravity="end|top"
+                            android:layout_marginTop="12dp"
+                            android:layout_marginEnd="4dp"
+                            android:orientation="horizontal">
+
+                            <androidx.appcompat.widget.AppCompatImageButton
+                                android:id="@+id/toWildcardButton"
+                                android:layout_width="48dp"
+                                android:layout_height="48dp"
+                                android:background="?attr/selectableItemBackgroundBorderless"
+                                android:contentDescription="@string/wildcard_any_destination"
+                                android:padding="12dp"
+                                app:srcCompat="@drawable/ic_wildcard"
+                                app:tint="?attr/colorControlNormal" />
+
+                            <androidx.appcompat.widget.AppCompatImageButton
+                                android:id="@+id/toClearButton"
+                                android:layout_width="48dp"
+                                android:layout_height="48dp"
+                                android:background="?attr/selectableItemBackgroundBorderless"
+                                android:contentDescription="@string/clear_to_stop"
+                                android:padding="12dp"
+                                app:srcCompat="@drawable/ic_clear"
+                                app:tint="?attr/colorControlNormal" />
+                        </LinearLayout>
+                    </FrameLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/searchButton"
+                        style="@style/Widget.Sanchari.Button.PrimaryAction"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:paddingStart="16dp"
-                        android:paddingEnd="108dp"
-                        android:inputType="text"
-                        android:minHeight="56dp" />
+                        android:layout_marginTop="16dp"
+                        android:minHeight="56dp"
+                        android:padding="12dp"
+                        android:text="@string/btn_find_bus"
+                        android:textAllCaps="false"
+                        android:textSize="16sp"
+                        app:cornerRadius="14dp"
+                        app:icon="@drawable/ic_search"
+                        app:iconGravity="textStart" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-                </com.google.android.material.textfield.TextInputLayout>
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.Sanchari.HomeCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp">
 
                 <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="48dp"
-                    android:layout_gravity="end|top"
-                    android:layout_marginEnd="4dp"
-                    android:layout_marginTop="12dp"
-                    android:orientation="horizontal">
-
-                    <androidx.appcompat.widget.AppCompatImageButton
-                        android:id="@+id/fromWildcardButton"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="@string/wildcard_any_origin"
-                        android:padding="12dp"
-                        app:srcCompat="@drawable/ic_wildcard"
-                        app:tint="?attr/colorControlNormal" />
-
-                    <androidx.appcompat.widget.AppCompatImageButton
-                        android:id="@+id/fromClearButton"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="@string/clear_from_stop"
-                        android:padding="12dp"
-                        app:srcCompat="@drawable/ic_clear"
-                        app:tint="?attr/colorControlNormal" />
-                </LinearLayout>
-            </FrameLayout>
-
-            <ImageButton
-                android:id="@+id/buttonSwapLocations"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="end"
-                android:layout_marginTop="-8dp"
-                android:layout_marginBottom="-8dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Swap Locations"
-                android:padding="12dp"
-                android:src="@drawable/ic_swap_vertical"
-                android:elevation="4dp" />
-
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/toInputLayout"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="@string/hint_to"
-                    app:errorIconDrawable="@null"
-                    app:endIconMode="none">
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
-                        android:id="@+id/toAutocomplete"
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/busNameInputLayout"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:paddingStart="16dp"
-                        android:paddingEnd="108dp"
-                        android:inputType="text"
-                        android:minHeight="56dp" />
+                        android:hint="@string/hint_search_bus_name"
+                        app:endIconMode="clear_text"
+                        app:startIconDrawable="@drawable/ic_bus_placeholder">
 
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="48dp"
-                    android:layout_gravity="end|top"
-                    android:layout_marginEnd="4dp"
-                    android:layout_marginTop="12dp"
-                    android:orientation="horizontal">
-
-                    <androidx.appcompat.widget.AppCompatImageButton
-                        android:id="@+id/toWildcardButton"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="@string/wildcard_any_destination"
-                        android:padding="12dp"
-                        app:srcCompat="@drawable/ic_wildcard"
-                        app:tint="?attr/colorControlNormal" />
-
-                    <androidx.appcompat.widget.AppCompatImageButton
-                        android:id="@+id/toClearButton"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="@string/clear_to_stop"
-                        android:padding="12dp"
-                        app:srcCompat="@drawable/ic_clear"
-                        app:tint="?attr/colorControlNormal" />
+                        <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                            android:id="@+id/busNameAutocomplete"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:completionThreshold="1"
+                            android:inputType="text"
+                            android:minHeight="56dp"
+                            android:paddingStart="16dp"
+                            android:paddingEnd="16dp" />
+                    </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
-            </FrameLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-            <Button
-                android:id="@+id/searchButton"
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.Sanchari.HomeCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:padding="12dp"
-                android:text="@string/btn_find_bus" />
-
-            <!-- Search Bus Name -->
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/busNameInputLayout"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="@string/hint_search_bus_name"
-                app:startIconDrawable="@drawable/ic_bus_placeholder"
-                app:endIconMode="clear_text"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="8dp">
-
-                <com.google.android.material.textfield.MaterialAutoCompleteTextView
-                    android:id="@+id/busNameAutocomplete"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="text"
-                    android:completionThreshold="1"
-                    android:minHeight="56dp"/>
-
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <!-- Actions -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:orientation="vertical" >
+                android:layout_marginTop="16dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:baselineAligned="false">
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:id="@+id/recentSearchesTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/title_recent_services"
+                        android:textAppearance="@style/TextAppearance.Sanchari.HomeHeading" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/recentSearchesRecyclerView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:nestedScrollingEnabled="false"
+                        tools:listitem="@layout/item_recent_search" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.Sanchari.HomeCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/buttonAddNewBus"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_weight="1"
+                        style="@style/Widget.Sanchari.Button.HomeSecondary"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="@string/btn_add_new_bus"
                         app:icon="@drawable/ic_add" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/buttonDrafts"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="wrap_content"
+                        style="@style/Widget.Sanchari.Button.HomeSecondary"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="-1dp"
-                        android:minWidth="0dp"
-                        android:paddingStart="12dp"
-                        android:paddingEnd="12dp"
-                        app:icon="@drawable/ic_history"
-                        app:iconPadding="0dp" />
-
-                </LinearLayout>
-
-                <!-- FIX: Added baselineAligned="false" to ensure buttons are vertically centered -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:baselineAligned="false">
+                        android:text="@string/home_drafts"
+                        app:icon="@drawable/ic_history" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/buttonCheckForUpdates"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="0dp"
+                        style="@style/Widget.Sanchari.Button.HomeSecondary"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
                         android:text="@string/btn_check_updates"
-                        android:layout_marginEnd="4dp"/>
+                        app:icon="@drawable/ic_refresh" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/buttonShareApp"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="0dp"
+                        style="@style/Widget.Sanchari.Button.HomeSecondary"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
                         android:text="@string/btn_share_app"
-                        app:icon="@drawable/ic_share"
-                        android:layout_marginStart="4dp"/>
+                        app:icon="@drawable/ic_share" />
 
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/buttonMessageAdmin"
+                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:minHeight="48dp"
+                        android:text="@string/btn_message_admin_report_issue"
+                        android:textAllCaps="false" />
                 </LinearLayout>
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/buttonMessageAdmin"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="@string/btn_message_admin_report_issue" />
-
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/recentSearchesTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:text="@string/title_recent_services"
-                android:textAppearance="@style/TextAppearance.MaterialComponents.Headline6" />
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recentSearchesRecyclerView"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:nestedScrollingEnabled="false"
-                tools:listitem="@layout/item_recent_search" />
-
+            </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

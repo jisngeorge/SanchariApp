@@ -1,3 +1,12 @@
 <resources>
+    <color name="home_background">#101820</color>
+    <color name="home_outline">#324050</color>
+    <color name="brand_primary">#90CAF9</color>
+    <color name="brand_primary_variant">#1565C0</color>
+    <color name="brand_header">#0D47A1</color>
+    <color name="brand_on_primary">#102A43</color>
+    <color name="action_green">#81C784</color>
+    <color name="action_green_variant">#388E3C</color>
+    <color name="action_on_green">#102A16</color>
     <color name="service_slow">#FFD54F</color>
 </resources>

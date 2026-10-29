@@ -8,7 +8,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.graphics.toColorInt
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.color.MaterialColors
@@ -25,6 +25,7 @@ import com.sanchari.bus.ui.helper.MainSubmissionHandler
 import com.sanchari.bus.data.model.AppConfig
 import com.sanchari.bus.data.model.SubmissionLog
 import com.sanchari.bus.BuildConfig
+import com.sanchari.bus.R
 import com.sanchari.bus.ui.helper.DraftManager
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.Dispatchers
@@ -262,12 +263,16 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateUpdateButtonUI(isUpdateAvailable: Boolean) {
         if (isUpdateAvailable) {
-            binding.buttonCheckForUpdates.setTextColor(Color.WHITE)
-            binding.buttonCheckForUpdates.backgroundTintList = ColorStateList.valueOf("#4CAF50".toColorInt()) // Green
+            binding.buttonCheckForUpdates.setTextColor(AppCompatResources.getColorStateList(this, R.color.primary_action_text))
+            binding.buttonCheckForUpdates.iconTint =
+                AppCompatResources.getColorStateList(this, R.color.primary_action_text)
+            binding.buttonCheckForUpdates.backgroundTintList =
+                AppCompatResources.getColorStateList(this, R.color.primary_action_background)
         } else {
             // Fix: Explicitly use com.google.android.material.R.attr.colorPrimary to resolve unresolved reference
             val colorPrimary = MaterialColors.getColor(binding.root, androidx.constraintlayout.widget.R.attr.colorPrimary)
             binding.buttonCheckForUpdates.setTextColor(colorPrimary)
+            binding.buttonCheckForUpdates.iconTint = ColorStateList.valueOf(colorPrimary)
             // Reset background tint to null to restore default OutlinedButton behavior (transparent background)
             binding.buttonCheckForUpdates.backgroundTintList = ColorStateList.valueOf(Color.TRANSPARENT)
         }

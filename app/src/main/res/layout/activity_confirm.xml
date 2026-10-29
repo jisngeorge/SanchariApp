@@ -102,8 +102,9 @@
                 android:textAppearance="?attr/textAppearanceBodySmall"
                 android:textStyle="italic" />
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonApplySuggestion"
+                style="@style/Widget.Sanchari.Button.PrimaryAction"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
@@ -120,4 +121,3 @@
         android:visibility="gone" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
-
