@@ -122,10 +122,10 @@ class SuggestionManager(private val context: Context) {
                 INNER JOIN Stop s2 ON rs2.stopId = s2.stopId
                 WHERE s2.locationName = ? 
                   AND rs1.stopOrder < rs2.stopOrder
-                  AND s1.locationName != ?
+                  AND s1.locationName NOT IN (?, ?)
             """.trimIndent()
 
-            val sourceCandidateCursor = db.rawQuery(sourceCandidateQuery, arrayOf(toLocation, fromLocation))
+            val sourceCandidateCursor = db.rawQuery(sourceCandidateQuery, arrayOf(toLocation, fromLocation, toLocation))
 
             val sourceDistCache = mutableMapOf<String, CachedDistances>()
             val validSourceMap = mutableMapOf<String, MutableSet<String>>()
@@ -180,10 +180,10 @@ class SuggestionManager(private val context: Context) {
                 INNER JOIN Stop s2 ON rs2.stopId = s2.stopId
                 WHERE s1.locationName = ? 
                   AND rs1.stopOrder < rs2.stopOrder
-                  AND s2.locationName != ?
+                  AND s2.locationName NOT IN (?, ?)
             """.trimIndent()
 
-            val destCandidateCursor = db.rawQuery(destCandidateQuery, arrayOf(fromLocation, toLocation))
+            val destCandidateCursor = db.rawQuery(destCandidateQuery, arrayOf(fromLocation, toLocation, fromLocation))
 
             val destDistCache = mutableMapOf<String, CachedDistances>()
             val validDestMap = mutableMapOf<String, MutableSet<String>>()
@@ -246,9 +246,6 @@ class SuggestionManager(private val context: Context) {
         if (sourceStops.isEmpty() && destinationStops.isEmpty()) {
             return context.getString(R.string.nearby_no_suggestions, fromLocation, toLocation)
         }
-        val resultComparator = compareBy<StopResult> { it.distanceFromOriginalKm }
-            .thenByDescending { it.newOptionCount }
-
         return buildSpannedString {
             append(context.getString(R.string.nearby_distance_note))
             append("\n\n")
@@ -261,7 +258,7 @@ class SuggestionManager(private val context: Context) {
                     ))
                 }
                 append("\n\n")
-                stops.sortedWith(resultComparator).forEachIndexed { index, stop ->
+                rankStops(stops).forEachIndexed { index, stop ->
                     bold { append(context.getString(R.string.nearby_stop_name, index + 1, stop.name)) }
                     append("\n")
                     append(context.getString(
@@ -280,5 +277,44 @@ class SuggestionManager(private val context: Context) {
             }
             append(context.getString(R.string.nearby_additional_note, fromLocation, toLocation))
         }
+    }
+
+    internal fun rankStops(stops: List<StopResult>): List<StopResult> {
+        if (stops.size < 2) return stops
+
+        var minAdditional = Int.MAX_VALUE
+        var maxAdditional = Int.MIN_VALUE
+        var minTotal = Int.MAX_VALUE
+        var maxTotal = Int.MIN_VALUE
+        var minDistance = Double.POSITIVE_INFINITY
+        var maxDistance = Double.NEGATIVE_INFINITY
+        for (stop in stops) {
+            minAdditional = minOf(minAdditional, stop.newOptionCount)
+            maxAdditional = maxOf(maxAdditional, stop.newOptionCount)
+            minTotal = minOf(minTotal, stop.totalServiceCount)
+            maxTotal = maxOf(maxTotal, stop.totalServiceCount)
+            minDistance = minOf(minDistance, stop.distanceFromOriginalKm.toDouble())
+            maxDistance = maxOf(maxDistance, stop.distanceFromOriginalKm.toDouble())
+        }
+
+        fun normalize(value: Double, minimum: Double, maximum: Double): Double =
+            if (minimum == maximum) 1.0 else (value - minimum) / (maximum - minimum)
+
+        // Normalize within one side so counts and kilometres have comparable influence.
+        val scoredStops = stops.map { stop ->
+            val additional = normalize(stop.newOptionCount.toDouble(), minAdditional.toDouble(), maxAdditional.toDouble())
+            val total = normalize(stop.totalServiceCount.toDouble(), minTotal.toDouble(), maxTotal.toDouble())
+            val proximity = if (minDistance == maxDistance) 1.0 else {
+                1.0 - normalize(stop.distanceFromOriginalKm.toDouble(), minDistance, maxDistance)
+            }
+            stop to (0.4 * additional + 0.3 * total + 0.3 * proximity)
+        }
+        return scoredStops.sortedWith(
+            compareByDescending<Pair<StopResult, Double>> { it.second }
+                .thenBy { it.first.distanceFromOriginalKm }
+                .thenByDescending { it.first.newOptionCount }
+                .thenByDescending { it.first.totalServiceCount }
+                .thenBy { it.first.name }
+        ).map { it.first }
     }
 }

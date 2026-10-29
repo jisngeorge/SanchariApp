@@ -218,8 +218,16 @@ Normal A-to-B repeated-stop rules and summary/sort options are unchanged.
 coordinates and route availability. Despite its name, it does **not** submit edits.
 Its selectable, scrollable dialog groups alternatives into "Board near" and
 "Alight near" sections, with bold stop names, labelled endpoint distances and
-additional/total service counts. Existing nearest-stop/new-service ranking is
-preserved. Distances remain straight-line estimates; additional services are
+additional/total service counts. Each section ranks eligible stops independently
+using 40% additional services, 30% total services, and 30% proximity to its original
+boarding/alighting stop. Min-max normalize each factor within that section;
+shorter distances score higher, and equal-valued factors contribute equally.
+Sort by descending weighted score, breaking ties by shorter distance, more
+additional services, more total services, then stop name. Candidate eligibility
+and service counting otherwise remain unchanged. Neither original endpoint is
+eligible as an alternative stop in either section, including on loop services.
+The dialog does not explain the ranking formula.
+Distances remain straight-line estimates; additional services are
 counted relative to the original A-to-B route. No alternatives show an explicit
 empty message instead of blank section headings.
 
