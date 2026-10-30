@@ -35,6 +35,9 @@ for these actions; its theme-aware selectors preserve disabled states.
 Blue headers keep white text/icons in both themes; use `brand_header` rather
 than the lighter night-mode `colorPrimary` for header backgrounds. Preserve
 red not-running and amber slow-service warning colours.
+Keep the system status bar visible so users can read the clock. Its background
+uses `home_background`, with dark icons in light mode and light icons in dark mode,
+including on Android versions that enforce a transparent edge-to-edge status bar.
 
 All paths below are relative to the repository root. Kotlin source lives under
 `app\src\main\java\com\sanchari\bus`.

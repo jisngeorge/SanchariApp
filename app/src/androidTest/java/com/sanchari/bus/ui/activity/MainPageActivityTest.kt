@@ -4,6 +4,9 @@ import android.content.ContentValues
 import android.os.SystemClock
 import android.view.View
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -43,6 +46,12 @@ class MainPageActivityTest {
                     it.recentSearchesRecyclerView.adapter?.itemCount == 0
                 }
                 scenario.onActivity { activity ->
+                    val insets = requireNotNull(ViewCompat.getRootWindowInsets(activity.window.decorView))
+                    assertTrue("The system clock must stay visible",
+                        insets.isVisible(WindowInsetsCompat.Type.statusBars()))
+                    assertEquals(activity.resources.getBoolean(R.bool.light_status_bar),
+                        WindowCompat.getInsetsController(activity.window, activity.window.decorView)
+                            .isAppearanceLightStatusBars)
                     val binding = ActivityMainBinding.bind(activity.findViewById<View>(R.id.homeScrollView).parent as View)
                     assertEquals(activity.getString(R.string.btn_check_updates),
                         binding.buttonCheckForUpdates.text.toString())

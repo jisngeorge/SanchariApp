@@ -6,8 +6,9 @@
         <item name="colorSecondary">@color/action_green</item>
         <item name="colorSecondaryVariant">@color/action_green_variant</item>
         <item name="colorOnSecondary">@color/action_on_green</item>
-        <item name="android:statusBarColor">@color/brand_header</item>
-        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:statusBarColor">@color/home_background</item>
+        <item name="android:windowLightStatusBar">@bool/light_status_bar</item>
         <item name="appBarLayoutStyle">@style/Widget.Sanchari.AppBarLayout</item>
         <item name="toolbarStyle">@style/Widget.Sanchari.Toolbar</item>
         <item name="actionBarStyle">@style/Widget.Sanchari.ActionBar</item>

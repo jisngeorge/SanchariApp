@@ -91,9 +91,19 @@ class ThemePaletteTest {
                         assertEquals(Color.WHITE, title.currentTextColor)
                     }
                 }
-                context.obtainStyledAttributes(intArrayOf(android.R.attr.statusBarColor, android.R.attr.windowLightStatusBar)).use {
-                    assertEquals(header, it.getColor(0, 0))
-                    assertFalse(it.getBoolean(1, true))
+                context.obtainStyledAttributes(intArrayOf(
+                    android.R.attr.statusBarColor,
+                    android.R.attr.windowLightStatusBar,
+                    android.R.attr.windowFullscreen
+                )).use {
+                    val background = ContextCompat.getColor(context, R.color.home_background)
+                    val lightStatusBar = it.getBoolean(1, false)
+                    assertEquals(background, it.getColor(0, 0))
+                    assertEquals(night == Configuration.UI_MODE_NIGHT_NO, lightStatusBar)
+                    assertTrue(ColorUtils.calculateContrast(
+                        if (lightStatusBar) Color.BLACK else Color.WHITE, background
+                    ) >= 4.5)
+                    assertFalse("The clock and status icons must remain visible", it.getBoolean(2, true))
                 }
                 val baseContext = ContextThemeWrapper(context, R.style.Theme_SanchariApp)
                 val actionBarStyle = baseContext.obtainStyledAttributes(intArrayOf(androidx.appcompat.R.attr.actionBarStyle)).use {
