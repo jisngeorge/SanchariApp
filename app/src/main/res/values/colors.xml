@@ -13,4 +13,7 @@
     <color name="white">#FFFFFFFF</color>
     <color name="service_not_running">#D32F2F</color>
     <color name="service_slow">#946900</color>
+    <color name="preview_added">#216E39</color>
+    <color name="preview_removed">#B42318</color>
+    <color name="preview_bus_type">#00695C</color>
 </resources>

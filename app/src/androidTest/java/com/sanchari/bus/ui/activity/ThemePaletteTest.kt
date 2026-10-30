@@ -53,6 +53,10 @@ class ThemePaletteTest {
                 val surface = MaterialColors.getColor(parent, com.google.android.material.R.attr.colorSurface)
                 assertTrue("Blue text must remain readable on surfaces",
                     ColorUtils.calculateContrast(primary, surface) >= 4.5)
+                val previewType = ContextCompat.getColor(context, R.color.preview_bus_type)
+                assertNotEquals(primary, previewType)
+                assertTrue("Bus type text must remain readable on surfaces",
+                    ColorUtils.calculateContrast(previewType, surface) >= 4.5)
 
                 for ((layout, buttonId) in listOf(
                     R.layout.activity_main to R.id.searchButton,

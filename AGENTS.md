@@ -323,6 +323,16 @@ timestamp: Unix epoch seconds
 
 Name, email, and phone are required by the confirmation screen. Current validation
 requires `@` in email and at least ten phone digits; place is optional.
+Required contact labels use a red asterisk. Confirmation shows a compact preview:
+schedule proposals use red deletions, green additions and normal unchanged rows,
+compared with the installed timetable (not an edited draft). New schedules are
+all additions. Bus names use blue and bus types teal, retaining red/green +/-
+markers on changed fields. Unavailable originals are explicitly identified without implying
+a diff. Other contributions show plain summaries. Preview data is UI-only and
+does not change upload JSON. Back returns to the intact editor; opening confirmation
+never discards its draft. Contact edits survive confirmation recreation.
+Backing out of rating/comment confirmation reopens the input dialog with the
+previous ratings, comment text and username-display choice.
 The upload is an `application/json` POST to the configured Google Apps Script URL.
 The client currently treats any successful HTTP status as upload success without
 checking the response body for backend acceptance.

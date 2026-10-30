@@ -2,23 +2,33 @@ package com.sanchari.bus.ui.activity
 
 import android.content.Context
 import android.content.Intent
+import android.database.sqlite.SQLiteException
 import android.os.Bundle
+import android.text.SpannableString
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
 import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.sanchari.bus.R
+import com.sanchari.bus.data.manager.SearchManager
 import com.sanchari.bus.data.remote.NetworkManager
 import com.sanchari.bus.data.local.SuggestionStorageManager
 import com.sanchari.bus.data.model.User
 import com.sanchari.bus.data.manager.UserDataManager
 import com.sanchari.bus.databinding.ActivityConfirmBinding
 import com.sanchari.bus.ui.helper.DraftManager
+import com.sanchari.bus.ui.helper.ContributionPreview
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.json.JSONException
 import java.io.IOException
 
 class ConfirmationActivity : AppCompatActivity() {
@@ -27,6 +37,8 @@ class ConfirmationActivity : AppCompatActivity() {
     private var suggestionJson: String? = null
     private var currentUser: User? = null
     private var draftFileName: String? = null
+    private var previewReady = false
+    private var contactFieldsLoaded = false
 
     companion object {
         private const val TAG = "ConfirmationActivity"
@@ -59,19 +71,116 @@ class ConfirmationActivity : AppCompatActivity() {
             return
         }
 
-        loadUserData()
+        binding.buttonApplySuggestion.isEnabled = false
+        setupRequiredHints()
+        loadPreview()
+        loadUserData(populateFields = savedInstanceState?.getBoolean("contact_fields_loaded") != true)
 
         binding.buttonApplySuggestion.setOnClickListener {
             handleFinalSubmission()
         }
     }
 
-    private fun loadUserData() {
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("contact_fields_loaded", contactFieldsLoaded)
+    }
+
+    private fun setupRequiredHints() {
+        val red = ContextCompat.getColor(this, R.color.preview_removed)
+        for ((input, label) in listOf(
+            binding.inputName to R.string.hint_full_name,
+            binding.inputEmail to R.string.hint_email,
+            binding.inputPhone to R.string.hint_phone
+        )) {
+            val hint = SpannableString(getString(R.string.required_field_hint, getString(label)))
+            val marker = hint.lastIndexOf('*')
+            hint.setSpan(ForegroundColorSpan(red), marker, marker + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            input.hint = hint
+        }
+    }
+
+    private fun loadPreview() {
+        lifecycleScope.launch {
+            try {
+                val lines = withContext(Dispatchers.IO) {
+                    val suggestion = JSONObject(requireNotNull(suggestionJson))
+                    val type = suggestion.getString("type")
+                    val id = suggestion.optJSONObject("service")?.optString("serviceId")
+                        ?: suggestion.optString("serviceId")
+                    val original = if (id.isNotBlank() && type != "new_schedule")
+                        SearchManager.getBusServiceById(applicationContext, id) else null
+                    val stops = if (original != null && type == "edit_schedule")
+                        SearchManager.getEditorBusStops(applicationContext, id) else emptyList()
+                    ContributionPreview.build(applicationContext, suggestion, original, stops)
+                }
+                val text = SpannableStringBuilder()
+                lines.forEachIndexed { index, line ->
+                    if (index > 0) text.append('\n')
+                    val start = text.length
+                    text.append(when (line.change) {
+                        ContributionPreview.Change.ADDED -> "+ "
+                        ContributionPreview.Change.REMOVED -> "- "
+                        ContributionPreview.Change.UNCHANGED -> ""
+                    })
+                    val contentStart = text.length
+                    text.append(line.text)
+                    val color = when (line.change) {
+                        ContributionPreview.Change.ADDED -> R.color.preview_added
+                        ContributionPreview.Change.REMOVED -> R.color.preview_removed
+                        ContributionPreview.Change.UNCHANGED -> null
+                    }
+                    if (color != null) text.setSpan(ForegroundColorSpan(ContextCompat.getColor(
+                        this@ConfirmationActivity, color)), start, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    val fieldColor = when (line.field) {
+                        ContributionPreview.Field.BUS_NAME -> R.color.brand_primary
+                        ContributionPreview.Field.BUS_TYPE -> R.color.preview_bus_type
+                        ContributionPreview.Field.DETAIL -> null
+                    }
+                    if (fieldColor != null) {
+                        // Keep the +/- marker in its change colour.
+                        text.setSpan(ForegroundColorSpan(ContextCompat.getColor(
+                            this@ConfirmationActivity, fieldColor)), contentStart, text.length,
+                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    }
+                }
+                binding.textContributionPreview.text = text
+                binding.textContributionPreview.contentDescription = lines.joinToString("\n") {
+                    when (it.change) {
+                        ContributionPreview.Change.ADDED -> getString(R.string.preview_added, it.text)
+                        ContributionPreview.Change.REMOVED -> getString(R.string.preview_removed, it.text)
+                        ContributionPreview.Change.UNCHANGED -> it.text
+                    }
+                }
+                previewReady = true
+                binding.buttonApplySuggestion.isEnabled = currentUser != null
+            } catch (e: JSONException) {
+                showPreviewError(e)
+            } catch (e: SQLiteException) {
+                showPreviewError(e)
+            } catch (e: IllegalArgumentException) {
+                showPreviewError(e)
+            }
+        }
+    }
+
+    private fun showPreviewError(error: Exception) {
+        Log.e(TAG, "Failed to build contribution preview", error)
+        binding.textContributionPreview.setText(R.string.preview_failed)
+        binding.buttonApplySuggestion.isEnabled = false
+    }
+
+    private fun loadUserData(populateFields: Boolean) {
+        val fields = listOf(binding.editTextName, binding.editTextEmail, binding.editTextPhone, binding.editTextPlace)
+        fields.forEach { it.isEnabled = false }
         lifecycleScope.launch(Dispatchers.IO) {
             val user = UserDataManager.getUser(applicationContext)
             withContext(Dispatchers.Main) {
                 currentUser = user
-                populateUserData(user)
+                if (populateFields) populateUserData(user)
+                contactFieldsLoaded = true
+                fields.forEach { it.isEnabled = true }
+                binding.buttonApplySuggestion.isEnabled = previewReady
             }
         }
     }
@@ -84,6 +193,7 @@ class ConfirmationActivity : AppCompatActivity() {
     }
 
     private fun handleFinalSubmission() {
+        if (!previewReady) return
         val user = currentUser ?: return
         val json = suggestionJson ?: return
 
@@ -125,18 +235,16 @@ class ConfirmationActivity : AppCompatActivity() {
         }
 
         // 4. Create Final JSON
-        val finalPayloadJson = """
-            {
-              "submittedBy": {
-                "name": "$newName",
-                "email": "$newEmail",
-                "phone": "$newPhone",
-                "place": "$newPlace",
-                "uuid": "${user.uuid}"
-              },
-              "suggestion": $json
-            }
-        """.trimIndent()
+        val finalPayloadJson = JSONObject().apply {
+            put("submittedBy", JSONObject().apply {
+                put("name", newName)
+                put("email", newEmail)
+                put("phone", newPhone)
+                put("place", newPlace)
+                put("uuid", user.uuid)
+            })
+            put("suggestion", JSONObject(json))
+        }.toString()
 
         // --- Try Upload, Save on Failure ---
         uploadOrSave(finalPayloadJson)
@@ -187,6 +295,7 @@ class ConfirmationActivity : AppCompatActivity() {
         try {
             val root = JSONObject(jsonPayload)
             val suggestion = root.getJSONObject("suggestion")
+            if (suggestion.optString("type") !in listOf("new_schedule", "edit_schedule")) return
             val service = suggestion.getJSONObject("service")
             val busName = service.optString("name", "Unknown")
             val busType = service.optString("type", "")

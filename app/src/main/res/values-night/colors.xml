@@ -9,4 +9,7 @@
     <color name="action_green_variant">#388E3C</color>
     <color name="action_on_green">#102A16</color>
     <color name="service_slow">#FFD54F</color>
+    <color name="preview_added">#81C784</color>
+    <color name="preview_removed">#FF8A80</color>
+    <color name="preview_bus_type">#80CBC4</color>
 </resources>
