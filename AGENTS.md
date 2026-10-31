@@ -116,6 +116,20 @@ destination `stopOrder`. Its two `NOT EXISTS` clauses exclude pairs with another
 occurrence of either endpoint between them; preserve this repeated-stop behaviour.
 Results are ordered by source scheduled-time text. Name search uses a partial
 `LIKE` match, limits results to 20, and is debounced by 150 ms in the UI.
+From/To suggestions use separate adapters and start after one character, retaining
+Android's case-insensitive prefix/word-prefix matching. Focusing or tapping a
+populated stop field and finishing a data refresh reapply its current filter.
+Unchanged stop lists do not replace adapters. Bus-name suggestions display the
+SQLite substring matches directly, without a second ArrayAdapter prefix filter.
+Typing clears obsolete bus rows; cancelled/stale queries, cleared fields and
+focus loss cannot restore old results. Fresh matches explicitly open the focused
+dropdown. Selecting a bus suggestion does not trigger another search during
+autocomplete completion. Pausing dismisses suggestions and cancels bus queries;
+resuming refreshes focused inputs. Database lookup failures show explicit errors
+rather than looking like an ordinary no-match result. Swapping stops suppresses
+filtering so asynchronous callbacks do not reopen dropdowns.
+Autocomplete lookups require an installed timetable file and never create an
+empty SQLite database while first-run installation is still in progress.
 
 Route search also accepts a whole-field `*` in exactly one input. `A -> *` evaluates
 each distinct visit to A as an independent outbound leg. Start in `stopOrder` at

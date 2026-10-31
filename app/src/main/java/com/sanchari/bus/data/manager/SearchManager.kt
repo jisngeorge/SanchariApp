@@ -21,14 +21,14 @@ object SearchManager {
     private fun db(context: Context) =
         TimetableDatabaseHelper.getInstance(context).readableDatabase
 
-    private fun editorDb(context: Context): SQLiteDatabase {
+    private fun installedDb(context: Context): SQLiteDatabase {
         if (!context.getDatabasePath(DatabaseConstants.TIMETABLE_DATABASE_NAME).isFile) {
             throw SQLiteException("Timetable database has not been installed")
         }
         return db(context)
     }
 
-    fun getEditorStopOptions(context: Context): List<EditorStopOption> = getEditorStopOptions(editorDb(context))
+    fun getEditorStopOptions(context: Context): List<EditorStopOption> = getEditorStopOptions(installedDb(context))
 
     internal fun getEditorStopOptions(database: SQLiteDatabase): List<EditorStopOption> {
         val stop = DatabaseConstants.StopTable
@@ -50,7 +50,7 @@ object SearchManager {
         }
     }
 
-    fun getEditorBusTypes(context: Context): List<String> = getEditorBusTypes(editorDb(context))
+    fun getEditorBusTypes(context: Context): List<String> = getEditorBusTypes(installedDb(context))
 
     internal fun getEditorBusTypes(database: SQLiteDatabase): List<String> {
         val bus = DatabaseConstants.BusServiceTable
@@ -66,10 +66,10 @@ object SearchManager {
 
     // Editor callers distinguish unavailable data from a valid empty result.
     fun getEditorRouteResults(context: Context, from: String, to: String): List<RouteSearchResult> =
-        findFixedRouteResults(editorDb(context), from, to)
+        findFixedRouteResults(installedDb(context), from, to)
 
     fun getAnalysisRoutes(context: Context, endpointIds: List<Int>): List<MissingStopAnalysis.Route> =
-        getAnalysisRoutes(editorDb(context), endpointIds)
+        getAnalysisRoutes(installedDb(context), endpointIds)
 
     internal fun getAnalysisRoutes(database: SQLiteDatabase, endpointIds: List<Int>): List<MissingStopAnalysis.Route> {
         val bus = DatabaseConstants.BusServiceTable
@@ -385,7 +385,7 @@ object SearchManager {
      */
     fun searchBusServicesByName(context: Context, query: String): List<BusService> {
         val results = mutableListOf<BusService>()
-        val db = db(context)
+        val db = installedDb(context)
 
         val sql = """
             SELECT * FROM ${DatabaseConstants.BusServiceTable.TABLE_NAME}
@@ -417,6 +417,7 @@ object SearchManager {
             }
         } catch (e: SQLiteException) {
             Log.e(TAG, "Error searching buses by name", e)
+            throw e
         }
         return results
     }
@@ -435,7 +436,7 @@ object SearchManager {
 
     fun getEditorBusStops(context: Context, serviceId: String): List<BusStop> {
         val stops = mutableListOf<BusStop>()
-        val db = editorDb(context)
+        val db = installedDb(context)
 
         val query = """
             SELECT 
@@ -501,7 +502,7 @@ object SearchManager {
         cachedStopSuggestions?.let { return it }
 
         val suggestions = mutableListOf<String>()
-        val db = db(context)
+        val db = installedDb(context)
 
         val query = "SELECT DISTINCT ${DatabaseConstants.StopTable.COLUMN_LOCATION_NAME} " +
                 "FROM ${DatabaseConstants.StopTable.TABLE_NAME} " +

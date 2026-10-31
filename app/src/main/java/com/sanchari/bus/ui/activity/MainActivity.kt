@@ -90,8 +90,8 @@ class MainActivity : AppCompatActivity() {
             val toText = binding.toAutocomplete.text.toString()
 
             // Swap values
-            binding.fromAutocomplete.setText(toText)
-            binding.toAutocomplete.setText(fromText)
+            binding.fromAutocomplete.setText(toText, false)
+            binding.toAutocomplete.setText(fromText, false)
 
             // Prevent dropdowns from showing immediately after swap
             binding.fromAutocomplete.dismissDropDown()
@@ -299,7 +299,13 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        busSearchHandler.resumeSuggestions()
         refreshRecentSearches()
+    }
+
+    override fun onPause() {
+        busSearchHandler.pauseSuggestions()
+        super.onPause()
     }
 
     private fun refreshRecentSearches() {

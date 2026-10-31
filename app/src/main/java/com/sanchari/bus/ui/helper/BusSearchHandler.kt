@@ -2,11 +2,13 @@ package com.sanchari.bus.ui.helper
 
 import android.R
 import android.content.Intent
+import android.database.sqlite.SQLiteException
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.widget.ArrayAdapter
 import android.widget.ImageButton
+import android.widget.Filterable
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.addTextChangedListener
@@ -19,6 +21,7 @@ import com.sanchari.bus.data.model.BusService
 import com.sanchari.bus.databinding.ActivityMainBinding
 import com.sanchari.bus.ui.activity.BusDetailsActivity
 import com.sanchari.bus.ui.activity.SearchResultsActivity
+import com.sanchari.bus.ui.adapter.BusSearchSuggestionAdapter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -35,11 +38,19 @@ import java.util.Locale
  */
 class BusSearchHandler(
     private val activity: AppCompatActivity,
-    private val binding: ActivityMainBinding
+    private val binding: ActivityMainBinding,
+    private val busNameSearch: suspend (String) -> List<BusService> = { query ->
+        SearchManager.searchBusServicesByName(activity, query)
+    }
 ) {
     private var stopNames: Set<String>? = null
     private var stopNamesIgnoreCase: Map<String, String> = emptyMap()
     private var routeSearchJob: Job? = null
+    private var busNameSearchJob: Job? = null
+    private var busNameSearchGeneration = 0L
+    private var suggestionsActive = true
+    private var loadedStopSuggestions: List<String>? = null
+    private lateinit var busNameAdapter: BusSearchSuggestionAdapter
 
     companion object {
         private const val TAG = "BusSearchHandler"
@@ -93,16 +104,27 @@ class BusSearchHandler(
             if (binding.toInputLayout.error == wildcardError) binding.toInputLayout.error = null
         }
         field.setOnFocusChangeListener { _, hasFocus ->
-            if (!hasFocus) validateStop(field, layout, required = false)
+            if (hasFocus) {
+                refreshStopDropdown(field)
+            } else {
+                field.dismissDropDown()
+                validateStop(field, layout, required = false)
+            }
         }
+        field.setOnClickListener { refreshStopDropdown(field) }
     }
 
     /**
      * Loads stop suggestions into the autocomplete fields.
      */
     suspend fun loadStopSuggestions(): Boolean {
-        val suggestions = withContext(Dispatchers.IO) {
-            SearchManager.getStopSuggestions(activity)
+        val suggestions = try {
+            withContext(Dispatchers.IO) {
+                SearchManager.getStopSuggestions(activity)
+            }
+        } catch (e: SQLiteException) {
+            Log.e(TAG, "Failed to load stop suggestions", e)
+            emptyList()
         }
         withContext(Dispatchers.Main) {
             setStopSuggestions(suggestions)
@@ -117,14 +139,39 @@ class BusSearchHandler(
     internal fun setStopSuggestions(suggestions: List<String>) {
         stopNames = suggestions.toSet()
         stopNamesIgnoreCase = suggestions.associateBy { it.lowercase(Locale.ROOT) }
-        val adapter = ArrayAdapter(activity, R.layout.simple_dropdown_item_1line, suggestions)
-        binding.fromAutocomplete.setAdapter(adapter)
-        binding.toAutocomplete.setAdapter(adapter)
+        if (loadedStopSuggestions != suggestions) {
+            loadedStopSuggestions = suggestions.toList()
+            binding.fromAutocomplete.setAdapter(
+                ArrayAdapter(activity, R.layout.simple_dropdown_item_1line, suggestions)
+            )
+            binding.toAutocomplete.setAdapter(
+                ArrayAdapter(activity, R.layout.simple_dropdown_item_1line, suggestions)
+            )
+        }
+        refreshStopDropdown(binding.fromAutocomplete)
+        refreshStopDropdown(binding.toAutocomplete)
+        if (binding.busNameAutocomplete.hasFocus()) requestBusNameSuggestions()
         if (!binding.fromAutocomplete.hasFocus()) {
             validateStop(binding.fromAutocomplete, binding.fromInputLayout, required = false)
         }
         if (!binding.toAutocomplete.hasFocus()) {
             validateStop(binding.toAutocomplete, binding.toInputLayout, required = false)
+        }
+    }
+
+    private fun refreshStopDropdown(field: MaterialAutoCompleteTextView) {
+        val query = field.text.toString()
+        if (!suggestionsActive || !field.hasFocus() || query.trim().isEmpty() ||
+            query.trim() == "*" || !field.enoughToFilter()) {
+            field.dismissDropDown()
+            return
+        }
+        val filter = (field.adapter as? Filterable)?.filter ?: return
+        filter.filter(query) { count ->
+            if (suggestionsActive && field.hasFocus() && field.hasWindowFocus() &&
+                field.text.toString() == query) {
+                if (count > 0) field.showDropDown() else field.dismissDropDown()
+            }
         }
     }
 
@@ -162,41 +209,31 @@ class BusSearchHandler(
     }
 
     private fun setupBusNameSearch() {
-        val adapter = ArrayAdapter<BusSearchItem>(activity, R.layout.simple_dropdown_item_1line)
-        binding.busNameAutocomplete.setAdapter(adapter)
-
-        var searchJob: Job? = null
+        busNameAdapter = BusSearchSuggestionAdapter(activity)
+        binding.busNameAutocomplete.setAdapter(busNameAdapter)
 
         binding.busNameAutocomplete.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                val query = s.toString().trim()
-                // Cancel any previous in-flight search to avoid stale results
-                // and a flood of DB queries while the user is typing.
-                searchJob?.cancel()
-                if (query.isEmpty()) return
-
-                searchJob = activity.lifecycleScope.launch(Dispatchers.IO) {
-                    // Light debounce — collapse rapid keystrokes
-                    delay(150)
-                    val results = SearchManager.searchBusServicesByName(activity, query)
-                    val searchItems = results.map { BusSearchItem(it) }
-
-                    withContext(Dispatchers.Main) {
-                        adapter.clear()
-                        adapter.addAll(searchItems)
-                        adapter.notifyDataSetChanged()
-                    }
-                }
+                if (!binding.busNameAutocomplete.isPerformingCompletion) requestBusNameSuggestions()
             }
 
             override fun afterTextChanged(s: Editable?) {}
         })
 
+        binding.busNameAutocomplete.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) requestBusNameSuggestions() else clearBusNameSuggestions()
+        }
+        binding.busNameAutocomplete.setOnClickListener {
+            if (busNameAdapter.count > 0 && binding.busNameAutocomplete.enoughToFilter()) {
+                binding.busNameAutocomplete.showDropDown()
+            } else requestBusNameSuggestions()
+        }
         binding.busNameAutocomplete.setOnItemClickListener { parent, _, position, _ ->
             val item = parent.getItemAtPosition(position) as BusSearchItem
             val service = item.service
+            clearBusNameSuggestions()
 
             // Save to recent views
             activity.lifecycleScope.launch(Dispatchers.IO) {
@@ -208,8 +245,56 @@ class BusSearchHandler(
             activity.startActivity(intent)
 
             // Clear the search bar
-            binding.busNameAutocomplete.setText("")
+            binding.busNameAutocomplete.setText("", false)
         }
+    }
+
+    private fun clearBusNameSuggestions() {
+        busNameSearchGeneration++
+        busNameSearchJob?.cancel()
+        busNameSearchJob = null
+        busNameAdapter.replaceResults(emptyList())
+        binding.busNameAutocomplete.dismissDropDown()
+    }
+
+    private fun requestBusNameSuggestions() {
+        clearBusNameSuggestions()
+        binding.busNameInputLayout.error = null
+        val field = binding.busNameAutocomplete
+        val query = field.text.toString().trim()
+        if (!suggestionsActive || !field.hasFocus() || query.isEmpty() || !field.enoughToFilter()) return
+        val generation = busNameSearchGeneration
+        busNameSearchJob = activity.lifecycleScope.launch {
+            try {
+                delay(150)
+                val results = withContext(Dispatchers.IO) { busNameSearch(query) }
+                if (generation != busNameSearchGeneration || query != field.text.toString().trim() ||
+                    !suggestionsActive || !field.hasFocus()) return@launch
+                busNameAdapter.replaceResults(results.map { BusSearchItem(it) })
+                if (results.isNotEmpty() && field.hasWindowFocus()) field.showDropDown()
+                else field.dismissDropDown()
+            } catch (e: SQLiteException) {
+                Log.e(TAG, "Failed to load bus-name suggestions", e)
+                if (generation == busNameSearchGeneration && suggestionsActive && field.hasFocus()) {
+                    binding.busNameInputLayout.error =
+                        activity.getString(com.sanchari.bus.R.string.bus_name_search_unavailable)
+                }
+            }
+        }
+    }
+
+    fun pauseSuggestions() {
+        suggestionsActive = false
+        clearBusNameSuggestions()
+        binding.fromAutocomplete.dismissDropDown()
+        binding.toAutocomplete.dismissDropDown()
+    }
+
+    fun resumeSuggestions() {
+        suggestionsActive = true
+        refreshStopDropdown(binding.fromAutocomplete)
+        refreshStopDropdown(binding.toAutocomplete)
+        if (binding.busNameAutocomplete.hasFocus()) requestBusNameSuggestions()
     }
 
     private fun handleRouteSearch() {

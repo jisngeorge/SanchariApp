@@ -96,6 +96,32 @@ class EditorLookupTest {
     }
 
     @Test
+    fun autocompleteLookupsDoNotCreateAMissingTimetableDatabase() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val path = File(context.cacheDir, "autocomplete-missing-${UUID.randomUUID()}.db")
+        val missingDatabaseContext = object : ContextWrapper(context) {
+            override fun getDatabasePath(name: String): File = path
+        }
+        SearchManager.invalidateStopSuggestionsCache()
+        try {
+            for (lookup in listOf<() -> Any>(
+                { SearchManager.searchBusServicesByName(missingDatabaseContext, "Bus") },
+                { SearchManager.getStopSuggestions(missingDatabaseContext) }
+            )) {
+                try {
+                    lookup()
+                    fail("An uninstalled timetable must be reported explicitly")
+                } catch (expected: SQLiteException) {
+                    assertFalse(path.exists())
+                }
+            }
+        } finally {
+            SearchManager.invalidateStopSuggestionsCache()
+            if (path.exists()) path.delete()
+        }
+    }
+
+    @Test
     fun existingFixedRoutePairsSupplyDirectionalHaltAwareEstimateSamples() {
         listOf("A", "X", "B").forEachIndexed { index, name ->
             db.execSQL("INSERT INTO Stop VALUES (?, ?, 0, 0)", arrayOf(index + 1, name))
