@@ -68,8 +68,8 @@ class MainPageLayoutTest {
                             }
                         }
                         val actions = listOf(
-                            binding.fromWildcardButton, binding.fromClearButton,
-                            binding.toWildcardButton, binding.toClearButton, binding.buttonSwapLocations,
+                            binding.fromLocationButton, binding.fromWildcardButton, binding.fromClearButton,
+                            binding.toLocationButton, binding.toWildcardButton, binding.toClearButton, binding.buttonSwapLocations,
                             binding.searchButton, binding.buttonAddNewBus, binding.buttonDrafts,
                             binding.buttonCheckForUpdates, binding.buttonShareApp, binding.buttonMessageAdmin
                         )
@@ -104,21 +104,25 @@ class MainPageLayoutTest {
                         binding.fromInputLayout.error = context.getString(R.string.stop_name_not_found)
                         binding.toInputLayout.error = context.getString(R.string.stop_name_not_found)
                         layout()
-                        for ((field, wildcard, clear) in listOf(
-                            Triple(binding.fromAutocomplete, binding.fromWildcardButton, binding.fromClearButton),
-                            Triple(binding.toAutocomplete, binding.toWildcardButton, binding.toClearButton)
+                        for ((field, buttons) in listOf(
+                            binding.fromAutocomplete to listOf(binding.fromLocationButton,
+                                binding.fromWildcardButton, binding.fromClearButton),
+                            binding.toAutocomplete to listOf(binding.toLocationButton,
+                                binding.toWildcardButton, binding.toClearButton)
                         )) {
                             fun bounds(view: View): Rect = Rect().also {
                                 view.getDrawingRect(it)
                                 binding.root.offsetDescendantRectToMyCoords(view, it)
                             }
                             val input = bounds(field)
-                            val wildcardBounds = bounds(wildcard)
-                            val clearBounds = bounds(clear)
-                            assertTrue("Wildcard must stay inside its input", input.contains(wildcardBounds))
-                            assertTrue("Clear must stay inside its input", input.contains(clearBounds))
-                            assertTrue("Wildcard and clear targets must not overlap",
-                                wildcardBounds.right <= clearBounds.left)
+                            val targets = buttons.map(::bounds)
+                            for (target in targets) {
+                                assertTrue("Controls must sit below the full-width input", target.top >= input.bottom)
+                                assertTrue(target.left >= input.left && target.right <= input.right)
+                            }
+                            for ((left, right) in targets.zipWithNext()) {
+                                assertTrue("Stop controls must not overlap", left.right <= right.left)
+                            }
                         }
                         val scroll = binding.homeScrollView
                         scroll.scrollTo(0, scroll.getChildAt(0).height)

@@ -168,8 +168,9 @@ route-stop row IDs, preserving repeated visits even when their times are equal.
 `SearchManager.findRouteResults` returns these wrappers; `findBusServices` remains
 available for callers that only need the underlying services.
 
-The main From/To fields each show a wildcard button immediately before their clear
-button. It replaces only that field with `*` without opening autocomplete or
+The main From/To fields each have a full-width input and a separate row below it
+with location, wildcard and clear buttons, each with a 48dp touch target.
+The wildcard button replaces only that field with `*` without opening autocomplete or
 submitting a search; clear removes only that field. There is no wildcard help
 message below the search button. Both-wildcard validation still applies.
 Leaving a From/To field validates its full stop name against the loaded stop
@@ -272,6 +273,60 @@ empty message instead of blank section headings.
 database after each query. `SearchManager` also caches stop autocomplete values.
 When replacing the timetable file, reset the helper and invalidate this cache.
 Community reads use separate helper instances and close their database connections.
+
+## Location-assisted search and maps
+
+Each home location button offers current device location, manual `latitude, longitude`
+entry in a single copy/paste-friendly field,
+or showing that field's selected stop in Google Maps. The map option is disabled
+for blank/wildcard inputs and otherwise uses existing full-name validation.
+Nearby selection fills only the initiating field, without submitting a search or
+opening autocomplete.
+
+`StopLocationManager` reads fresh coordinate-valid `Stop` rows, without filtering
+by services or the opposite endpoint. Both lookup modes have an editable radius in
+kilometres, defaulting to 5km and accepting any finite positive distance whose
+metre conversion is finite, without a 25km cap. Include every stop within that
+inclusive radius, ordered by unrounded Android geographical distance, then name and stop ID.
+Distances are straight-line estimates, not road distances. Preserve duplicate
+physical stops and label ambiguous names with their IDs and coordinates.
+Stored null/text/malformed/out-of-range coordinates and `(0, 0)` placeholders are
+excluded; manually entered `(0, 0)` is valid. Decimal-degree inputs must be finite
+and within latitude +/-90 and longitude +/-180.
+
+`AndroidDeviceLocationSource` uses cancellable Android GPS/network listeners, not
+Google location APIs or SDKs. Fine/coarse permissions are requested together only
+on an explicit current-location action; approximate grants remain usable.
+Prefer satellite GPS, allowing 15 seconds before network fallback when available,
+with a 30-second total acquisition limit. Accept only fixes timestamped after the
+request started, never a silent old last-known location. Denied permissions,
+disabled/unavailable providers, lookup failures and empty results have explicit
+states with retry/settings or manual-entry alternatives. Location hardware is optional.
+Keep the Settings option for enabling device location: the Google Maps-style
+one-tap enable dialog requires Google Play services, which this app does not use.
+
+Acquisition and map work are foreground-only and cancelled on leaving the activity.
+An open popup remains available when switching apps (for example, to copy
+coordinates from Google Maps), with its input/radius intact on return. Backgrounding
+still cancels active work and never automatically restarts interrupted lookups.
+Device fixes are transient and never saved. Manual coordinate text can survive
+activity recreation in UI saved state, along with the radius, but lookup never
+restarts automatically. Changing either input clears/cancels outdated results.
+Radius adjustments can reuse the current fix within the same foreground popup;
+pausing/closing discards that fix.
+Do not write coordinates/location history to app preferences, files, databases,
+contribution payloads or logs. Nearby-selected stop IDs are map-disambiguation hints:
+they move with swapped fields, survive recreation with the matching name, and clear
+on incompatible edits/clear/wildcard actions. Route searches remain name-based.
+Re-read selected stops before applying them or opening a map; reject changed rows.
+
+Fixed A-to-B results have a Google Maps driving-directions toolbar action, hidden
+for wildcard searches. Explicitly supply both stored endpoint coordinates and
+`travelmode=driving`; this is not a particular bus service's route geometry.
+`StopMapActions` asks users to disambiguate typed duplicate names and never silently
+substitutes the first stop for an invalid remembered ID. `MapNavigationHelper`
+prefers the Google Maps app, falls back to the same coordinate URL in a browser,
+and reports when neither is available. No API key or map SDK is required.
 
 ## Timetable proposals and spreadsheet uploads
 
@@ -538,10 +593,12 @@ On Windows PowerShell:
 ```
 
 Choose the smallest relevant task; connected tests require an emulator/device.
-Existing tests are only template arithmetic and application-package checks, not
-coverage of timetable SQL, submissions, or updates. Add focused regression tests
-when changing those behaviours. Do not send real contributions to the production
-spreadsheet as part of automated or manual validation.
+Focused unit/device tests cover timetable SQL, editor logic, autocomplete, home
+layout, results controls, location picking and map intents. Add focused regression
+tests when changing these behaviours. Location tests use controlled permission/fix
+sources and intercept external map intents; manually check GPS/network acquisition
+and precise/approximate permission UI on relevant Android versions and hardware.
+Do not send real contributions to the production spreadsheet during validation.
 
 Useful device scenarios for related changes: first-run asset installation; offline
 route/name search; repeated stops and route ordering; proposal save/load/reorder;

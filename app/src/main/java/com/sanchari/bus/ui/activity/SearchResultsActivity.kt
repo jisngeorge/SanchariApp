@@ -25,6 +25,7 @@ import com.sanchari.bus.data.model.RouteSearchResult
 import com.sanchari.bus.databinding.ActivitySearchResultsBinding
 import com.sanchari.bus.databinding.DialogNearbySuggestionsBinding
 import com.sanchari.bus.ui.adapter.BusServiceAdapter
+import com.sanchari.bus.ui.helper.StopMapActions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -38,11 +39,14 @@ class SearchResultsActivity : AppCompatActivity() {
     private var searchMode = RouteSearchMode.FIXED_ROUTE
     private var selectedTypes: Set<String>? = null
     private var sortOrder = SortOrder.DEPARTURE_TIME
+    private lateinit var mapActions: StopMapActions
 
     companion object {
         const val EXTRA_ROUTE_RESULTS = "EXTRA_ROUTE_RESULTS"
         const val EXTRA_FROM_STOP = "EXTRA_FROM_STOP"
         const val EXTRA_TO_STOP = "EXTRA_TO_STOP"
+        const val EXTRA_FROM_STOP_ID = "EXTRA_FROM_STOP_ID"
+        const val EXTRA_TO_STOP_ID = "EXTRA_TO_STOP_ID"
         private const val STATE_SORT_ORDER = "sort_order"
         private const val STATE_SELECTED_TYPES = "selected_types"
     }
@@ -51,6 +55,7 @@ class SearchResultsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySearchResultsBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        mapActions = StopMapActions(this)
 
         val fromStop = intent.getStringExtra(EXTRA_FROM_STOP) ?: "Search"
         val toStop = intent.getStringExtra(EXTRA_TO_STOP) ?: "Results"
@@ -100,6 +105,8 @@ class SearchResultsActivity : AppCompatActivity() {
         binding.toolbar.inflateMenu(R.menu.menu_search_results)
         binding.toolbar.menu.findItem(R.id.action_suggest_nearby).isVisible =
             searchMode == RouteSearchMode.FIXED_ROUTE
+        binding.toolbar.menu.findItem(R.id.action_map_directions).isVisible =
+            searchMode == RouteSearchMode.FIXED_ROUTE
         binding.toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.action_sort_duration -> {
@@ -112,6 +119,15 @@ class SearchResultsActivity : AppCompatActivity() {
                 }
                 R.id.action_suggest_nearby -> {
                     showNearbySuggestions(fromStop, toStop)
+                    true
+                }
+                R.id.action_map_directions -> {
+                    Toast.makeText(this, R.string.location_driving_note, Toast.LENGTH_LONG).show()
+                    mapActions.showDirections(
+                        fromStop, toStop,
+                        intent.getIntExtra(EXTRA_FROM_STOP_ID, -1).takeIf { it >= 0 },
+                        intent.getIntExtra(EXTRA_TO_STOP_ID, -1).takeIf { it >= 0 }
+                    )
                     true
                 }
                 else -> false
@@ -229,6 +245,16 @@ class SearchResultsActivity : AppCompatActivity() {
         outState.putString(STATE_SORT_ORDER, sortOrder.name)
         selectedTypes?.let { outState.putStringArrayList(STATE_SELECTED_TYPES, ArrayList(it)) }
         super.onSaveInstanceState(outState)
+    }
+
+    override fun onPause() {
+        if (::mapActions.isInitialized) mapActions.cancel()
+        super.onPause()
+    }
+
+    override fun onDestroy() {
+        if (::mapActions.isInitialized) mapActions.cancel()
+        super.onDestroy()
     }
 
     private fun setupRecyclerView() {

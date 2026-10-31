@@ -10,6 +10,8 @@ import com.sanchari.bus.data.local.TimetableDatabaseHelper
 import com.sanchari.bus.data.model.BusService
 import com.sanchari.bus.data.model.BusStop
 import com.sanchari.bus.data.model.EditorStopOption
+import com.sanchari.bus.data.model.GeoPoint
+import com.sanchari.bus.data.model.StopLocation
 import com.sanchari.bus.data.model.RouteSearchMode
 import com.sanchari.bus.data.model.RouteSearchResult
 import java.util.Locale
@@ -26,6 +28,38 @@ object SearchManager {
             throw SQLiteException("Timetable database has not been installed")
         }
         return db(context)
+    }
+
+    private fun numericCoordinate(cursor: Cursor, index: Int): Double? = when (cursor.getType(index)) {
+        Cursor.FIELD_TYPE_INTEGER, Cursor.FIELD_TYPE_FLOAT -> cursor.getDouble(index)
+        else -> null
+    }
+
+    fun getStopLocations(context: Context): List<StopLocation> = getStopLocations(installedDb(context))
+
+    fun getStopLocationById(context: Context, id: Int): StopLocation? =
+        getStopLocations(installedDb(context), id).singleOrNull()
+
+    internal fun getStopLocations(database: SQLiteDatabase, id: Int? = null): List<StopLocation> {
+        val stop = DatabaseConstants.StopTable
+        val selection = if (id != null) " WHERE ${stop.COLUMN_STOP_ID} = ?" else ""
+        val result = mutableListOf<StopLocation>()
+        database.rawQuery(
+            "SELECT ${stop.COLUMN_STOP_ID}, ${stop.COLUMN_LOCATION_NAME}, " +
+                "${stop.COLUMN_LATITUDE}, ${stop.COLUMN_LONGITUDE} FROM ${stop.TABLE_NAME}$selection " +
+                "ORDER BY ${stop.COLUMN_LOCATION_NAME}, ${stop.COLUMN_STOP_ID}",
+            id?.let { arrayOf(it.toString()) }
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                val latitude = numericCoordinate(cursor, 2) ?: continue
+                val longitude = numericCoordinate(cursor, 3) ?: continue
+                if (latitude == 0.0 && longitude == 0.0) continue
+                val point = GeoPoint.fromValues(latitude, longitude) ?: continue
+                val name = cursor.getString(1)?.takeIf { it.isNotBlank() } ?: continue
+                result += StopLocation(cursor.getInt(0), name, point)
+            }
+        }
+        return result
     }
 
     fun getEditorStopOptions(context: Context): List<EditorStopOption> = getEditorStopOptions(installedDb(context))
@@ -92,10 +126,6 @@ object SearchManager {
                 )
                 ORDER BY bs.${bus.COLUMN_SERVICE_ID}, rs.${route.COLUMN_STOP_ORDER}, rs.${route.COLUMN_ROUTE_STOP_ID}
             """.trimIndent(), batch.map(Int::toString).toTypedArray()).use { cursor ->
-                fun coordinate(index: Int): Double? = when (cursor.getType(index)) {
-                    Cursor.FIELD_TYPE_INTEGER, Cursor.FIELD_TYPE_FLOAT -> cursor.getDouble(index)
-                    else -> null
-                }
                 var id: String? = null
                 var type = ""
                 var rows = mutableListOf<MissingStopAnalysis.Stop>()
@@ -111,7 +141,7 @@ object SearchManager {
                         rows = mutableListOf()
                     }
                     rows += MissingStopAnalysis.Stop(cursor.getInt(2), cursor.getString(3),
-                        coordinate(4), coordinate(5))
+                        numericCoordinate(cursor, 4), numericCoordinate(cursor, 5))
                 }
                 finishRoute()
             }

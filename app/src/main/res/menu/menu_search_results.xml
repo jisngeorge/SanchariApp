@@ -14,6 +14,12 @@
         app:iconTint="@android:color/white"
         app:showAsAction="always" />
     <item
+        android:id="@+id/action_map_directions"
+        android:icon="@drawable/ic_map_directions"
+        android:title="@string/location_driving_directions"
+        app:iconTint="@android:color/white"
+        app:showAsAction="always" />
+    <item
         android:id="@+id/action_suggest_nearby"
         android:icon="@drawable/ic_suggestion"
         android:title="@string/title_alternative_routes"

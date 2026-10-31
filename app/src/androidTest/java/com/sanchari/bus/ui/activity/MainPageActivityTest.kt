@@ -9,6 +9,15 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
+import androidx.test.espresso.Espresso.onData
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.action.ViewActions.click
+import androidx.test.espresso.action.ViewActions.closeSoftKeyboard
+import androidx.test.espresso.action.ViewActions.replaceText
+import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.RootMatchers.isDialog
+import androidx.test.espresso.matcher.ViewMatchers.withId
+import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.sanchari.bus.R
@@ -20,6 +29,7 @@ import com.sanchari.bus.data.manager.UserDataManager
 import com.sanchari.bus.data.model.RecentSearch
 import com.sanchari.bus.databinding.ActivityMainBinding
 import kotlinx.coroutines.runBlocking
+import org.hamcrest.Matchers.anything
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -75,10 +85,26 @@ class MainPageActivityTest {
                     it.recentSearchesRecyclerView.visibility == View.VISIBLE &&
                         it.recentSearchesRecyclerView.adapter?.itemCount == 1
                 }
+                scenario.onActivity { activity ->
+                    ActivityMainBinding.bind(activity.findViewById<View>(R.id.homeScrollView).parent as View)
+                        .fromLocationButton.performClick()
+                }
+                onData(anything()).inRoot(isDialog()).atPosition(1).perform(click())
+                onView(withId(R.id.coordinatesInput)).inRoot(isDialog())
+                    .perform(replaceText("12.25, 77.5"), closeSoftKeyboard())
+                onView(withId(R.id.radiusInput)).inRoot(isDialog())
+                    .perform(replaceText("12.5"), closeSoftKeyboard())
+                scenario.moveToState(Lifecycle.State.CREATED)
+                scenario.moveToState(Lifecycle.State.RESUMED)
+                onView(withId(R.id.coordinatesInput)).inRoot(isDialog()).check(matches(withText("12.25, 77.5")))
+                onView(withId(R.id.radiusInput)).inRoot(isDialog()).check(matches(withText("12.5")))
                 scenario.recreate()
                 await(scenario) {
                     it.recentSearchesRecyclerView.adapter?.itemCount == 1
                 }
+                onView(withId(R.id.coordinatesInput)).inRoot(isDialog()).check(matches(withText("12.25, 77.5")))
+                onView(withId(R.id.radiusInput)).inRoot(isDialog()).check(matches(withText("12.5")))
+                onView(withId(android.R.id.button2)).inRoot(isDialog()).perform(click())
                 scenario.moveToState(Lifecycle.State.CREATED)
                 replaceRecentViews(emptyList())
                 scenario.moveToState(Lifecycle.State.RESUMED)

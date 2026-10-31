@@ -41,7 +41,8 @@ class BusSearchHandler(
     private val binding: ActivityMainBinding,
     private val busNameSearch: suspend (String) -> List<BusService> = { query ->
         SearchManager.searchBusServicesByName(activity, query)
-    }
+    },
+    private val addSearchMetadata: (Intent, String, String) -> Unit = { _, _, _ -> }
 ) {
     private var stopNames: Set<String>? = null
     private var stopNamesIgnoreCase: Map<String, String> = emptyMap()
@@ -208,6 +209,17 @@ class BusSearchHandler(
         return if (from != null && to != null) Pair(from, to) else null
     }
 
+    fun validateMapStop(from: Boolean): String? {
+        val field = if (from) binding.fromAutocomplete else binding.toAutocomplete
+        val layout = if (from) binding.fromInputLayout else binding.toInputLayout
+        if (stopNames.isNullOrEmpty()) {
+            Toast.makeText(activity, com.sanchari.bus.R.string.stop_names_unavailable, Toast.LENGTH_LONG).show()
+            return null
+        }
+        val name = validateStop(field, layout, required = true)
+        return name?.takeUnless { it == "*" }
+    }
+
     private fun setupBusNameSearch() {
         busNameAdapter = BusSearchSuggestionAdapter(activity)
         binding.busNameAutocomplete.setAdapter(busNameAdapter)
@@ -328,6 +340,7 @@ class BusSearchHandler(
                         putParcelableArrayListExtra(SearchResultsActivity.EXTRA_ROUTE_RESULTS, ArrayList(results))
                         putExtra(SearchResultsActivity.EXTRA_FROM_STOP, canonicalFrom)
                         putExtra(SearchResultsActivity.EXTRA_TO_STOP, canonicalTo)
+                        addSearchMetadata(this, canonicalFrom, canonicalTo)
                     }
                     activity.startActivity(intent)
                 }

@@ -15,6 +15,7 @@ import com.google.android.material.color.MaterialColors
 import com.sanchari.bus.databinding.ActivityMainBinding
 import com.sanchari.bus.ui.helper.AppUpdateManager
 import com.sanchari.bus.ui.helper.BusSearchHandler
+import com.sanchari.bus.ui.helper.StopLocationHandler
 import com.sanchari.bus.data.local.DatabaseManager
 import com.sanchari.bus.data.local.LocalVersionManager
 import com.sanchari.bus.ui.adapter.RecentSearchAdapter
@@ -44,6 +45,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var appUpdateManager: AppUpdateManager
     private lateinit var uploadManager: UploadManager
     private lateinit var busSearchHandler: BusSearchHandler
+    private lateinit var stopLocationHandler: StopLocationHandler
     private lateinit var mainSubmissionHandler: MainSubmissionHandler
 
     // Temp variables to hold initial DB versions
@@ -62,11 +64,15 @@ class MainActivity : AppCompatActivity() {
         // Initialize Managers
         appUpdateManager = AppUpdateManager(this)
         uploadManager = UploadManager(this)
-        busSearchHandler = BusSearchHandler(this, binding)
+        busSearchHandler = BusSearchHandler(this, binding, addSearchMetadata = { intent, from, to ->
+            stopLocationHandler.addSearchMetadata(intent, from, to)
+        })
         mainSubmissionHandler = MainSubmissionHandler(this)
 
         // --- Setup UI ---
         busSearchHandler.setup() // Sets up search bars and buttons
+        stopLocationHandler = StopLocationHandler(this, binding, busSearchHandler::validateMapStop)
+        stopLocationHandler.setup(savedInstanceState)
 
         // --- NEW: Check persisted update state immediately ---
         if (LocalVersionManager.isUpdateAvailable(this)) {
@@ -86,16 +92,7 @@ class MainActivity : AppCompatActivity() {
         // ----------------------------------------
 
         binding.buttonSwapLocations.setOnClickListener {
-            val fromText = binding.fromAutocomplete.text.toString()
-            val toText = binding.toAutocomplete.text.toString()
-
-            // Swap values
-            binding.fromAutocomplete.setText(toText, false)
-            binding.toAutocomplete.setText(fromText, false)
-
-            // Prevent dropdowns from showing immediately after swap
-            binding.fromAutocomplete.dismissDropDown()
-            binding.toAutocomplete.dismissDropDown()
+            stopLocationHandler.swapFields()
         }
 
         // --- ADDED NEW CLICK LISTENER ---
@@ -300,12 +297,29 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         busSearchHandler.resumeSuggestions()
+        stopLocationHandler.onResume()
         refreshRecentSearches()
     }
 
     override fun onPause() {
+        stopLocationHandler.onPause()
         busSearchHandler.pauseSuggestions()
         super.onPause()
+    }
+
+    override fun onStop() {
+        stopLocationHandler.onStop(isChangingConfigurations)
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        stopLocationHandler.destroy()
+        super.onDestroy()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        stopLocationHandler.saveState(outState)
     }
 
     private fun refreshRecentSearches() {

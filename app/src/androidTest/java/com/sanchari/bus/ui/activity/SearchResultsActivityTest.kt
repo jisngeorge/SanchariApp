@@ -87,8 +87,9 @@ class SearchResultsActivityTest {
             onView(withId(R.id.action_sort_duration)).check(matches(isDisplayed()))
             onView(withId(R.id.action_filter_bus_type)).check(matches(isDisplayed()))
             onView(withId(R.id.action_suggest_nearby)).check(matches(isDisplayed()))
+            onView(withId(R.id.action_map_directions)).check(matches(isDisplayed()))
             scenario.onActivity { activity ->
-                assertEquals(3, activity.findViewById<MaterialToolbar>(R.id.toolbar).menu.size())
+                assertEquals(4, activity.findViewById<MaterialToolbar>(R.id.toolbar).menu.size())
                 assertTrue(activity.findViewById<View>(R.id.searchResultsRecyclerView).height > 0)
             }
             assertSummary(scenario, 4, "1h 00m")

@@ -185,7 +185,7 @@ class StopInputValidationTest {
     }
 
     @Test
-    fun errorMessagesDoNotPushStopButtonsBelowTheirInputFields() {
+    fun errorMessagesKeepStopButtonsInTheirSeparateRowBelowTheInput() {
         launch().use { scenario ->
             scenario.onActivity {
                 binding.fromAutocomplete.setText("Unknown", false)
@@ -202,8 +202,9 @@ class StopInputValidationTest {
                     val buttonPosition = IntArray(2)
                     field.getLocationOnScreen(fieldPosition)
                     button.getLocationOnScreen(buttonPosition)
-                    assertTrue(buttonPosition[1] >= fieldPosition[1])
-                    assertTrue(buttonPosition[1] + button.height <= fieldPosition[1] + field.height)
+                    assertTrue(buttonPosition[1] >= fieldPosition[1] + field.height)
+                    assertTrue(buttonPosition[0] >= fieldPosition[0])
+                    assertTrue(buttonPosition[0] + button.width <= fieldPosition[0] + field.width)
                 }
             }
         }

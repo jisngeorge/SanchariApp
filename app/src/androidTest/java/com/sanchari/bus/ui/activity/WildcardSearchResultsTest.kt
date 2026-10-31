@@ -262,7 +262,7 @@ class WildcardSearchResultsTest {
                     val buttonPosition = IntArray(2)
                     field.getLocationOnScreen(fieldPosition)
                     button.getLocationOnScreen(buttonPosition)
-                    assertTrue(fieldPosition[0] + field.width - field.compoundPaddingRight <= buttonPosition[0])
+                    assertTrue(fieldPosition[1] + field.height <= buttonPosition[1])
                 }
                 assertFalse(activity.isFinishing)
             }

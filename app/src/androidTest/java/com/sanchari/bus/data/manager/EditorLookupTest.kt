@@ -69,6 +69,27 @@ class EditorLookupTest {
     }
 
     @Test
+    fun coordinateLookupRetainsDuplicateIdsAndExcludesInvalidOrPlaceholderPoints() {
+        db.execSQL("DROP TABLE Stop")
+        db.execSQL(DatabaseConstants.StopTable.CREATE_TABLE.replace("REAL NOT NULL", "REAL"))
+        val rows = listOf(
+            arrayOf<Any?>(1, "Same", 10.0, 76.0),
+            arrayOf<Any?>(2, "Same", 10.1, 76.1),
+            arrayOf<Any?>(3, "Null", null, 76.0),
+            arrayOf<Any?>(4, "Placeholder", 0.0, 0.0),
+            arrayOf<Any?>(5, "Malformed", "unknown", 76.0),
+            arrayOf<Any?>(6, "Outside", 91.0, 76.0),
+            arrayOf<Any?>(7, "Boundary", -90.0, 180.0)
+        )
+        rows.forEach { db.execSQL("INSERT INTO Stop VALUES (?, ?, ?, ?)", it) }
+        assertEquals(setOf(1, 2, 7), SearchManager.getStopLocations(db).map { it.stopId }.toSet())
+        assertEquals(2, SearchManager.getStopLocations(db).count { it.name == "Same" })
+        assertEquals(2, SearchManager.getStopLocations(db, 2).single().stopId)
+        assertTrue(SearchManager.getStopLocations(db, 4).isEmpty())
+        assertTrue(db.isOpen)
+    }
+
+    @Test
     fun typeLookupSkipsBlanksAndUsesExistingCaseInsensitiveKeys() {
         listOf("Express", " express ", "LOCAL", "", " ").forEachIndexed { index, type ->
             db.execSQL("INSERT INTO BusService VALUES (?, ?, ?, 1, 0)", arrayOf("$index", "Test", type))
