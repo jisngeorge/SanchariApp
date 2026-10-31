@@ -356,7 +356,8 @@ class SuggestEditHandler(
 
         picker.addOnPositiveButtonClickListener {
             val formattedTime = String.format(Locale.ROOT, "%02d:%02d", picker.hour, picker.minute)
-            adapter.updateTime(position, formattedTime)
+            val newPosition = adapter.updateTime(position, formattedTime)
+            binding.recyclerViewStopsEditor.smoothScrollToPosition(newPosition)
         }
         picker.show(activity.supportFragmentManager, "TimePicker")
     }

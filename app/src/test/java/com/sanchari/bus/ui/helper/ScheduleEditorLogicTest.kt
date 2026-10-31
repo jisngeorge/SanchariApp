@@ -8,6 +8,87 @@ import org.junit.Test
 
 class ScheduleEditorLogicTest {
     @Test
+    fun selectingTimeMovesNewStopsBetweenExistingTimesAndKeepsTheirIdentity() {
+        val stops = route("A" to "08:00", "B" to "09:00", "C" to "")
+        stops[2] = stops[2].copy(originalStopId = -1)
+        val edited = stops[2]
+        assertEquals(1, ScheduleEditorLogic.updateTimeAndSort(stops, 2, "08:30"))
+        assertEquals(listOf("A", "C", "B"), stops.map { it.stopName })
+        assertSame(edited, stops[1])
+        assertEquals(-1, stops[1].originalStopId)
+        assertEquals("08:30", stops[1].scheduledTime)
+    }
+
+    @Test
+    fun editingExistingTimesMovesRowsEarlierAndLater() {
+        val stops = route("A" to "08:00", "B" to "09:00", "C" to "10:00")
+        assertEquals(2, ScheduleEditorLogic.updateTimeAndSort(stops, 1, "11:00"))
+        assertEquals(listOf("A", "C", "B"), stops.map { it.stopName })
+        assertEquals(0, ScheduleEditorLogic.updateTimeAndSort(stops, 2, "07:00"))
+        assertEquals(listOf("B", "A", "C"), stops.map { it.stopName })
+    }
+
+    @Test
+    fun sortingPreservesMidnightCrossingAndInsertsWithinTheNextDay() {
+        val stops = route("A" to "23:00", "B" to "00:30", "C" to "01:00", "D" to "")
+        assertEquals(1, ScheduleEditorLogic.updateTimeAndSort(stops, 3, "00:10"))
+        assertEquals(listOf("A", "D", "B", "C"), stops.map { it.stopName })
+        assertEquals(listOf("23:00", "00:10", "00:30", "01:00"), stops.map { it.scheduledTime })
+    }
+
+    @Test
+    fun sortingChoosesNearestDayForEarlyStartsAndMidnightArrivals() {
+        val late = route("A" to "22:00", "B" to "23:00", "C" to "")
+        assertEquals(2, ScheduleEditorLogic.updateTimeAndSort(late, 2, "00:15"))
+        assertEquals(listOf("A", "B", "C"), late.map { it.stopName })
+        val morning = route("A" to "08:00", "B" to "09:00", "C" to "")
+        assertEquals(0, ScheduleEditorLogic.updateTimeAndSort(morning, 2, "07:30"))
+        assertEquals(listOf("C", "A", "B"), morning.map { it.stopName })
+    }
+
+    @Test
+    fun equalTimesAreStableAndTheEditedDuplicateHasItsOwnPosition() {
+        val stops = route("A" to "08:00", "B" to "09:00", "A" to "")
+        stops[2] = stops[0].copy(scheduledTime = "")
+        val edited = stops[2]
+        assertEquals(1, ScheduleEditorLogic.updateTimeAndSort(stops, 2, "08:00"))
+        assertSame(edited, stops[1])
+        assertNotSame(edited, stops[0])
+        assertEquals(listOf("A", "A", "B"), stops.map { it.stopName })
+    }
+
+    @Test
+    fun unfilledAndInvalidRowsSortLastWithoutInventingTimes() {
+        val stops = route("Blank" to "", "A" to "08:00", "Invalid" to "--:--", "B" to "")
+        assertEquals(1, ScheduleEditorLogic.updateTimeAndSort(stops, 3, "09:00"))
+        assertEquals(listOf("A", "B", "Blank", "Invalid"), stops.map { it.stopName })
+        assertEquals(listOf("08:00", "09:00", "", "--:--"), stops.map { it.scheduledTime })
+    }
+
+    @Test
+    fun missingReferenceOrInvalidEditedTimesLeaveOrderUnchanged() {
+        val stops = route("A" to "", "B" to "")
+        assertEquals(1, ScheduleEditorLogic.updateTimeAndSort(stops, 1, "09:00"))
+        assertEquals(listOf("A", "B"), stops.map { it.stopName })
+        assertEquals(1, ScheduleEditorLogic.updateTimeAndSort(stops, 1, "9:00 AM"))
+        assertEquals(listOf("A", "B"), stops.map { it.stopName })
+        val single = route("A" to "")
+        assertEquals(0, ScheduleEditorLogic.updateTimeAndSort(single, 0, "08:00"))
+    }
+
+    @Test
+    fun manualMovesRemainUntilAnotherTimeEditAndOtherActionsDoNotSort() {
+        val stops = route("A" to "08:00", "B" to "09:00", "C" to "")
+        ScheduleEditorLogic.updateTimeAndSort(stops, 2, "08:30")
+        java.util.Collections.swap(stops, 0, 1)
+        ScheduleEditorLogic.missingTimePositions(stops)
+        ScheduleEditorLogic.excessiveTimeIntervalPositions(stops)
+        assertEquals(listOf("C", "A", "B"), stops.map { it.stopName })
+        assertEquals(1, ScheduleEditorLogic.updateTimeAndSort(stops, 0, "08:45"))
+        assertEquals(listOf("A", "C", "B"), stops.map { it.stopName })
+    }
+
+    @Test
     fun adjacentIntervalsAllowExactlyEightHoursButRejectOneMinuteMore() {
         assertTrue(ScheduleEditorLogic.excessiveTimeIntervalPositions(
             route("A" to "08:00", "B" to "16:00")

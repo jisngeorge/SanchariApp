@@ -6,8 +6,45 @@ import com.sanchari.bus.data.model.EditableStop
 import com.sanchari.bus.data.model.RouteSearchStatistics
 import java.util.Locale
 import kotlin.math.roundToInt
+import kotlin.math.abs
 
 object ScheduleEditorLogic {
+    fun updateTimeAndSort(stops: MutableList<EditableStop>, position: Int, time: String): Int {
+        require(position in stops.indices)
+        val updatedStop = stops[position]
+        updatedStop.scheduledTime = time
+        val minutes = RouteSearchStatistics.parseMinutes(time) ?: return position
+        val timeline = IntArray(stops.size) { Int.MAX_VALUE }
+        var previousMinutes: Int? = null
+        var dayOffset = 0
+        var first = Int.MAX_VALUE
+        var last = Int.MIN_VALUE
+        for (index in stops.indices) {
+            if (index == position) continue
+            val existingMinutes = RouteSearchStatistics.parseMinutes(stops[index].scheduledTime) ?: continue
+            if (previousMinutes != null && existingMinutes < previousMinutes) dayOffset += 1440
+            val value = existingMinutes + dayOffset
+            timeline[index] = value
+            first = minOf(first, value)
+            last = maxOf(last, value)
+            previousMinutes = existingMinutes
+        }
+        if (first == Int.MAX_VALUE) return position
+
+        // Match the edited clock time to the existing route's day or next day.
+        val nextDay = minutes + 1440
+        timeline[position] = when {
+            minutes in first..last -> minutes
+            nextDay in first..last -> nextDay
+            abs(nextDay - last) < abs(minutes - first) -> nextDay
+            else -> minutes
+        }
+        val ordered = stops.indices.sortedBy { timeline[it] }.map { stops[it] }
+        stops.clear()
+        stops.addAll(ordered)
+        return stops.indexOfFirst { it === updatedStop }
+    }
+
     fun missingTimePositions(stops: List<EditableStop>): List<Int> =
         stops.indices.filter { RouteSearchStatistics.parseMinutes(stops[it].scheduledTime) == null }
 

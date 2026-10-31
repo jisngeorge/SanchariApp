@@ -496,7 +496,8 @@ class SuggestEditActivity : AppCompatActivity() {
                         if (current.isBlank()) R.string.editor_use_time else R.string.editor_replace_time
                     ) { _, _ ->
                         if (revision == editorRevision && editableStops == snapshot) {
-                            adapter.updateTime(position, time)
+                            val newPosition = adapter.updateTime(position, time)
+                            binding.recyclerViewStopsEditor.smoothScrollToPosition(newPosition)
                         } else Toast.makeText(this@SuggestEditActivity, R.string.editor_route_changed, Toast.LENGTH_LONG).show()
                     }
                     .show()

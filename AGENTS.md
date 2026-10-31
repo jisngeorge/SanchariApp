@@ -290,8 +290,14 @@ visible suggestion controls.
 
 `Reverse and append` copies any named contiguous section in reverse, retaining
 stop identities and halt rows but leaving copied times blank. Reversing A-B-C-D
-appends D-C-B-A, including the duplicated turnaround. Time edits never reorder
-the route; only explicit up/down actions change the sequence.
+appends D-C-B-A, including the duplicated turnaround. Selecting a time or accepting
+a suggested time restores stable time-based ordering and highlights/scrolls to
+the edited row. Existing route order supplies midnight rollover; the edited clock
+time is placed on the closest fitting day or next day. Missing/invalid times sort
+last when other timed rows provide a reference; editing an invalid time or the
+only timed row does not reorder. Equal-time rows retain their relative order and
+identities. Manual up/down controls still move rows without automatically sorting
+again; subsequent time edits rerun automatic ordering.
 
 Each Apply / Proceed tap checks for possible missing stops before confirmation,
 for both new and edited schedules; there is no separate analysis button.

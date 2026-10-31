@@ -16,6 +16,7 @@ import com.sanchari.bus.data.model.EditorStopOption
 import com.sanchari.bus.data.model.RouteSearchStatistics
 import com.sanchari.bus.databinding.ItemEditStopBinding
 import com.sanchari.bus.ui.helper.TimetableTimeFormatter
+import com.sanchari.bus.ui.helper.ScheduleEditorLogic
 import java.util.Collections
 import java.util.Locale
 
@@ -34,7 +35,6 @@ class StopEditAdapter(
     var validationRequested = false
         private set
     private object OptionsChanged
-    private object TimeChanged
     private object ValidationChanged
 
     private fun requiredError(stop: EditableStop): Int? = when {
@@ -135,10 +135,7 @@ class StopEditAdapter(
             onBindViewHolder(holder, position)
         } else {
             if (OptionsChanged in payloads) holder.refreshOptions(stops[position])
-            if (TimeChanged in payloads) {
-                holder.binding.editTextScheduledTime.setText(TimetableTimeFormatter.format(stops[position].scheduledTime))
-            }
-            if (TimeChanged in payloads || ValidationChanged in payloads) {
+            if (ValidationChanged in payloads) {
                 holder.showHighlight(position == highlightedPosition)
             }
         }
@@ -272,13 +269,11 @@ class StopEditAdapter(
 
     fun updateTime(position: Int, time: String): Int {
         if (position !in stops.indices) return position
-        val previous = highlightedPosition
-        stops[position].scheduledTime = time
-        highlightedPosition = position
+        val newPosition = ScheduleEditorLogic.updateTimeAndSort(stops, position, time)
+        highlightedPosition = newPosition
         onRouteChanged()
-        if (previous in stops.indices && previous != position) notifyItemChanged(previous, TimeChanged)
-        notifyItemChanged(position, TimeChanged)
-        return position
+        notifyDataSetChanged()
+        return newPosition
     }
 
     fun appendCopies(copies: List<EditableStop>) {
