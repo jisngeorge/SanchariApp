@@ -8,6 +8,51 @@ import org.junit.Test
 
 class ScheduleEditorLogicTest {
     @Test
+    fun adjacentIntervalsAllowExactlyEightHoursButRejectOneMinuteMore() {
+        assertTrue(ScheduleEditorLogic.excessiveTimeIntervalPositions(
+            route("A" to "08:00", "B" to "16:00")
+        ).isEmpty())
+        assertEquals(listOf(1), ScheduleEditorLogic.excessiveTimeIntervalPositions(
+            route("A" to "08:00", "B" to "16:01")
+        ))
+    }
+
+    @Test
+    fun adjacentIntervalsUseMidnightRolloverAndCatchAmPmMistakesInBothDirections() {
+        assertTrue(ScheduleEditorLogic.excessiveTimeIntervalPositions(
+            route("A" to "23:50", "B" to "00:10", "C" to "08:10")
+        ).isEmpty())
+        assertEquals(listOf(1), ScheduleEditorLogic.excessiveTimeIntervalPositions(
+            route("A" to "23:50", "B" to "07:51")
+        ))
+        assertEquals(listOf(1, 2), ScheduleEditorLogic.excessiveTimeIntervalPositions(
+            route("A" to "08:00", "B" to "20:15", "C" to "08:30")
+        ))
+    }
+
+    @Test
+    fun adjacentChecksIncludeExistingNewAndHaltRowsWithoutCheckingTotalJourney() {
+        val stops = route("A" to "00:00", "A" to "08:01", "B" to "09:00", "C" to "17:01")
+        stops[2] = stops[2].copy(originalStopId = -1)
+        assertEquals(listOf(1, 3), ScheduleEditorLogic.excessiveTimeIntervalPositions(stops))
+        stops[1].scheduledTime = "08:00"
+        stops[3].scheduledTime = "17:00"
+        assertTrue(ScheduleEditorLogic.excessiveTimeIntervalPositions(stops).isEmpty())
+    }
+
+    @Test
+    fun intervalChecksLeaveMissingInvalidAndEqualTimesToRequiredFieldValidation() {
+        assertTrue(ScheduleEditorLogic.excessiveTimeIntervalPositions(
+            route("A" to "08:00", "B" to "08:00", "C" to "", "D" to "24:00", "E" to "09:00")
+        ).isEmpty())
+        assertEquals(listOf(2, 3), ScheduleEditorLogic.missingTimePositions(
+            route("A" to "08:00", "B" to "08:00", "C" to "", "D" to "24:00", "E" to "09:00")
+        ))
+        assertTrue(ScheduleEditorLogic.excessiveTimeIntervalPositions(emptyList()).isEmpty())
+        assertTrue(ScheduleEditorLogic.excessiveTimeIntervalPositions(route("A" to "09:00")).isEmpty())
+    }
+
+    @Test
     fun everyRowRequiresAValidTimeIncludingHaltsAndUnknownPlaceholders() {
         val stops = route("A" to "00:00", "A" to "00:00", "B" to "23:59",
             "C" to "", "D" to " ", "E" to "--:--", "F" to "24:00",

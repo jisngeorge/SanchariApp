@@ -296,7 +296,17 @@ the route; only explicit up/down actions change the sequence.
 Each Apply / Proceed tap checks for possible missing stops before confirmation,
 for both new and edited schedules; there is no separate analysis button.
 Required stop names and valid `HH:mm` times are checked first, before querying
-for missing stops. Invalid stop cards have theme-aware red outlines and accessible
+for missing stops. Immediately after these required-field checks, each Apply /
+Proceed tap shows a warning popup if any adjacent row interval exceeds eight
+hours, including existing, newly added and same-place halt rows. Exactly eight
+hours produces no warning; earlier clock times use next-day rollover. The warning
+identifies the first affected pair by stop order, name and AM/PM time. Continue
+accepts the warning and starts normal missing-stop analysis; Go back returns to
+the affected stop for editing. Dismissing or recreating the popup never continues
+automatically. Required fields and the reviewed stop snapshot are rechecked on
+Continue. The warning is not repeated during asynchronous draft saving. Long
+intervals remain allowed in submissions and drafts.
+Invalid stop cards have theme-aware red outlines and accessible
 error states; missing times show a brief warning, never an automatic dialog or
 picker. Corrected rows clear their red outlines, and validation state survives
 editor recreation but is not saved in drafts. It
@@ -408,6 +418,10 @@ Uploads do not update local timetable or community snapshots immediately.
   are allowed; untouched empty new editors do not create files. Repeated saves
   retain the filename and service ID. Only explicit confirmed Discard deletes
   work; cancellation and ordinary navigation preserve it.
+- Successful saves show the same `Draft Saved` toast for Save Draft, Back,
+  toolbar exit, backgrounding, history and confirmation navigation. Unchanged
+  background snapshots are not rewritten or announced; empty new editors and
+  failed saves never show a save-success toast.
 - Draft writes are atomic and queued with deletions on an application-owned
   coroutine scope, so leaving/recreating the editor does not cancel persistence
   or let a late save recreate a discarded/submitted draft. Unchanged snapshots

@@ -217,4 +217,8 @@
     <string name="editor_times_required">Enter a time for each highlighted stop before continuing.</string>
     <string name="editor_stop_name_required">Stop name required</string>
     <string name="editor_stop_time_required">Stop time required</string>
+    <string name="editor_check_stop_times">Check stop times</string>
+    <string name="editor_interval_too_long">The interval between these adjacent stops exceeds 8 hours:\n\nStop %1$d: %2$s (%3$s)\nStop %4$d: %5$s (%6$s)\n\nCheck the times and AM/PM selection. Continue if these times are correct, or go back to edit them.</string>
+    <string name="editor_go_back">Go back</string>
+    <string name="editor_draft_saved">Draft Saved</string>
 </resources>

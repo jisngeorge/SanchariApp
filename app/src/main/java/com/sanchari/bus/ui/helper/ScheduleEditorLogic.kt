@@ -11,6 +11,14 @@ object ScheduleEditorLogic {
     fun missingTimePositions(stops: List<EditableStop>): List<Int> =
         stops.indices.filter { RouteSearchStatistics.parseMinutes(stops[it].scheduledTime) == null }
 
+    fun excessiveTimeIntervalPositions(stops: List<EditableStop>): List<Int> =
+        (1 until stops.size).filter { position ->
+            val minutes = RouteSearchStatistics.journeyMinutes(
+                stops[position - 1].scheduledTime, stops[position].scheduledTime
+            )
+            minutes != null && minutes > 8 * 60
+        }
+
     enum class EstimateSource { CURRENT_ROUTE, BUS_TYPE, ALL_TYPES }
 
     data class TimeEstimate(

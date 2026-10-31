@@ -509,6 +509,7 @@ class SuggestEditActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         routeAnalysis.close()
+        if (::handler.isInitialized) handler.dismissTimeWarning()
         estimateDialog?.dismiss()
         reverseDialog?.dismiss()
         super.onDestroy()

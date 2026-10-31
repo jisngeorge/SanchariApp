@@ -44,6 +44,8 @@ class SuggestEditHandler(
     private var pendingSave: Deferred<String>? = null
     private var pendingContent: String? = null
     private var transitionInProgress = false
+    private var autoSaveNotification: Deferred<String>? = null
+    private var timeWarningDialog: AlertDialog? = null
 
     fun showInstructionsDialog() {
         AlertDialog.Builder(activity)
@@ -54,7 +56,7 @@ class SuggestEditHandler(
     }
 
     fun showEditHistory() {
-        runAfterSaving { showSavedHistory() }
+        runAfterSaving(notifySaved = true) { showSavedHistory() }
     }
 
     private fun showSavedHistory() {
@@ -174,21 +176,31 @@ class SuggestEditHandler(
     }
 
     fun saveDraft() {
-        runAfterSaving(force = true) {
-            Toast.makeText(activity,
-                if ((activity as SuggestEditActivity).currentDraftFileName == null) "Nothing to save" else "Draft Saved",
-                Toast.LENGTH_SHORT).show()
+        runAfterSaving(force = true, notifySaved = true) {
+            if ((activity as SuggestEditActivity).currentDraftFileName == null) {
+                Toast.makeText(activity, "Nothing to save", Toast.LENGTH_SHORT).show()
+            }
             activity.finish()
         }
     }
 
     fun saveDraftAndExit() {
-        runAfterSaving { activity.finish() }
+        runAfterSaving(notifySaved = true) { activity.finish() }
     }
 
     fun autoSaveDraft() {
-        if (isDiscarded) return
+        if (isDiscarded || transitionInProgress) return
         val save = persistDraft() ?: return
+        if (autoSaveNotification !== save) {
+            autoSaveNotification = save
+            save.invokeOnCompletion { error ->
+                if (error == null) {
+                    activity.runOnUiThread {
+                        if (!isDiscarded && !transitionInProgress) showDraftSaved()
+                    }
+                }
+            }
+        }
         val requestedFile = (activity as SuggestEditActivity).currentDraftFileName
         activity.lifecycleScope.launch {
             try {
@@ -262,7 +274,12 @@ class SuggestEditHandler(
         }
     }
 
-    private fun runAfterSaving(force: Boolean = false, forSubmission: Boolean = false, action: () -> Unit) {
+    private fun runAfterSaving(
+        force: Boolean = false,
+        forSubmission: Boolean = false,
+        notifySaved: Boolean = false,
+        action: () -> Unit
+    ) {
         if (transitionInProgress || isDiscarded) return
         if (!(activity as SuggestEditActivity).prepareEditorForAction(forDraft = true)) return
         transitionInProgress = true
@@ -276,7 +293,10 @@ class SuggestEditHandler(
                     val requestedFile = (activity as SuggestEditActivity).currentDraftFileName
                     recordSavedFile(save.await(), requestedFile)
                 }
-                if (!isDiscarded) action()
+                if (!isDiscarded) {
+                    if (notifySaved && activity.currentDraftFileName != null) showDraftSaved()
+                    action()
+                }
             } catch (e: IOException) {
                 showSaveError()
             } catch (e: JSONException) {
@@ -289,6 +309,10 @@ class SuggestEditHandler(
 
     private fun showSaveError() {
         Toast.makeText(activity, R.string.editor_draft_save_failed, Toast.LENGTH_LONG).show()
+    }
+
+    private fun showDraftSaved() {
+        Toast.makeText(activity.applicationContext, R.string.editor_draft_saved, Toast.LENGTH_SHORT).show()
     }
 
     fun discardDraft() {
@@ -338,13 +362,50 @@ class SuggestEditHandler(
     }
 
     fun applyChanges() {
-        if (transitionInProgress || isDiscarded ||
+        if (transitionInProgress || isDiscarded || timeWarningDialog != null ||
             !validateSubmission(requireAnalysis = false)) return
+        val snapshot = adapter.getStopsData().map { it.copy() }
+        val excessiveInterval = ScheduleEditorLogic.excessiveTimeIntervalPositions(snapshot).firstOrNull()
+        if (excessiveInterval != null) {
+            val from = snapshot[excessiveInterval - 1]
+            val to = snapshot[excessiveInterval]
+            val dialog = AlertDialog.Builder(activity)
+                .setTitle(R.string.editor_check_stop_times)
+                .setMessage(activity.getString(
+                    R.string.editor_interval_too_long,
+                    excessiveInterval, from.stopName, TimetableTimeFormatter.format(from.scheduledTime),
+                    excessiveInterval + 1, to.stopName, TimetableTimeFormatter.format(to.scheduledTime)
+                ))
+                .setPositiveButton(R.string.analysis_finish) { _, _ ->
+                    if (!isDiscarded && validateSubmission(requireAnalysis = false)) {
+                        if (adapter.getStopsData() == snapshot) {
+                            (activity as SuggestEditActivity).analyseRoute { proceedToConfirmation() }
+                        } else {
+                            Toast.makeText(activity, R.string.editor_route_changed, Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+                .setNegativeButton(R.string.editor_go_back) { _, _ ->
+                    binding.recyclerViewStopsEditor.smoothScrollToPosition(excessiveInterval)
+                }
+                .create()
+            timeWarningDialog = dialog
+            dialog.setOnDismissListener {
+                if (timeWarningDialog === dialog) timeWarningDialog = null
+            }
+            dialog.show()
+            return
+        }
         (activity as SuggestEditActivity).analyseRoute { proceedToConfirmation() }
     }
 
+    fun dismissTimeWarning() {
+        timeWarningDialog?.dismiss()
+        timeWarningDialog = null
+    }
+
     private fun proceedToConfirmation() {
-        runAfterSaving(forSubmission = true) {
+        runAfterSaving(forSubmission = true, notifySaved = true) {
             val suggestActivity = activity as SuggestEditActivity
             val json = buildJsonPayload(
                 suggestActivity.getOriginalService(), binding.editTextServiceName.text.toString().trim(),
