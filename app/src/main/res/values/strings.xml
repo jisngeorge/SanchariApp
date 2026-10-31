@@ -1,4 +1,19 @@
 <resources>
+    <string name="analysis_reviewing">Checking for possible missing stops…</string>
+    <string name="analysis_route_changed">The route has changed. Tap Apply / Proceed to check it again.</string>
+    <string name="analysis_need_stops">Enter the stop names before analysing the route.</string>
+    <string name="analysis_failed">Could not check for missing stops. Tap Apply / Proceed to retry.</string>
+    <string name="analysis_title">Stop suggestions</string>
+    <string name="analysis_intro">You may have missed some stops in the route. These suggestions may or may not be correct. Accept the stops you want to add, or reject them.</string>
+    <string name="analysis_gap">%1$d. Between %2$s (stop %3$d) [%4$s] and %5$s (stop %6$d) [%7$s]</string>
+    <string name="analysis_accept">Accept</string>
+    <string name="analysis_reject">Reject</string>
+    <string name="analysis_route_option">Route option %1$d</string>
+    <string name="analysis_route_choice">Choose a route option for gap %1$d</string>
+    <string name="analysis_choice_description">Gap %1$d, stop %2$d (%3$s): %4$s</string>
+    <string name="analysis_guidance">If you are unsure about a stop, reject it. If you do not know its time, choose Add and edit times, then use the bulb beside the added stop to suggest a time.</string>
+    <string name="analysis_edit_times">Add and edit times</string>
+    <string name="analysis_finish">Continue</string>
     <string name="app_name">Sanchari</string>
     <string name="home_drafts">Drafts &amp; submissions</string>
     <string name="desc_swap_locations">Swap Locations</string>
@@ -198,5 +213,8 @@
     <string name="editor_replace_time">Replace time</string>
     <string name="editor_quick_tips">Quick tips</string>
     <string name="editor_got_it">Got it</string>
-    <string name="editor_instructions">Add important stops in travel order. Choose suggested stops and bus types, or enter new ones.\n\nUse arrows to reorder. For a halt, add the same stop twice: arrival, then departure.\n\nReverse and append copies a return section with blank times. The bulb offers an optional time estimate.\n\nAdd running days or other details in Notes, then review and proceed.</string>
+    <string name="editor_instructions">\u2022 Add only important bus stops, route junctions and terminal stops.\n\n\u2022 For a halting stop, add the arrival time and departure time with the same stop name.\n\n\u2022 Check if the bus service is already present in the app before adding a new service. If it is already there, you can edit its details.\n\n\u2022 You can add notes if there is anything to convey about the bus service you edited.</string>
+    <string name="editor_times_required">Enter a time for each highlighted stop before continuing.</string>
+    <string name="editor_stop_name_required">Stop name required</string>
+    <string name="editor_stop_time_required">Stop time required</string>
 </resources>

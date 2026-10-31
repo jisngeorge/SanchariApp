@@ -25,7 +25,15 @@ object DraftManager {
     private val persistenceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val persistenceMutex = Mutex()
 
-    fun newDraftFileName(): String = "draft_${UUID.randomUUID()}.json"
+    fun newDraftFileName(serviceId: String? = null): String =
+        "draft_${serviceId?.takeIf { it.isNotBlank() }?.let {
+            UUID.nameUUIDFromBytes(it.toByteArray(Charsets.UTF_8))
+        } ?: UUID.randomUUID()}.json"
+
+    fun getDraftForService(context: Context, serviceId: String): SavedDraft? =
+        getDrafts(context).firstOrNull {
+            JSONObject(it.jsonPayload).getJSONObject("service").optString("serviceId") == serviceId
+        }
 
     // Queue on the calling thread so lifecycle saves and deletions retain their order.
     // The application-owned scope lets a bounded write finish after its activity exits.
@@ -65,19 +73,22 @@ object DraftManager {
     }
 
     /**
-     * Saves the JSON payload to internal storage. Uses a UUID to ensure
-     * edits to the bus name or type do not affect the draft's unique identity.
+     * Saves one draft per service ID; name/type changes retain the draft identity.
      */
     @Synchronized
     fun saveDraft(context: Context, jsonPayload: String, existingFileName: String? = null): String {
         val dir = context.getDir(DRAFTS_DIR, Context.MODE_PRIVATE)
 
-        // Fallback to UUID if this is a brand new draft
-        val fileName = existingFileName ?: newDraftFileName()
+        if (existingFileName != null && (existingFileName.contains('/') || existingFileName.contains('\\'))) {
+            throw IOException("Invalid draft filename")
+        }
+        val root = JSONObject(jsonPayload)
+        val serviceId = root.getJSONObject("service").optString("serviceId")
+        val existingDraft = serviceId.takeIf { it.isNotBlank() }?.let { getDraftForService(context, it) }
+        val fileName = existingDraft?.fileName ?: existingFileName ?: newDraftFileName(serviceId)
         val file = File(dir, fileName)
 
         // Inject the draftId directly into the JSON root to act as a permanent unique identifier
-        val root = JSONObject(jsonPayload)
         val draftId = fileName.removeSuffix(".json")
         root.put("draftId", draftId)
 

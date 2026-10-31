@@ -30,6 +30,8 @@ import com.sanchari.bus.ui.adapter.StopEditAdapter
 import com.sanchari.bus.ui.helper.SuggestEditHandler
 import com.sanchari.bus.ui.helper.ScheduleEditorLogic
 import com.sanchari.bus.ui.helper.TimetableTimeFormatter
+import com.sanchari.bus.ui.helper.RouteAnalysisController
+import com.sanchari.bus.ui.helper.DraftManager
 import com.sanchari.bus.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -48,6 +50,7 @@ class SuggestEditActivity : AppCompatActivity() {
     var currentDraftFileName: String? = null
 
     private lateinit var handler: SuggestEditHandler
+    private lateinit var routeAnalysis: RouteAnalysisController
     private var editorRevision = 0L
     private var estimateJob: Job? = null
     private var estimateDialog: AlertDialog? = null
@@ -69,6 +72,7 @@ class SuggestEditActivity : AppCompatActivity() {
         private const val KEY_INITIAL_LOADING = "KEY_INITIAL_LOADING"
         private const val KEY_SAVED_DRAFT_CONTENT = "KEY_SAVED_DRAFT_CONTENT"
         private const val KEY_DRAFT_DISCARDED = "KEY_DRAFT_DISCARDED"
+        private const val KEY_STOP_VALIDATION = "KEY_STOP_VALIDATION"
 
         fun newIntentForEdit(context: Context, service: BusService): Intent {
             return Intent(context, SuggestEditActivity::class.java).apply {
@@ -85,6 +89,11 @@ class SuggestEditActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySuggestEditBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        routeAnalysis = RouteAnalysisController(this, binding,
+            prepare = { prepareEditorForAction() },
+            stops = { editableStops },
+            serviceId = { originalService?.serviceId },
+            replace = { adapter.replaceStops(it) })
         listOf(binding.serviceDetailsHeading, binding.routeStopsHeading, binding.notesHeading).forEach {
             ViewCompat.setAccessibilityHeading(it, true)
         }
@@ -94,11 +103,7 @@ class SuggestEditActivity : AppCompatActivity() {
         // Initialize Handler
         handler = SuggestEditHandler(this, binding, adapter, editableStops)
 
-        if (savedInstanceState == null) {
-            if (intent.getStringExtra(EXTRA_LOAD_DRAFT_FILE) == null) {
-                handler.showInstructionsDialog()
-            }
-        } else {
+        if (savedInstanceState != null) {
             Log.i(TAG, "Restoring state from savedInstanceState")
             restoreFromSavedState(savedInstanceState)
         }
@@ -149,6 +154,7 @@ class SuggestEditActivity : AppCompatActivity() {
     fun getOriginalService(): BusService? = originalService
     fun setOriginalService(service: BusService?) {
         originalService = service
+        routeAnalysis.onInputsChanged()
         binding.toolbar.setTitle(
             if (service != null && !service.serviceId.startsWith("NEW-")) R.string.editor_edit_title
             else R.string.editor_new_title
@@ -167,6 +173,7 @@ class SuggestEditActivity : AppCompatActivity() {
         outState.putBoolean(KEY_INITIAL_LOADING, initialLoading)
         outState.putString(KEY_SAVED_DRAFT_CONTENT, handler.lastSavedContent)
         outState.putBoolean(KEY_DRAFT_DISCARDED, handler.isDiscarded)
+        outState.putBoolean(KEY_STOP_VALIDATION, adapter.validationRequested)
     }
 
     private fun restoreFromSavedState(savedInstanceState: Bundle) {
@@ -199,6 +206,7 @@ class SuggestEditActivity : AppCompatActivity() {
             }
         )
         currentDraftFileName = savedInstanceState.getString(KEY_DRAFT_FILE)
+        if (savedInstanceState.getBoolean(KEY_STOP_VALIDATION)) adapter.validateRequiredFields()
         handler.lastSavedContent = savedInstanceState.getString(KEY_SAVED_DRAFT_CONTENT)
         if (savedInstanceState.getBoolean(KEY_DRAFT_DISCARDED)) {
             handler.discardAndExit()
@@ -229,10 +237,11 @@ class SuggestEditActivity : AppCompatActivity() {
             binding.toolbar.title = "Suggest an Edit"
             binding.editTextServiceName.setText(originalService!!.name)
             binding.editTextServiceType.setText(originalService!!.type, false)
-            preFillData(originalService!!)
+            preFillData(originalService!!, showTips = true)
         } else {
             binding.toolbar.title = "Add New Bus Service"
             addNewStop()
+            handler.showInstructionsDialog()
         }
     }
 
@@ -259,10 +268,18 @@ class SuggestEditActivity : AppCompatActivity() {
         binding.recyclerViewStopsEditor.adapter = adapter
     }
 
-    private fun preFillData(service: BusService) {
+    private fun preFillData(service: BusService, showTips: Boolean = false) {
         setInitialLoading(true)
         lifecycleScope.launch {
             try {
+                val draft = withContext(Dispatchers.IO) {
+                    DraftManager.getDraftForService(applicationContext, service.serviceId)
+                }
+                if (draft != null) {
+                    handler.loadDraftIntoUI(draft)
+                    setInitialLoading(false)
+                    return@launch
+                }
                 val stops = withContext(Dispatchers.IO) {
                     SearchManager.getEditorBusStops(applicationContext, service.serviceId)
                 }
@@ -270,11 +287,12 @@ class SuggestEditActivity : AppCompatActivity() {
                 editableStops.addAll(stops.map(EditableStop::fromBusStop))
                 adapter.routeReplaced()
                 setInitialLoading(false)
+                if (showTips) handler.showInstructionsDialog()
             } catch (e: SQLiteException) {
                 Log.e(TAG, "Failed to load editable route", e)
                 AlertDialog.Builder(this@SuggestEditActivity)
                     .setMessage(R.string.editor_route_load_failed)
-                    .setPositiveButton(R.string.editor_retry) { _, _ -> preFillData(service) }
+                    .setPositiveButton(R.string.editor_retry) { _, _ -> preFillData(service, showTips) }
                     .setNegativeButton(android.R.string.cancel) { _, _ -> finish() }
                     .setCancelable(false)
                     .show()
@@ -296,10 +314,17 @@ class SuggestEditActivity : AppCompatActivity() {
 
     private fun setInitialLoading(loading: Boolean) {
         initialLoading = loading
-        listOf(binding.buttonAddStop, binding.buttonReverseStops, binding.buttonApplyChanges,
+        listOf(binding.buttonAddStop, binding.buttonReverseStops,
             binding.buttonSaveDraft, binding.btnHistory, binding.editTextServiceName,
             binding.editTextServiceType, binding.editTextEditNotes).forEach { it.isEnabled = !loading }
+        routeAnalysis.setLoading(loading)
     }
+
+    fun resetRouteAnalysis() = routeAnalysis.reset()
+
+    fun hasReviewedRoute(): Boolean = routeAnalysis.canProceed(showError = true)
+
+    fun analyseRoute(onComplete: () -> Unit) = routeAnalysis.analyse(onComplete)
 
     fun prepareEditorForAction(forDraft: Boolean = false): Boolean {
         if (initialLoading) {
@@ -344,6 +369,7 @@ class SuggestEditActivity : AppCompatActivity() {
 
     private fun invalidateEstimate() {
         editorRevision++
+        routeAnalysis.onInputsChanged()
         estimateJob?.cancel()
         estimateDialog?.dismiss()
         estimateDialog = null
@@ -482,6 +508,7 @@ class SuggestEditActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        routeAnalysis.close()
         estimateDialog?.dismiss()
         reverseDialog?.dismiss()
         super.onDestroy()
@@ -490,5 +517,10 @@ class SuggestEditActivity : AppCompatActivity() {
     override fun onPause() {
         if (::handler.isInitialized && !initialLoading) handler.autoSaveDraft()
         super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        routeAnalysis.onInputsChanged()
     }
 }

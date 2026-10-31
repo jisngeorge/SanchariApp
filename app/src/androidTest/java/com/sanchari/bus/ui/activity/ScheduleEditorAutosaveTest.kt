@@ -15,8 +15,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.sanchari.bus.R
 import com.sanchari.bus.data.local.DatabaseManager
+import com.sanchari.bus.data.model.BusService
 import com.sanchari.bus.databinding.ActivitySuggestEditBinding
 import com.sanchari.bus.ui.helper.DraftManager
+import com.sanchari.bus.ui.adapter.StopEditAdapter
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
@@ -47,6 +49,38 @@ class ScheduleEditorAutosaveTest {
         flushWrites()
         DraftManager.getDrafts(context).filter { it.fileName !in initialFiles }
             .forEach { DraftManager.deleteDraft(context, it.fileName) }
+    }
+
+    @Test
+    fun editingAnInstalledServiceResumesItsDraftAndUpdatesTheSameFile() {
+        val file = fixture("Draft bus")
+        val original = BusService("autosave-existing", "Published bus", "Published type", true, 0L, "", "")
+        repeat(2) { revision ->
+            ActivityScenario.launch<SuggestEditActivity>(
+                SuggestEditActivity.newIntentForEdit(context, original)
+            ).use { scenario ->
+                await {
+                    var ready = false
+                    scenario.onActivity { ready = it.currentDraftFileName == file &&
+                        binding(it).buttonApplyChanges.isEnabled }
+                    ready
+                }
+                onView(withText(R.string.editor_quick_tips))
+                    .check(androidx.test.espresso.assertion.ViewAssertions.doesNotExist())
+                scenario.onActivity {
+                    assertEquals(if (revision == 0) "Draft bus" else "Renamed draft", binding(it).editTextServiceName.text.toString())
+                    assertEquals(2, binding(it).recyclerViewStopsEditor.adapter!!.itemCount)
+                    binding(it).editTextServiceName.setText("Renamed draft")
+                    binding(it).editTextEditNotes.setText("Revision $revision")
+                    it.onBackPressedDispatcher.onBackPressed()
+                }
+                awaitExit(scenario)
+            }
+            assertEquals("Revision $revision", draft(file).getString("editNotes"))
+            assertEquals(1, DraftManager.getDrafts(context).count {
+                JSONObject(it.jsonPayload).getJSONObject("service").getString("serviceId") == original.serviceId
+            })
+        }
     }
 
     @Test
@@ -143,7 +177,7 @@ class ScheduleEditorAutosaveTest {
     @Test
     fun switchingHistoryDraftsPersistsEachEditorsLatestChangesSeparately() {
         val first = fixture("First")
-        val second = fixture("Second")
+        val second = fixture("Second", serviceId = "autosave-second")
         launch(first).use { scenario ->
             scenario.onActivity {
                 binding(it).editTextEditNotes.setText("First latest change")
@@ -216,6 +250,62 @@ class ScheduleEditorAutosaveTest {
     }
 
     @Test
+    fun clearingATimeDuringTheSubmissionSaveBlocksConfirmation() {
+        val file = fixture("Time revalidation")
+        val monitor = Instrumentation.ActivityMonitor(ConfirmationActivity::class.java.name, null, true)
+        instrumentation.addMonitor(monitor)
+        try {
+            launch(file).use { scenario ->
+                val locked = CountDownLatch(1)
+                val release = CountDownLatch(1)
+                val blocker = Thread {
+                    synchronized(DraftManager) {
+                        locked.countDown()
+                        release.await(15, TimeUnit.SECONDS)
+                    }
+                }
+                blocker.start()
+                try {
+                    assertTrue(locked.await(5, TimeUnit.SECONDS))
+                    scenario.onActivity {
+                        binding(it).editTextEditNotes.setText("Force a changed snapshot")
+                        binding(it).buttonApplyChanges.performClick()
+                        assertFalse(binding(it).buttonApplyChanges.isEnabled)
+                    }
+                    await {
+                        var complete = false
+                        scenario.onActivity { complete = binding(it).buttonApplyChanges.isEnabled }
+                        complete
+                    }
+                    scenario.onActivity {
+                        (binding(it).recyclerViewStopsEditor.adapter as StopEditAdapter).updateTime(1, "")
+                    }
+                } finally {
+                    release.countDown()
+                    blocker.join(5_000)
+                }
+                await {
+                    var outlined = false
+                    scenario.onActivity {
+                        val row = binding(it).recyclerViewStopsEditor.findViewHolderForAdapterPosition(1)!!
+                            .itemView as com.google.android.material.card.MaterialCardView
+                        outlined = row.strokeWidth > 0 && row.strokeColor ==
+                            com.google.android.material.color.MaterialColors.getColor(row,
+                                androidx.appcompat.R.attr.colorError)
+                    }
+                    outlined
+                }
+                assertEquals(0, monitor.hits)
+                scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+                awaitExit(scenario)
+            }
+            assertEquals("", draft(file).getJSONArray("stops").getJSONObject(1).getString("scheduledTime"))
+        } finally {
+            instrumentation.removeMonitor(monitor)
+        }
+    }
+
+    @Test
     fun changesMadeDuringAPendingSaveAreRevalidatedBeforeConfirmation() {
         val file = fixture("Pending confirmation")
         val monitor = Instrumentation.ActivityMonitor(ConfirmationActivity::class.java.name, null, true)
@@ -282,9 +372,9 @@ class ScheduleEditorAutosaveTest {
         }
     }
 
-    private fun fixture(name: String): String = DraftManager.saveDraft(context, JSONObject().apply {
+    private fun fixture(name: String, serviceId: String = "autosave-existing"): String = DraftManager.saveDraft(context, JSONObject().apply {
         put("type", "edit_schedule")
-        put("service", JSONObject().put("serviceId", "autosave-existing").put("name", name)
+        put("service", JSONObject().put("serviceId", serviceId).put("name", name)
             .put("type", "AUTOSAVE TEST TYPE").put("isRunning", false).put("lastReportedTime", 123L))
         put("stops", JSONArray()
             .put(JSONObject().put("stopId", 301).put("locationName", "Start").put("scheduledTime", "23:30").put("stopOrder", 1))

@@ -7,11 +7,13 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import androidx.appcompat.widget.TooltipCompat
+import androidx.core.view.ViewCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.color.MaterialColors
 import com.sanchari.bus.R
 import com.sanchari.bus.data.model.EditableStop
 import com.sanchari.bus.data.model.EditorStopOption
+import com.sanchari.bus.data.model.RouteSearchStatistics
 import com.sanchari.bus.databinding.ItemEditStopBinding
 import com.sanchari.bus.ui.helper.TimetableTimeFormatter
 import java.util.Collections
@@ -29,8 +31,28 @@ class StopEditAdapter(
     private var optionsByName = emptyMap<String, List<EditorStopOption>>()
     private val associatedNames = mutableMapOf<Int, String>()
     private var lookupFailed = false
+    var validationRequested = false
+        private set
     private object OptionsChanged
     private object TimeChanged
+    private object ValidationChanged
+
+    private fun requiredError(stop: EditableStop): Int? = when {
+        stop.stopName.isBlank() -> R.string.editor_stop_name_required
+        RouteSearchStatistics.parseMinutes(stop.scheduledTime) == null -> R.string.editor_stop_time_required
+        else -> null
+    }
+
+    fun validateRequiredFields(): Boolean {
+        validationRequested = true
+        notifyItemRangeChanged(0, itemCount, ValidationChanged)
+        return stops.isNotEmpty() && stops.none { requiredError(it) != null }
+    }
+
+    fun clearValidation() {
+        validationRequested = false
+        notifyItemRangeChanged(0, itemCount, ValidationChanged)
+    }
 
     private fun nameKey(name: String) = name.trim().uppercase(Locale.ROOT)
 
@@ -96,8 +118,8 @@ class StopEditAdapter(
             if (index != RecyclerView.NO_POSITION) {
                 if (highlightedPosition == index) highlightedPosition = RecyclerView.NO_POSITION
                 else if (highlightedPosition > index) highlightedPosition--
-                onRouteChanged()
                 onRemoveClicked(index)
+                onRouteChanged()
             }
         }
         holder.binding.editTextScheduledTime.setOnClickListener {
@@ -115,6 +137,8 @@ class StopEditAdapter(
             if (OptionsChanged in payloads) holder.refreshOptions(stops[position])
             if (TimeChanged in payloads) {
                 holder.binding.editTextScheduledTime.setText(TimetableTimeFormatter.format(stops[position].scheduledTime))
+            }
+            if (TimeChanged in payloads || ValidationChanged in payloads) {
                 holder.showHighlight(position == highlightedPosition)
             }
         }
@@ -138,8 +162,12 @@ class StopEditAdapter(
         }
 
         fun showHighlight(highlighted: Boolean) {
-            binding.root.strokeColor = MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorPrimary)
-            binding.root.strokeWidth = if (highlighted) (2 * binding.root.resources.displayMetrics.density).toInt() else 0
+            val error = if (validationRequested) stops.getOrNull(bindingAdapterPosition)?.let(::requiredError) else null
+            binding.root.strokeColor = MaterialColors.getColor(binding.root,
+                if (error != null) androidx.appcompat.R.attr.colorError else androidx.appcompat.R.attr.colorPrimary)
+            binding.root.strokeWidth = if (error != null || highlighted)
+                (2 * binding.root.resources.displayMetrics.density).toInt() else 0
+            ViewCompat.setStateDescription(binding.root, error?.let(binding.root.context::getString))
         }
 
         fun bind(stop: EditableStop, position: Int) {
@@ -187,6 +215,7 @@ class StopEditAdapter(
         }
 
         private fun showNameFeedback(stop: EditableStop) {
+            showHighlight(bindingAdapterPosition == highlightedPosition)
             binding.stopNameLayout.error = null
             val unchanged = stop.originalStopId != -1 &&
                 nameKey(associatedNames[stop.originalStopId].orEmpty()) == nameKey(stop.stopName)
@@ -223,6 +252,12 @@ class StopEditAdapter(
     }
 
     fun getStopsData(): List<EditableStop> = stops
+
+    fun replaceStops(rows: List<EditableStop>) {
+        stops.clear()
+        stops.addAll(rows)
+        routeReplaced()
+    }
 
     private fun moveItem(position: Int, direction: Int) {
         if (position == RecyclerView.NO_POSITION || position + direction !in stops.indices) return

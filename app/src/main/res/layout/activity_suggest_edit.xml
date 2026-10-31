@@ -189,6 +189,15 @@
 
             </LinearLayout>
 
+            <TextView
+                android:id="@+id/textRouteAnalysisStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:accessibilityLiveRegion="polite"
+                android:visibility="gone"
+                android:textAppearance="?attr/textAppearanceBodySmall" />
+
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonApplyChanges"
                 style="@style/Widget.Sanchari.Button.PrimaryAction"

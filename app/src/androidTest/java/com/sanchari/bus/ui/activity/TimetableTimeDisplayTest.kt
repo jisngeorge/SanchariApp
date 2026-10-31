@@ -135,6 +135,8 @@ class TimetableTimeDisplayTest {
                     val adapter = activity.findViewById<RecyclerView>(R.id.recyclerViewStopsEditor).adapter as StopEditAdapter
                     adapter.getStopsData().last().stopName = "End"
                     adapter.updateTime(1, "16:05")
+                }
+                scenario.onActivity { activity ->
                     activity.findViewById<android.view.View>(R.id.buttonApplyChanges).performClick()
                 }
                 assertPayload(waitForIntent { capturedIntent }, "new_schedule", "14:30", "16:05")
@@ -144,6 +146,8 @@ class TimetableTimeDisplayTest {
                     activity.setOriginalService(
                         BusService("existing-test", "Test service", "ORDINARY", true, 0L, "14:30", "16:05")
                     )
+                }
+                scenario.onActivity { activity ->
                     activity.findViewById<android.view.View>(R.id.buttonApplyChanges).performClick()
                 }
                 assertPayload(waitForIntent { capturedIntent }, "edit_schedule", "14:30", "16:05")

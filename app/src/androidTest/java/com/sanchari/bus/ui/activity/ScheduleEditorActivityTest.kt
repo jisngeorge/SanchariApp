@@ -59,6 +59,13 @@ class ScheduleEditorActivityTest {
 
     @Test
     fun freshNewAndEditSessionsShowQuickTipsButRecreationDoesNotRepeatThem() {
+        val tips = context.getString(R.string.editor_instructions)
+        assertEquals(4, tips.count { it == '\u2022' })
+        assertTrue(tips.contains("important bus stops, route junctions and terminal stops"))
+        assertTrue(tips.contains("arrival time and departure time with the same stop name"))
+        assertTrue(tips.contains("already present in the app"))
+        assertTrue(tips.contains("add notes"))
+        assertFalse(tips.contains("suggestion"))
         val service = SearchManager.searchBusServicesByName(context, "").first()
         for (intent in listOf(SuggestEditActivity.newIntentForNew(context),
             SuggestEditActivity.newIntentForEdit(context, service))) {
@@ -282,6 +289,8 @@ class ScheduleEditorActivityTest {
                     assertEquals("editor-test-existing", activity.getOriginalService()?.serviceId)
                     assertEquals(filename, activity.currentDraftFileName)
                     assertEquals(4, adapter(activity).itemCount)
+                    adapter(activity).updateTime(2, "00:30")
+                    adapter(activity).updateTime(3, "01:00")
                     activity.findViewById<android.view.View>(R.id.buttonApplyChanges).performClick()
                 }
                 val deadline = System.currentTimeMillis() + 5_000
@@ -298,7 +307,7 @@ class ScheduleEditorActivityTest {
                 assertEquals("NEW", stops.getJSONObject(2).getString("stopId"))
                 assertEquals(301, stops.getJSONObject(3).getInt("stopId"))
                 assertEquals("23:30", stops.getJSONObject(0).getString("scheduledTime"))
-                assertEquals("", stops.getJSONObject(3).getString("scheduledTime"))
+                assertEquals("01:00", stops.getJSONObject(3).getString("scheduledTime"))
             }
         } finally {
             instrumentation.removeMonitor(monitor)

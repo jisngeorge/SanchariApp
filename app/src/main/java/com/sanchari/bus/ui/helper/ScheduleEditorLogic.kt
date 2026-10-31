@@ -8,6 +8,9 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 object ScheduleEditorLogic {
+    fun missingTimePositions(stops: List<EditableStop>): List<Int> =
+        stops.indices.filter { RouteSearchStatistics.parseMinutes(stops[it].scheduledTime) == null }
+
     enum class EstimateSource { CURRENT_ROUTE, BUS_TYPE, ALL_TYPES }
 
     data class TimeEstimate(

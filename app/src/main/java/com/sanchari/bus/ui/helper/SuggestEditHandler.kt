@@ -115,8 +115,9 @@ class SuggestEditHandler(
         }
     }
 
-    private fun loadDraftIntoUI(draft: SavedDraft) {
+    fun loadDraftIntoUI(draft: SavedDraft) {
         try {
+            (activity as SuggestEditActivity).resetRouteAnalysis()
             val root = JSONObject(draft.jsonPayload)
             val service = root.getJSONObject("service")
 
@@ -124,6 +125,7 @@ class SuggestEditHandler(
             binding.editTextServiceType.setText(service.optString("type"), false)
             binding.editTextEditNotes.setText(root.optString("editNotes"))
 
+            adapter.clearValidation()
             editableStops.clear()
             val stopsArray = root.getJSONArray("stops")
             for (i in 0 until stopsArray.length()) {
@@ -187,9 +189,10 @@ class SuggestEditHandler(
     fun autoSaveDraft() {
         if (isDiscarded) return
         val save = persistDraft() ?: return
+        val requestedFile = (activity as SuggestEditActivity).currentDraftFileName
         activity.lifecycleScope.launch {
             try {
-                save.await()
+                recordSavedFile(save.await(), requestedFile)
             } catch (e: IOException) {
                 showSaveError()
             } catch (e: JSONException) {
@@ -236,7 +239,8 @@ class SuggestEditHandler(
                 service.getString("fromTime"), service.getString("toTime")
             ))
         }
-        val fileName = suggestActivity.currentDraftFileName ?: DraftManager.newDraftFileName()
+        val fileName = suggestActivity.currentDraftFileName ?:
+            DraftManager.newDraftFileName(suggestActivity.getOriginalService()?.serviceId)
         suggestActivity.currentDraftFileName = fileName
         val save = DraftManager.saveDraftAsync(activity, json, fileName)
         pendingSave = save
@@ -251,6 +255,13 @@ class SuggestEditHandler(
         return save
     }
 
+    private fun recordSavedFile(fileName: String, requestedFile: String?) {
+        val suggestActivity = activity as SuggestEditActivity
+        if (suggestActivity.currentDraftFileName == requestedFile) {
+            suggestActivity.currentDraftFileName = fileName
+        }
+    }
+
     private fun runAfterSaving(force: Boolean = false, forSubmission: Boolean = false, action: () -> Unit) {
         if (transitionInProgress || isDiscarded) return
         if (!(activity as SuggestEditActivity).prepareEditorForAction(forDraft = true)) return
@@ -262,7 +273,8 @@ class SuggestEditHandler(
                     if (forSubmission && !validateSubmission()) return@launch
                     val save = persistDraft(forceSave) ?: break
                     forceSave = false
-                    save.await()
+                    val requestedFile = (activity as SuggestEditActivity).currentDraftFileName
+                    recordSavedFile(save.await(), requestedFile)
                 }
                 if (!isDiscarded) action()
             } catch (e: IOException) {
@@ -308,26 +320,13 @@ class SuggestEditHandler(
     }
 
     fun showTimePicker(position: Int) {
-        val currentStop = editableStops[position]
-        var initialHour = 9
-        var initialMinute = 0
-
-        try {
-            if (currentStop.scheduledTime.isNotBlank()) {
-                val parts = currentStop.scheduledTime.split(":")
-                if (parts.size == 2) {
-                    initialHour = parts[0].trim().toInt()
-                    initialMinute = parts[1].trim().toInt()
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error parsing time", e)
-        }
+        val minutes = com.sanchari.bus.data.model.RouteSearchStatistics
+            .parseMinutes(editableStops[position].scheduledTime) ?: 9 * 60
 
         val picker = MaterialTimePicker.Builder()
             .setTimeFormat(TimeFormat.CLOCK_12H)
-            .setHour(initialHour)
-            .setMinute(initialMinute)
+            .setHour(minutes / 60)
+            .setMinute(minutes % 60)
             .setTitleText("Select Stop Time")
             .build()
 
@@ -339,7 +338,12 @@ class SuggestEditHandler(
     }
 
     fun applyChanges() {
-        if (!validateSubmission()) return
+        if (transitionInProgress || isDiscarded ||
+            !validateSubmission(requireAnalysis = false)) return
+        (activity as SuggestEditActivity).analyseRoute { proceedToConfirmation() }
+    }
+
+    private fun proceedToConfirmation() {
         runAfterSaving(forSubmission = true) {
             val suggestActivity = activity as SuggestEditActivity
             val json = buildJsonPayload(
@@ -355,8 +359,9 @@ class SuggestEditHandler(
         }
     }
 
-    private fun validateSubmission(): Boolean {
+    private fun validateSubmission(requireAnalysis: Boolean = true): Boolean {
         if (!(activity as SuggestEditActivity).prepareEditorForAction()) return false
+        val validStops = adapter.validateRequiredFields()
         val serviceName = binding.editTextServiceName.text.toString().trim()
         val stopsData = adapter.getStopsData()
 
@@ -364,6 +369,11 @@ class SuggestEditHandler(
             Toast.makeText(activity, "Please fill required fields", Toast.LENGTH_SHORT).show()
             return false
         }
+        if (!validStops) {
+            Toast.makeText(activity, R.string.editor_times_required, Toast.LENGTH_LONG).show()
+            return false
+        }
+        if (requireAnalysis && !activity.hasReviewedRoute()) return false
         return true
     }
 

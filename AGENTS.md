@@ -282,12 +282,56 @@ outlined name/time fields. Keep Material outlined styles on autocomplete fields
 so floating labels have their own space; do not shrink their internal padding.
 Time edits highlight the card outline using theme colours, not a fixed background.
 Fresh add/edit sessions show a short Quick tips dialog. Opening a saved draft or
-recreating the editor skips it.
+recreating the editor skips it, including automatic resumption of a service's
+draft. Its four bullet points cover important stops/junctions/terminals,
+paired arrival/departure rows using the same name for halts, checking for an
+existing service before adding one, and optional notes. They do not explain
+visible suggestion controls.
 
 `Reverse and append` copies any named contiguous section in reverse, retaining
 stop identities and halt rows but leaving copied times blank. Reversing A-B-C-D
 appends D-C-B-A, including the duplicated turnaround. Time edits never reorder
 the route; only explicit up/down actions change the sequence.
+
+Each Apply / Proceed tap checks for possible missing stops before confirmation,
+for both new and edited schedules; there is no separate analysis button.
+Required stop names and valid `HH:mm` times are checked first, before querying
+for missing stops. Invalid stop cards have theme-aware red outlines and accessible
+error states; missing times show a brief warning, never an automatic dialog or
+picker. Corrected rows clear their red outlines, and validation state survives
+editor recreation but is not saved in drafts. It
+checks consecutive gaps against other services in the installed
+timetable, excluding the existing service being edited. Forward nearest-endpoint
+visits follow `stopOrder`, not time; consecutive same-place halts are collapsed.
+Resolved stop IDs distinguish duplicate names. Alternative ordered sequences
+stay separate. Before ranking, omit sequences whose summed straight-line
+distances through every intermediate stop exceed 1.5 times the direct endpoint
+distance. Both endpoints and all suggested stops need finite, in-range stored
+coordinates; nulls, the `(0, 0)` placeholder and zero-distance endpoint pairs
+are not eligible. Distances are geographical estimates, not road routing.
+Rank the remaining alternatives by distinct same-type supporting services, then total
+supporting services, without showing counts or ranking details in the UI.
+One scrollable Stop suggestions review groups stops by numbered gaps, showing
+endpoint names, stop orders and AM/PM times (`--:--` when blank). Its actions sit
+in a fixed footer inside the popup; only the suggestions scroll. Every suggested
+stop has Accept/Reject choices, initially Reject. Multiple route options use a
+dropdown; switching options clears that gap's decisions rather than mixing
+sequences. The review explains that suggestions may be incorrect and unsure
+stops can be rejected. Decisions are staged until Continue or Add and edit times;
+cancellation changes nothing. Accepted stops retain existing IDs and have blank
+times. Continue opens confirmation only when every stop has a valid `HH:mm` time;
+otherwise affected cards are outlined in red and the editor stays open.
+This is rechecked after analysis (including newly accepted stops) and again
+across asynchronous draft saving.
+Incomplete times remain allowed in drafts. Add and edit times keeps the editor open
+so contributors can use the added stops' time-suggestion bulbs. No matches
+proceeds directly to confirmation; lookup failure leaves the
+editor open with an explicit retry message. Every tap runs fresh analysis,
+including after returning from confirmation. Structural changes or timetable
+version changes cancel pending review; time-only edits are retained. Cancelled or
+interrupted reviews never navigate automatically, including across recreation.
+Analysis metadata is not saved in drafts or contribution JSON; ordinary autosave
+and discard remain available without analysis.
 
 `Suggest time` estimates one row from its immediately preceding timed row.
 It first averages valid direction-specific A-to-B pairs already in the editor
@@ -354,7 +398,11 @@ Uploads do not update local timetable or community snapshots immediately.
 
 - `DraftManager` stores unfinished, unwrapped editor JSON in the private directory
   returned by `context.getDir("suggest_edits_drafts", MODE_PRIVATE)`. UUID filenames
-  and `draftId` distinguish drafts independently of bus name/type.
+  and `draftId` identify drafts independently of bus name/type. There is one draft
+  per exact service ID, including each distinct `NEW-<UUID>` service. Editing an
+  installed service resumes its existing draft before loading timetable rows.
+  Saves reuse the existing filename; new filenames are stable per service ID,
+  and queued saves resolve any competing filename to the same service draft.
 - The editor automatically saves the latest changes on Back, toolbar exit and
   backgrounding, and before opening history or confirmation. Incomplete drafts
   are allowed; untouched empty new editors do not create files. Repeated saves

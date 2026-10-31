@@ -1,6 +1,7 @@
 package com.sanchari.bus.data.manager
 
 import android.content.Context
+import android.database.Cursor
 import android.database.sqlite.SQLiteException
 import android.database.sqlite.SQLiteDatabase
 import android.util.Log
@@ -66,6 +67,57 @@ object SearchManager {
     // Editor callers distinguish unavailable data from a valid empty result.
     fun getEditorRouteResults(context: Context, from: String, to: String): List<RouteSearchResult> =
         findFixedRouteResults(editorDb(context), from, to)
+
+    fun getAnalysisRoutes(context: Context, endpointIds: List<Int>): List<MissingStopAnalysis.Route> =
+        getAnalysisRoutes(editorDb(context), endpointIds)
+
+    internal fun getAnalysisRoutes(database: SQLiteDatabase, endpointIds: List<Int>): List<MissingStopAnalysis.Route> {
+        val bus = DatabaseConstants.BusServiceTable
+        val route = DatabaseConstants.RouteStopTable
+        val stop = DatabaseConstants.StopTable
+        val routes = linkedMapOf<String, MissingStopAnalysis.Route>()
+        // Stay below SQLite's bind limit even for unusually long editor routes.
+        for (batch in endpointIds.filter { it >= 0 }.distinct().chunked(400)) {
+            val placeholders = batch.joinToString(",") { "?" }
+            database.rawQuery("""
+                SELECT bs.${bus.COLUMN_SERVICE_ID}, bs.${bus.COLUMN_TYPE},
+                       s.${stop.COLUMN_STOP_ID}, s.${stop.COLUMN_LOCATION_NAME},
+                       s.${stop.COLUMN_LATITUDE}, s.${stop.COLUMN_LONGITUDE}
+                FROM ${route.TABLE_NAME} rs
+                JOIN ${bus.TABLE_NAME} bs ON bs.${bus.COLUMN_SERVICE_ID} = rs.${route.COLUMN_SERVICE_ID}
+                JOIN ${stop.TABLE_NAME} s ON s.${stop.COLUMN_STOP_ID} = rs.${route.COLUMN_STOP_ID}
+                WHERE rs.${route.COLUMN_SERVICE_ID} IN (
+                    SELECT ${route.COLUMN_SERVICE_ID} FROM ${route.TABLE_NAME}
+                    WHERE ${route.COLUMN_STOP_ID} IN ($placeholders)
+                )
+                ORDER BY bs.${bus.COLUMN_SERVICE_ID}, rs.${route.COLUMN_STOP_ORDER}, rs.${route.COLUMN_ROUTE_STOP_ID}
+            """.trimIndent(), batch.map(Int::toString).toTypedArray()).use { cursor ->
+                fun coordinate(index: Int): Double? = when (cursor.getType(index)) {
+                    Cursor.FIELD_TYPE_INTEGER, Cursor.FIELD_TYPE_FLOAT -> cursor.getDouble(index)
+                    else -> null
+                }
+                var id: String? = null
+                var type = ""
+                var rows = mutableListOf<MissingStopAnalysis.Stop>()
+                fun finishRoute() {
+                    id?.let { routes.putIfAbsent(it, MissingStopAnalysis.Route(it, type, rows.toList())) }
+                }
+                while (cursor.moveToNext()) {
+                    val nextId = cursor.getString(0)
+                    if (nextId != id) {
+                        finishRoute()
+                        id = nextId
+                        type = cursor.getString(1).orEmpty()
+                        rows = mutableListOf()
+                    }
+                    rows += MissingStopAnalysis.Stop(cursor.getInt(2), cursor.getString(3),
+                        coordinate(4), coordinate(5))
+                }
+                finishRoute()
+            }
+        }
+        return routes.values.toList()
+    }
 
     /**
      * Finds bus services that travel from 'from' to 'to'.

@@ -8,6 +8,16 @@ import org.junit.Test
 
 class ScheduleEditorLogicTest {
     @Test
+    fun everyRowRequiresAValidTimeIncludingHaltsAndUnknownPlaceholders() {
+        val stops = route("A" to "00:00", "A" to "00:00", "B" to "23:59",
+            "C" to "", "D" to " ", "E" to "--:--", "F" to "24:00",
+            "G" to "09:60", "H" to "9:00", "I" to "9:00 AM")
+        assertEquals((3..9).toList(), ScheduleEditorLogic.missingTimePositions(stops))
+        stops.drop(3).forEach { it.scheduledTime = "09:00" }
+        assertTrue(ScheduleEditorLogic.missingTimePositions(stops).isEmpty())
+    }
+
+    @Test
     fun reversingKeepsTurnaroundIdsAndBlankIndependentTimes() {
         val stops = route("A" to "08:00", "B" to "08:20", "C" to "08:40", "D" to "09:00")
         val copies = ScheduleEditorLogic.reverseCopies(stops, 0, 3)
