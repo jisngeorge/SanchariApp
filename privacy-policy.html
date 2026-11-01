@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Privacy policy for Sanchari, an offline-first Android bus timetable app.">
+  <meta name="color-scheme" content="light dark">
+  <title>Sanchari App - Privacy Policy</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --background: #f4f7fb;
+      --surface: #ffffff;
+      --text: #172333;
+      --muted: #475569;
+      --brand: #174b87;
+      --border: #cbd5e1;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--background);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-size: 1rem;
+      line-height: 1.7;
+      overflow-wrap: anywhere;
+    }
+    main {
+      max-width: 880px;
+      margin: 2rem auto;
+      padding: 2rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+    h1, h2, h3 { line-height: 1.3; }
+    h1 { color: var(--brand); margin-top: 0; font-size: 2rem; }
+    h2 { margin-top: 2rem; font-size: 1.35rem; }
+    h3 { font-size: 1.1rem; }
+    a { color: var(--brand); text-underline-offset: 0.2em; }
+    a:focus-visible { outline: 3px solid var(--brand); outline-offset: 4px; }
+    li + li { margin-top: 0.5rem; }
+    .metadata, footer { color: var(--muted); }
+    dt { font-weight: 700; margin-top: 1rem; }
+    dd { margin: 0.25rem 0 0; }
+    footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    @media (max-width: 600px) {
+      main { margin: 0; padding: 1.25rem; border: 0; border-radius: 0; }
+      h1 { font-size: 1.7rem; }
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background: #101722;
+        --surface: #182231;
+        --text: #eef2f7;
+        --muted: #c1ccda;
+        --brand: #9dc9ff;
+        --border: #46566b;
+      }
+    }
+    @media print {
+      main { max-width: none; margin: 0; padding: 0; border: 0; }
+      body { background: white; color: black; }
+      h1, a, .metadata, footer { color: black; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Sanchari App - Privacy Policy</h1>
+      <p class="metadata">
+        Effective date: 1 November 2027<br>
+        Last updated: 1 November 2027
+      </p>
+      <p>Sanchari is an offline-first Android app for finding bus timetables, viewing
+        routes and community feedback, and submitting timetable suggestions and
+        other contributions. This policy explains how information is handled when
+        you use Sanchari (Android application ID: <code>com.sanchari.bus</code>).</p>
+      <p>Sanchari is operated by
+        Jis N George
+        ("we", "us", or "our").</p>
+      <p>Sanchari is an open-source app. Its Android source code and app releases
+        are available at
+        <a href="https://github.com/jisngeorge/SanchariApp">github.com/jisngeorge/SanchariApp</a>.
+        Published timetable and community database updates are available at
+        <a href="https://github.com/jisngeorge/SanchariVersions">github.com/jisngeorge/SanchariVersions</a>.
+        Making the app source and database updates public does not make private
+        submission records or contact details public.</p>
+    </header>
+
+    <section aria-labelledby="summary">
+      <h2 id="summary">1. Privacy at a glance</h2>
+      <ul>
+        <li>Timetable and bus-name searches run against databases on your device.
+          Search terms and recent service views are not included in contribution
+          uploads or update requests.</li>
+        <li>Device location is optional and used on your device to find nearby stops.
+          Sanchari does not send your device fix or manually entered coordinates to
+          its contribution backend.</li>
+        <li>Contributions are submitted through Google Apps Script and stored in
+          Google Sheets for timetable and community-data processing.
+          Every contribution includes a randomly generated contributor identifier,
+          even when you do not provide a name or contact details.</li>
+        <li>The developer is the only person who receives and reviews private
+          submission JSON. Raw submissions and private contact records are not
+          shared with other people or published in the app's repositories.
+          Google processes uploads as the hosting and spreadsheet provider.</li>
+        <li>Name, email address, phone number and place are optional. Only details
+          you enter for that contribution are attached; previously saved contacts
+          are not automatically attached. Optional contact/profile details are
+          used only to contact you for clarifications and replies to your queries.
+          A name can also appear on a public comment if you explicitly choose to
+          display it.</li>
+        <li>The current Android app has no advertising, advertising-ID collection,
+          analytics SDK or crash-reporting SDK. Hosting providers may process
+          technical information when you connect to their services.</li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="information">
+      <h2 id="information">2. Information handled by Sanchari</h2>
+      <dl>
+        <dt>Information kept on your device</dt>
+        <dd>The app stores downloaded timetable and community databases, a local
+          contributor identifier, any saved profile/contact details, the latest
+          five distinct services viewed, successful schedule-submission history,
+          unfinished timetable drafts, pending contributions and app preferences.
+          Preferences include update settings and version-check information.
+          Drafts may be saved automatically when you leave or background the editor.
+          These records support offline access, resuming edits and retrying submissions;
+          ordinary search and recent-view records are not uploaded by the app.</dd>
+
+        <dt>Contributor identifier</dt>
+        <dd>Sanchari creates a random UUID for the local profile and includes it
+          in every submitted contribution. It is not an advertising ID, IMEI,
+          phone number or hardware identifier. It allows contributions from the
+          same local profile to be associated. Processing uses this identifier
+          to maintain contribution/review records and the latest rating or
+          running-status report for a contributor and service. Ratings can be
+          replaced without counting the same contributor as an additional rater.
+          It is pseudonymous, not a guarantee
+          of anonymity: contributions can be linked to contact details you provide
+          and to their content.</dd>
+
+        <dt>Optional personal details</dt>
+        <dd>You may enter your name, email address, phone number and place on the
+          contribution confirmation screen. We collect these details only if you
+          supply them voluntarily, and use them only to contact you for
+          clarifications and replies to your queries, subject to the separate
+          public-name choice for comments described below.
+          Nonblank details entered there are saved locally and
+          sent with that contribution. Blank fields are omitted from the upload,
+          but do not erase previously saved local details or earlier submissions.
+          The app does not read your device's address book.</dd>
+
+        <dt>Contribution content</dt>
+        <dd>When you submit, we receive your contributor identifier, a submission
+          timestamp, any optional details entered for that submission, and the
+          contribution itself. This can include bus and service identifiers,
+          service names and types, route stops and timetable times, edit notes,
+          ratings for punctuality, driving and behaviour, comments, a public-name
+          display choice, running-status suggestions, or messages to the administrator.
+          Please avoid putting unnecessary personal information or information about
+          other people into free-text fields.</dd>
+
+        <dt>Location and manual coordinates</dt>
+        <dd>With your permission, Sanchari accesses precise or approximate device
+          location through Android's GPS/network providers only when you request
+          current-location assistance. It compares that location with stored stop
+          coordinates on your device. There is no background location tracking.
+          Active acquisition stops when you leave the activity; device fixes are
+          discarded when the popup closes or the app backgrounds. Manual coordinate
+          text and radius may survive screen recreation in temporary Android UI
+          state. Sanchari does not keep a persistent coordinate history, include
+          those coordinates in contribution payloads, or write them to its logs.</dd>
+
+        <dt>Network and hosting information</dt>
+        <dd>The app connects to GitHub Pages and configured download hosts to check
+          for and download updates, and to Google Apps Script to submit contributions.
+          Those services receive your IP address and technical request information
+          needed to deliver the connection; they may retain service logs under
+          their own policies. Normal update requests do not attach your contributor
+          UUID, saved contacts, search terms or device location.</dd>
+      </dl>
+    </section>
+
+    <section aria-labelledby="purposes">
+      <h2 id="purposes">3. How information is used</h2>
+      <p>Information is used to provide offline timetable searches and route displays,
+        find nearby stops at your request, maintain local drafts and history,
+        deliver database/app updates, receive and review community contributions,
+        and respond to messages or questions using details you choose to provide.
+        Uploading a contribution does not immediately change the timetable or
+        community database; publication follows a separate review and update process.</p>
+      <p>The processing workflow uses contribution content and contributor
+        identifiers to review suggestions, avoid applying the same submission
+        repeatedly, maintain review/audit records and contributor activity or
+        reputation records, and update the timetable and community databases.
+        Private contributor records may retain details previously supplied;
+        omitting them in a later submission does not erase earlier records.</p>
+      <p>Your optional email address, phone number, place and privately supplied
+        name are not used for advertising or marketing. Their use is limited to
+        contacting you for clarifications and replies to your queries. If you
+        explicitly choose to display your name on a comment, that name is also
+        used for the public attribution you requested.</p>
+      <p>We do not sell personal information or use private submissions for
+        advertising, marketing or tracking across other apps or websites.</p>
+    </section>
+
+    <section aria-labelledby="sharing">
+      <h2 id="sharing">4. Sharing and public contributions</h2>
+      <h3>Submission processing</h3>
+      <p>The app's submission form sends information to a Google Apps Script
+        endpoint, which records contributions in Google Sheets. Google provides
+        the hosting and spreadsheet infrastructure. Contributions can then be
+        exported and imported into a separate, non-public administrator processing
+        application for validation, review and database updates.</p>
+      <p>The processor keeps submission content, contributor identifiers, supplied
+        personal details and processing decisions in private records. Imported
+        submissions, exports, archives and backups can also contain these details.
+        Messages to the administrator are handled in a private inbox, rather than
+        published as community comments. The developer, Jis N George, is the only
+        person receiving and reviewing the raw submission JSON and accessing these
+        private records on our side. We do not share these records with other
+        reviewers, organizations or members of the public.</p>
+      <h3>Community publication</h3>
+      <p>Accepted timetable information and community feedback may be distributed
+        in public database snapshots used by Sanchari. A comment's public-name
+        choice is included in its submission. If you do not supply a name, the app
+        sets that choice to hidden and previews the name as "Anonymous". Hiding a
+        public name does not remove the private contributor identifier or optional
+        contacts sent to the administrator. Free-text content may itself identify you.</p>
+      <p>Public timetable data includes bus/service information, stop names and
+        coordinates, ordered route stops and scheduled times. Public community
+        data includes aggregate rating averages and rating counts, and approved
+        comments with their service reference, date and display name.
+        When a comment is accepted, the processor uses "Anonymous" if you hide your
+        name or supply no name; it does not substitute a saved contact name or
+        contributor UUID. Individual contributor ratings and running-status
+        reports are kept in private processing records; approved running-status
+        changes may update the public service's status.</p>
+      <p>Contributor UUIDs, email addresses, phone numbers, profile place details,
+        private submission/review records and messages to the administrator are
+        not part of the public database publication described here. A name you
+        choose to display on an approved comment is public. Personal information
+        you put into a public comment's text can also become public.</p>
+      <p>Only timetable and community database snapshots are published as database
+        updates. Private contributor and processing databases, raw submission JSON,
+        spreadsheet exports, private archives and backups are not published.
+        Public contribution content is separate from these private source records.</p>
+      <h3>Maps and other user-initiated external actions</h3>
+      <p>If you choose to show a stop or open driving directions, Sanchari opens
+        Google Maps or a browser with the stored coordinates of the selected stop
+        or route endpoints. These are bus-stop coordinates, not the device fix
+        used for nearby-stop lookup. The receiving app or website may process
+        those coordinates, your IP address and other information under its own
+        privacy policy. Sanchari does not control any additional location access
+        you allow in that external app. Sharing the app's download link similarly
+        opens the sharing app you select.</p>
+      <h3>Other disclosures</h3>
+      <p>Apart from Google processing submissions to provide the hosting and
+        spreadsheet service, and the public contribution content described above,
+        we do not voluntarily disclose private submission data to anyone other
+        than the developer. We may disclose information if required by applicable
+        law or a valid legal order, limited to what is legally required.</p>
+      <p>Relevant provider policies:
+        <a href="https://policies.google.com/privacy">Google Privacy Policy</a> and
+        <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub General Privacy Statement</a>.
+        These also apply to interactions with their services as described by those providers.
+        Opening this policy on GitHub Pages sends a web request to GitHub.</p>
+    </section>
+
+    <section aria-labelledby="choices">
+      <h2 id="choices">5. Permissions and your choices</h2>
+      <p>You can search installed timetables without granting location permission,
+        submitting contributions or providing personal details. You can deny or
+        revoke location permission in Android Settings, use approximate location,
+        enter coordinates manually, or choose stops by name instead.</p>
+      <p>Internet access supports submissions and updates. Database auto-update
+        is enabled by default and can be turned off through the app's Auto-update
+        setting. Automatic version checks can still occur; disabling auto-update
+        changes whether newer databases are downloaded without a prompt. Downloads
+        can use mobile data. Installing an APK update requires your confirmation
+        and any applicable Android installation permission.</p>
+      <p>Providing personal details is optional for every contribution. To stop
+        attaching a detail to new contributions, leave that field blank. This does
+        not change contributions already sent or queued. Failed uploads can be
+        saved on your device and retried automatically on a later app launch,
+        using the original content, identifier, timestamp and contact choices.</p>
+    </section>
+
+    <section aria-labelledby="retention">
+      <h2 id="retention">6. Retention and security</h2>
+      <p>Local profile information, preferences and schedule-submission history
+        remain until the app's storage is cleared or the app is uninstalled.
+        Recent views are limited to five distinct services. Drafts remain until
+        explicitly discarded or removed after a contribution is successfully
+        uploaded or successfully saved for retry. Pending upload files remain
+        until the app reports a successful upload or local app data is removed.
+        Removing a draft does not withdraw a queued contribution.</p>
+      <p>Processing or rejecting a contribution does not by itself erase its
+        original submission or personal details. Private processing records,
+        imported files, archives and backups may retain those details separately
+        from the Google Sheet. Local device-data deletion does not remove these copies.</p>
+      <p>We retain private submissions and optional contact details until the
+        contributor requests deletion. This includes received or rejected
+        contributions, contributor identifiers, messages, review/audit and
+        contributor activity records, and identifiable copies in exports,
+        imported files, archives and backups under the developer's control.
+        There is no fixed automatic expiry period for these private records.</p>
+      <p>When handling a verified deletion request, we remove the identifiable
+        records and copies we control. Public timetable and community data remain
+        available to support the app, subject to requests concerning personal
+        information described below. Technical service logs and provider-managed
+        copies outside our control are subject to Google's or GitHub's policies;
+        this policy does not promise deletion beyond the controls those services provide.</p>
+      <p>Local records are kept in Android app-private storage; this is not a claim
+        of additional app-level encryption. The app disables Android cloud backup
+        through its manifest. Device-to-device transfer behavior can depend on
+        Android and the device manufacturer. Contributions are transmitted to
+        the configured Google Apps Script service over HTTPS.</p>
+      <p>The processing application separates public timetable/community data
+        from private contributor and review records. Contact details are hidden
+        in ordinary review views unless the operator explicitly requests them.
+        This interface safeguard is not a claim that the underlying private files
+        are encrypted or protected from everyone with access to the operator's computer.</p>
+      <p>The developer keeps private submission records separate from the public
+        source-code repositories, app releases and database updates. Access on
+        our side is limited to the developer. We do not claim additional
+        application-level encryption of spreadsheet exports or local processor
+        files. Google handles security of its hosting infrastructure under its
+        service policies.</p>
+      <p>No method of transmission or storage is completely secure.</p>
+    </section>
+
+    <section aria-labelledby="deletion">
+      <h2 id="deletion">7. Deletion requests and privacy rights</h2>
+      <p>Sanchari does not require registration or provide an online sign-in account.
+        It maintains a local contributor profile and identifier. To remove data
+        held on your device, use Android Settings &gt; Apps &gt; Sanchari &gt; Storage
+        &gt; Clear storage (wording varies by device), or uninstall Sanchari.
+        This removes local drafts and queued contributions as well as local
+        contacts and history, but does not delete contributions already received
+        by the backend. Discarding a draft removes only that draft.</p>
+      <p>To request access, correction or deletion of submitted personal information,
+        contact <a href="mailto:jisngeorge@gmail.com">jisngeorge@gmail.com</a>
+        and use the subject "Sanchari privacy request". Describe the relevant
+        contribution, approximate submission date, and any contact detail you
+        originally supplied. Do not send identity documents or unrelated sensitive
+        information unless a necessary, proportionate verification process is explained.</p>
+      <p>Because contributions can be made without contact details, identifying
+        a particular contributor's records may require additional information.
+        If you provided no contact details, describe the bus/service, approximate
+        date and content of your submission so the developer can try to locate it.
+        You are not required to obtain a contributor UUID from the app. We may
+        request proportionate additional information to verify that a request
+        concerns your records; we cannot delete another person's information
+        based on an unverified claim.</p>
+      <p>The developer reviews requests and responds without undue delay, within
+        any timeframe required by applicable law. Once the relevant records are
+        identified and the request is verified, deletion covers personal
+        information in the Google Sheet and any accessible revision history,
+        private contributor/processing records, imported files, exports,
+        archives and identifiable backup copies under the developer's control.
+        Personal information in public comments is removed from future
+        publications where applicable. We will explain any inability to identify
+        a record, provider-controlled limitation or specific legal requirement
+        preventing deletion, rather than represent the request as completed.</p>
+      <p>Already downloaded or independently copied public timetable/community
+        snapshots may remain on other people's devices; removal from future
+        publications cannot recall every existing copy. Deleting local app data
+        can create a new contributor identifier on later use but does not unlink
+        or erase earlier backend records.</p>
+      <p>Depending on applicable law, you may have rights to access, correct, erase
+        or obtain a copy of personal information, restrict or object to processing,
+        withdraw consent where processing relies on consent, or complain to your
+        local data protection authority. Contact the developer using the privacy
+        contact below to exercise applicable rights or raise a privacy grievance.
+        We process voluntary contributions to provide the requested submission
+        and review service, and use optional contact details for the follow-up
+        you choose to enable. Where processing requires consent under applicable
+        law, you may withdraw that consent by contacting us; withdrawal does not
+        affect the lawfulness of earlier processing.</p>
+    </section>
+
+    <section aria-labelledby="international">
+      <h2 id="international">8. Where information is processed</h2>
+      <p>The developer operates in Kerala, India, and processes contributions
+        using Google Sheets and a local administrator processing application.</p>
+      <p>Google and GitHub operate infrastructure in multiple countries. When you
+        upload a contribution or connect to hosting services, information may be
+        processed outside your country of residence.</p>
+    </section>
+
+    <section aria-labelledby="changes">
+      <h2 id="changes">9. Changes to this policy</h2>
+      <p>We may update this policy to reflect changes in Sanchari or our data
+        practices. The revised policy will be posted on this page with an updated
+        date. Where required by law, we will give additional notice or obtain
+        consent before materially changing how personal information is used.</p>
+    </section>
+
+    <section aria-labelledby="contact">
+      <h2 id="contact">10. Contact us</h2>
+      <p>For privacy questions, concerns or requests relating to Sanchari:</p>
+      <dl>
+        <dt>Developer / operator</dt>
+        <dd>Jis N George</dd>
+        <dt>Privacy contact</dt>
+        <dd><a href="mailto:jisngeorge@gmail.com">jisngeorge@gmail.com</a></dd>
+        <dt>Contact address</dt>
+        <dd>Naduvath house, Kottappady, Kothamangalam, Ernakulam, Kerala, India 686692</dd>
+      </dl>
+    </section>
+
+    <footer>
+      <p>Sanchari App Privacy Policy</p>
+    </footer>
+  </main>
+</body>
+</html>
