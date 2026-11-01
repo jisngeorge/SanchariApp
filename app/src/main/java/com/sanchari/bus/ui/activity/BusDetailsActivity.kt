@@ -233,7 +233,14 @@ class BusDetailsActivity : AppCompatActivity() {
 
     private fun loadLocalUserData() {
         lifecycleScope.launch(Dispatchers.IO) {
-            currentUser = UserDataManager.getUser(applicationContext)
+            try {
+                currentUser = UserDataManager.getUser(applicationContext)
+            } catch (e: android.database.sqlite.SQLiteException) {
+                Log.e("BusDetailsActivity", "Contributor identity unavailable", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@BusDetailsActivity, com.sanchari.bus.R.string.contributor_load_failed, Toast.LENGTH_LONG).show()
+                }
+            }
         }
     }
 

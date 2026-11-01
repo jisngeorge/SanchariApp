@@ -81,6 +81,9 @@ names, and local user schema version. There are three distinct databases:
   `UserComment` stores service-linked comments and their dates.
 - `UserDataManager` manages profile/contact data and UUID, the latest five distinct
   viewed services, and successfully uploaded schedule submission history.
+  Its first profile read transactionally creates a persisted pseudonymous UUID even
+  with no personal details. Existing nonblank UUIDs are preserved; legacy blank UUIDs
+  are repaired without discarding contacts. Profile edits do not replace the UUID.
 - `UserDatabaseHelper` currently uses schema version 2; its version-1-to-2 migration
   adds `SubmissionLog`.
 - `LocalVersionManager` uses `SanchariBusPrefs` SharedPreferences for database
@@ -445,14 +448,27 @@ timestamp: Unix epoch seconds
 
 ```text
 {
-  submittedBy: { name, email, phone, place, uuid },
+  submittedBy: { uuid, name?, email?, phone?, place? },
   suggestion: <contribution object>
 }
 ```
 
-Name, email, and phone are required by the confirmation screen. Current validation
-requires `@` in email and at least ten phone digits; place is optional.
-Required contact labels use a red asterisk. Confirmation shows a compact preview:
+Name, email, phone and place are optional for every contribution type; no completed
+profile is required. Fields start blank on each fresh confirmation and are editable
+without a sharing checkbox. The text above them explains that details can help the
+admin reply or clarify doubts; it does not mention the private identifier.
+Only nonblank trimmed values entered for this contribution are sent as strings.
+Stored contacts are never automatically attached or prefilled. Provided profile
+changes are saved before upload; blank fields are omitted from the payload and do
+not erase stored contacts. Supplied email
+still requires `@` and supplied phone at least ten digits. Labels have no required
+asterisks. Edited fields survive confirmation recreation.
+`ContributionPayload` retains the wrapper and nonempty `submittedBy.uuid`, without
+changing service/stop identifiers or contribution timestamps.
+New wrapped contribution JSON uses consistent two-space indentation for manual
+inspection, including nested objects and arrays; upload and offline storage use
+the same formatted string. Already pending files are not reformatted during retries.
+Confirmation shows a compact preview:
 schedule proposals use red deletions, green additions and normal unchanged rows,
 compared with the installed timetable (not an edited draft). New schedules are
 all additions. Bus names use blue and bus types teal, retaining red/green +/-
@@ -475,9 +491,15 @@ Other contribution types use the same confirmation/upload path:
 | `running_status_suggestion` | `serviceId`, `suggestedStatus`, `suggestedStatusBoolean`, `timestamp` |
 | `admin_message` | `messageText`, `timestamp` |
 
-The comment anonymity flag controls intended username display, not removal of
-`submittedBy` contact details. Do not describe this as anonymous transport.
+Comments retain `showUsername`; without a shared display name it is forced to
+false. Confirmation shows the public name will be Anonymous, without identifier
+wording. The private pseudonymous identifier remains in the payload. With a supplied name, the original display choice
+still applies. Hiding the public name does not remove contacts explicitly shared
+with the administrator. Do not describe this as untraceable or anonymous transport.
 Uploads do not update local timetable or community snapshots immediately.
+Coordinate release with processor support for missing personal fields. Google Apps
+Script intake and its deployment are outside this repository; Android changes do
+not establish that the deployed processor supports this contract.
 
 ### Drafts versus pending submissions
 
@@ -507,9 +529,11 @@ Uploads do not update local timetable or community snapshots immediately.
   pending-upload persistence. Preserve this protection against lost contributions.
 - `UploadManager` retries pending files during `MainActivity` initialization and
   deletes them after successful upload. There is no WorkManager/service-based retry.
-- Successful schedule uploads add local submission logs. The logging code assumes
-  `suggestion.service` exists; other contribution types do not have that structure.
-  Do not assume submission history covers every contribution type.
+  Retries resend the saved payload unchanged, including UUID, timestamps, sharing
+  choices and any previously queued contacts; they never rebuild it from the current
+  profile. New sharing choices do not retroactively modify existing pending files.
+- Successful schedule uploads add local submission logs. Other contribution types
+  skip schedule-specific logging; submission history does not cover every type.
 
 ## Remote versions and downloads
 

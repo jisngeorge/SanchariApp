@@ -13,7 +13,12 @@ import org.json.JSONObject
 /**
  * Handles the background synchronization of offline suggestions/comments.
  */
-class UploadManager(private val context: Context) {
+class UploadManager(
+    private val context: Context,
+    private val upload: suspend (String) -> Boolean = {
+        NetworkManager.uploadDataToGoogleSheet(context, it)
+    }
+) {
 
     companion object {
         private const val TAG = "UploadManager"
@@ -29,7 +34,7 @@ class UploadManager(private val context: Context) {
         for (file in pendingFiles) {
             try {
                 val jsonPayload = file.readText()
-                val success = NetworkManager.uploadDataToGoogleSheet(context, jsonPayload)
+                val success = upload(jsonPayload)
 
                 if (success) {
                     Log.i(TAG, "Successfully synced: ${file.name}")
@@ -58,6 +63,7 @@ class UploadManager(private val context: Context) {
         try {
             val root = JSONObject(jsonPayload)
             val suggestion = root.getJSONObject("suggestion")
+            if (suggestion.optString("type") !in listOf("new_schedule", "edit_schedule")) return
             val service = suggestion.getJSONObject("service")
             val busName = service.optString("name", "Unknown")
             val busType = service.optString("type", "")

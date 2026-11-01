@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.database.sqlite.SQLiteException
 import android.os.Bundle
-import android.text.SpannableString
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
@@ -14,6 +13,8 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
+import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
 import com.sanchari.bus.R
 import com.sanchari.bus.data.manager.SearchManager
@@ -24,6 +25,7 @@ import com.sanchari.bus.data.manager.UserDataManager
 import com.sanchari.bus.databinding.ActivityConfirmBinding
 import com.sanchari.bus.ui.helper.DraftManager
 import com.sanchari.bus.ui.helper.ContributionPreview
+import com.sanchari.bus.ui.helper.ContributionPayload
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -38,7 +40,15 @@ class ConfirmationActivity : AppCompatActivity() {
     private var currentUser: User? = null
     private var draftFileName: String? = null
     private var previewReady = false
-    private var contactFieldsLoaded = false
+    private var submissionInProgress = false
+    private var commentContribution = false
+    private var commentRequestsName = false
+    internal var uploadContribution: suspend (String) -> Boolean = {
+        NetworkManager.uploadDataToGoogleSheet(applicationContext, it)
+    }
+    internal var persistContribution: (String) -> Boolean = {
+        SuggestionStorageManager.saveSuggestion(applicationContext, it)
+    }
 
     companion object {
         private const val TAG = "ConfirmationActivity"
@@ -72,31 +82,13 @@ class ConfirmationActivity : AppCompatActivity() {
         }
 
         binding.buttonApplySuggestion.isEnabled = false
-        setupRequiredHints()
+        binding.editTextName.doAfterTextChanged { updateContactUi() }
+        updateContactUi()
         loadPreview()
-        loadUserData(populateFields = savedInstanceState?.getBoolean("contact_fields_loaded") != true)
+        loadUserData()
 
         binding.buttonApplySuggestion.setOnClickListener {
             handleFinalSubmission()
-        }
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        outState.putBoolean("contact_fields_loaded", contactFieldsLoaded)
-    }
-
-    private fun setupRequiredHints() {
-        val red = ContextCompat.getColor(this, R.color.preview_removed)
-        for ((input, label) in listOf(
-            binding.inputName to R.string.hint_full_name,
-            binding.inputEmail to R.string.hint_email,
-            binding.inputPhone to R.string.hint_phone
-        )) {
-            val hint = SpannableString(getString(R.string.required_field_hint, getString(label)))
-            val marker = hint.lastIndexOf('*')
-            hint.setSpan(ForegroundColorSpan(red), marker, marker + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-            input.hint = hint
         }
     }
 
@@ -112,7 +104,7 @@ class ConfirmationActivity : AppCompatActivity() {
                         SearchManager.getBusServiceById(applicationContext, id) else null
                     val stops = if (original != null && type == "edit_schedule")
                         SearchManager.getEditorBusStops(applicationContext, id) else emptyList()
-                    ContributionPreview.build(applicationContext, suggestion, original, stops)
+                    ContributionPreview.build(applicationContext, suggestion, original, stops, includeUsername = false)
                 }
                 val text = SpannableStringBuilder()
                 lines.forEachIndexed { index, line ->
@@ -152,8 +144,12 @@ class ConfirmationActivity : AppCompatActivity() {
                         ContributionPreview.Change.UNCHANGED -> it.text
                     }
                 }
+                val suggestion = JSONObject(requireNotNull(suggestionJson))
+                commentContribution = suggestion.getString("type") == "comment"
+                commentRequestsName = suggestion.optBoolean("showUsername")
+                updateContactUi()
                 previewReady = true
-                binding.buttonApplySuggestion.isEnabled = currentUser != null
+                binding.buttonApplySuggestion.isEnabled = currentUser != null && !submissionInProgress
             } catch (e: JSONException) {
                 showPreviewError(e)
             } catch (e: SQLiteException) {
@@ -170,30 +166,34 @@ class ConfirmationActivity : AppCompatActivity() {
         binding.buttonApplySuggestion.isEnabled = false
     }
 
-    private fun loadUserData(populateFields: Boolean) {
-        val fields = listOf(binding.editTextName, binding.editTextEmail, binding.editTextPhone, binding.editTextPlace)
-        fields.forEach { it.isEnabled = false }
-        lifecycleScope.launch(Dispatchers.IO) {
-            val user = UserDataManager.getUser(applicationContext)
-            withContext(Dispatchers.Main) {
+    private fun loadUserData() {
+        lifecycleScope.launch {
+            try {
+                val user = withContext(Dispatchers.IO) { UserDataManager.getUser(applicationContext) }
                 currentUser = user
-                if (populateFields) populateUserData(user)
-                contactFieldsLoaded = true
-                fields.forEach { it.isEnabled = true }
-                binding.buttonApplySuggestion.isEnabled = previewReady
+                updateContactUi()
+                binding.buttonApplySuggestion.isEnabled = previewReady && !submissionInProgress
+            } catch (e: SQLiteException) {
+                Log.e(TAG, "Contributor identity unavailable", e)
+                AlertDialog.Builder(this@ConfirmationActivity)
+                    .setMessage(R.string.contributor_load_failed)
+                    .setPositiveButton(R.string.editor_retry) { _, _ -> loadUserData() }
+                    .setNegativeButton(android.R.string.cancel, null).show()
             }
         }
     }
 
-    private fun populateUserData(user: User) {
-        binding.editTextName.setText(user.name)
-        binding.editTextEmail.setText(user.email)
-        binding.editTextPhone.setText(user.phone)
-        binding.editTextPlace.setText(user.place)
+    private fun updateContactUi() {
+        listOf(binding.editTextName, binding.editTextEmail, binding.editTextPhone, binding.editTextPlace)
+            .forEach { it.isEnabled = currentUser != null && !submissionInProgress }
+        binding.textCommentPrivacy.isVisible = commentContribution
+        val nameShown = !binding.editTextName.text.isNullOrBlank() &&
+            commentRequestsName
+        binding.textCommentPrivacy.setText(if (nameShown) R.string.contributor_named else R.string.contributor_anonymous)
     }
 
     private fun handleFinalSubmission() {
-        if (!previewReady) return
+        if (!previewReady || submissionInProgress) return
         val user = currentUser ?: return
         val json = suggestionJson ?: return
 
@@ -203,51 +203,40 @@ class ConfirmationActivity : AppCompatActivity() {
         val newPhone = binding.editTextPhone.text.toString().trim()
         val newPlace = binding.editTextPlace.text.toString().trim()
 
-        // 2. Validate
-        if (newName.isEmpty() || newEmail.isEmpty() || newPhone.isEmpty()) {
-            Toast.makeText(this, "Please fill in your name, email, and phone.", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        // Email validation: must contain "@"
-        if (!newEmail.contains("@")) {
+        if (newEmail.isNotEmpty() && !newEmail.contains("@")) {
             Toast.makeText(this, "Please enter a valid email address", Toast.LENGTH_SHORT).show()
             return
         }
 
         // Phone validation: must have minimum 10 digits
-        if (!newPhone.matches(Regex("\\d{10,}"))) {
+        if (newPhone.isNotEmpty() && !newPhone.matches(Regex("\\d{10,}"))) {
             Toast.makeText(this, "Phone number must have at least 10 digits", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // 3. Save user info if changed
-        if (user.name != newName || user.email != newEmail || user.phone != newPhone || user.place != newPlace) {
-            val updatedUser = user.copy(
-                name = newName,
-                email = newEmail,
-                phone = newPhone,
-                place = newPlace
-            )
-            lifecycleScope.launch(Dispatchers.IO) {
-                UserDataManager.saveUser(applicationContext, updatedUser)
+        val contributor = user.copy(name = newName, email = newEmail, phone = newPhone, place = newPlace)
+        val updatedUser = user.copy(
+            name = newName.ifBlank { user.name }, email = newEmail.ifBlank { user.email },
+            phone = newPhone.ifBlank { user.phone }, place = newPlace.ifBlank { user.place }
+        )
+        val finalPayloadJson = ContributionPayload.wrap(json, contributor)
+        submissionInProgress = true
+        binding.buttonApplySuggestion.isEnabled = false
+        updateContactUi()
+        lifecycleScope.launch {
+            if (user != updatedUser) {
+                val saved = withContext(Dispatchers.IO) { UserDataManager.saveUser(applicationContext, updatedUser) }
+                if (!saved) {
+                    submissionInProgress = false
+                    binding.buttonApplySuggestion.isEnabled = previewReady
+                    updateContactUi()
+                    Toast.makeText(this@ConfirmationActivity, R.string.contributor_save_failed, Toast.LENGTH_LONG).show()
+                    return@launch
+                }
+                currentUser = updatedUser
             }
+            uploadOrSave(finalPayloadJson)
         }
-
-        // 4. Create Final JSON
-        val finalPayloadJson = JSONObject().apply {
-            put("submittedBy", JSONObject().apply {
-                put("name", newName)
-                put("email", newEmail)
-                put("phone", newPhone)
-                put("place", newPlace)
-                put("uuid", user.uuid)
-            })
-            put("suggestion", JSONObject(json))
-        }.toString()
-
-        // --- Try Upload, Save on Failure ---
-        uploadOrSave(finalPayloadJson)
     }
 
     private fun uploadOrSave(jsonPayload: String) {
@@ -257,11 +246,11 @@ class ConfirmationActivity : AppCompatActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             // Try to upload using the NetworkManager
-            val success = NetworkManager.uploadDataToGoogleSheet(applicationContext, jsonPayload)
+            val success = uploadContribution(jsonPayload)
+            val savedLocally = !success && persistContribution(jsonPayload)
 
             withContext(Dispatchers.Main) {
                 binding.progressBar.visibility = View.GONE
-                binding.buttonApplySuggestion.isEnabled = true
 
                 if (success) {
                     logSubmission(jsonPayload)
@@ -269,11 +258,13 @@ class ConfirmationActivity : AppCompatActivity() {
                     showSuccessDialog("Your suggestion has been submitted successfully.")
                 } else {
                     // If upload fails, save locally
-                    val savedLocally = SuggestionStorageManager.saveSuggestion(applicationContext, jsonPayload)
                     if (savedLocally) {
                         deleteDraftIfExists()
                         showSuccessDialog("Network unavailable. Suggestion saved offline and will sync later.")
                     } else {
+                        submissionInProgress = false
+                        binding.buttonApplySuggestion.isEnabled = previewReady
+                        updateContactUi()
                         showErrorDialog("Failed to submit or save suggestion.")
                     }
                 }

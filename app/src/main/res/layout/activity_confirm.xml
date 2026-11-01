@@ -71,6 +71,19 @@
                 android:text="@string/title_confirm_details"
                 android:textAppearance="?attr/textAppearanceTitleMedium" />
 
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/contributor_privacy" />
+
+            <TextView
+                android:id="@+id/textCommentPrivacy"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:accessibilityLiveRegion="polite"
+                android:visibility="gone" />
+
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/inputName"
                 android:layout_width="match_parent"
@@ -129,15 +142,6 @@
                     android:inputType="textCapWords" />
 
             </com.google.android.material.textfield.TextInputLayout>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:textSize="12sp"
-                android:text="@string/msg_admin_contact"
-                android:textAppearance="?attr/textAppearanceBodySmall"
-                android:textStyle="italic" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonApplySuggestion"

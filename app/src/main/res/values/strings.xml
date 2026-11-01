@@ -1,4 +1,9 @@
 <resources>
+    <string name="contributor_privacy">These details are optional. Provide them if you would like the admin to reply or contact you to clarify any doubts about your contribution.</string>
+    <string name="contributor_anonymous">Public name: Anonymous.</string>
+    <string name="contributor_named">Your supplied name will be shown publicly with this comment.</string>
+    <string name="contributor_load_failed">Could not load your contributor identifier. Please retry.</string>
+    <string name="contributor_save_failed">Could not save your profile. Your contribution has not been sent. Please retry.</string>
     <string name="location_from_action">Location options for From stop</string>
     <string name="location_to_action">Location options for To stop</string>
     <string name="location_use_current">Use current location</string>
@@ -148,7 +153,6 @@
     <string name="preview_username_hidden">Hide username with comment</string>
     <string name="preview_added">Added: %1$s</string>
     <string name="preview_removed">Removed: %1$s</string>
-    <string name="required_field_hint">%1$s *</string>
     <string name="hint_place">Place</string>
     <string name="hint_your_comment">Your comment…</string>
     <string name="hint_your_message">Your message…</string>
@@ -163,7 +167,7 @@
     <string name="title_welcome">Welcome to Sanchari!</string>
     <string name="title_how_it_works">How it works</string>
     <string name="title_tell_us">Tell us about yourself</string>
-    <string name="title_confirm_details">Please confirm your details</string>
+    <string name="title_confirm_details">Optional contributor details</string>
     <string name="title_alternative_routes">Alternative Routes</string>
     <string name="label_punctuality_5">Punctuality</string>
     <string name="label_driving_comfort_5">Driving and Comfort</string>

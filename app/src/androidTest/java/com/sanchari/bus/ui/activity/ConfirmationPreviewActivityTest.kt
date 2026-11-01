@@ -1,9 +1,6 @@
 package com.sanchari.bus.ui.activity
 
 import android.app.Instrumentation
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color
 import android.os.SystemClock
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
@@ -27,6 +24,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.sanchari.bus.R
 import com.sanchari.bus.data.local.DatabaseManager
+import com.sanchari.bus.data.manager.UserDataManager
 import com.sanchari.bus.data.model.BusService
 import com.sanchari.bus.databinding.ActivityBusDetailsBinding
 import com.sanchari.bus.databinding.ActivityConfirmBinding
@@ -50,7 +48,7 @@ class ConfirmationPreviewActivityTest {
     fun initialize() = runBlocking { DatabaseManager.initializeDatabases(context) }
 
     @Test
-    fun previewRequiredMarkersAndContactEditsSurviveRecreation() {
+    fun optionalContactFieldsAndEditsSurviveRecreation() {
         val json = JSONObject().put("type", "comment").put("serviceId", "preview-fixture")
             .put("commentText", "Please keep this comment").put("showUsername", false).toString()
         ActivityScenario.launch<ConfirmationActivity>(ConfirmationActivity.newIntent(context, json)).use { scenario ->
@@ -58,34 +56,18 @@ class ConfirmationPreviewActivityTest {
             scenario.onActivity { activity ->
                 val binding = binding(activity)
                 assertTrue(binding.textContributionPreview.text.contains("Please keep this comment"))
-                assertEquals("Name *", binding.inputName.hint.toString())
+                assertEquals("Name", binding.inputName.hint.toString())
                 assertEquals("Place", binding.editTextPlace.hint.toString())
                 for (input in listOf(binding.inputName, binding.inputEmail, binding.inputPhone)) {
-                    val hint = input.hint as Spanned
-                    assertFalse(hint.contains("Required"))
-                    assertTrue(hint.endsWith("*"))
-                    val span = hint.getSpans(hint.length - 1, hint.length, ForegroundColorSpan::class.java).single()
-                    assertEquals(ContextCompat.getColor(activity, R.color.preview_removed), span.foregroundColor)
+                    assertFalse(input.hint.toString().contains("*"))
                 }
+                assertTrue(binding.editTextName.isEnabled)
+                assertTrue(binding.editTextName.text.isNullOrBlank())
+                assertEquals(activity.getString(R.string.contributor_anonymous), binding.textCommentPrivacy.text)
                 binding.editTextName.setText("Edited name")
                 binding.editTextEmail.setText("edited@example.invalid")
                 binding.editTextPhone.setText("1234567890")
                 binding.editTextPlace.setText("Edited place")
-            }
-            instrumentation.waitForIdleSync()
-            scenario.onActivity { activity ->
-                for (input in listOf(binding(activity).inputName, binding(activity).inputEmail, binding(activity).inputPhone)) {
-                    val image = Bitmap.createBitmap(input.width, input.height, Bitmap.Config.ARGB_8888)
-                    input.draw(Canvas(image))
-                    var redPixels = 0
-                    for (y in 0 until image.height) for (x in 0 until image.width) {
-                        val color = image.getPixel(x, y)
-                        if (Color.red(color) > 100 && Color.red(color) > Color.green(color) * 1.5 &&
-                            Color.red(color) > Color.blue(color) * 1.5) redPixels++
-                    }
-                    image.recycle()
-                    assertTrue("The required asterisk must actually draw in red", redPixels > 0)
-                }
             }
             scenario.recreate()
             awaitReady(scenario)
@@ -95,7 +77,141 @@ class ConfirmationPreviewActivityTest {
                 assertEquals("edited@example.invalid", binding.editTextEmail.text.toString())
                 assertEquals("1234567890", binding.editTextPhone.text.toString())
                 assertEquals("Edited place", binding.editTextPlace.text.toString())
+                assertTrue(binding.editTextName.isEnabled)
+                assertTrue(binding.editTextEmail.isEnabled)
+                assertEquals(activity.getString(R.string.contributor_anonymous), binding.textCommentPrivacy.text)
                 assertTrue(binding.textContributionPreview.text.contains("Please keep this comment"))
+            }
+
+        }
+    }
+
+    @Test
+    fun blankPersonalFieldsCanSubmitAndOnlyEnteredDetailsAreSent() {
+        val originalProfile = UserDataManager.getUser(context)
+        try {
+            for (provided in listOf(false, true)) {
+                val json = JSONObject().put("type", "comment").put("serviceId", "preview-fixture")
+                    .put("commentText", "A valid comment").put("showUsername", true).put("timestamp", 123L).toString()
+                val captured = java.util.concurrent.atomic.AtomicReference<String>()
+                ActivityScenario.launch<ConfirmationActivity>(ConfirmationActivity.newIntent(context, json)).use { scenario ->
+                    awaitReady(scenario)
+                    scenario.onActivity { activity ->
+                        activity.uploadContribution = { captured.set(it); false }
+                        activity.persistContribution = { false }
+                        val binding = binding(activity)
+                        binding.editTextName.setText(if (provided) "Entered name" else "")
+                        binding.editTextEmail.setText(if (provided) "entered@example.invalid" else "")
+                        binding.editTextPhone.setText("")
+                        binding.editTextPlace.setText("")
+                        binding.buttonApplySuggestion.performClick()
+                    }
+                    await { captured.get() != null }
+                    val root = JSONObject(captured.get())
+                    val by = root.getJSONObject("submittedBy")
+                    assertEquals(if (provided) 3 else 1, by.length())
+                    if (provided) {
+                        assertEquals("Entered name", by.getString("name"))
+                        assertEquals("entered@example.invalid", by.getString("email"))
+                    }
+                    assertEquals(originalProfile.uuid, root.getJSONObject("submittedBy").getString("uuid"))
+                    assertEquals(provided, root.getJSONObject("suggestion").getBoolean("showUsername"))
+                    assertEquals(123L, root.getJSONObject("suggestion").getLong("timestamp"))
+                }
+            }
+        } finally {
+            assertTrue(UserDataManager.saveUser(context, originalProfile))
+        }
+    }
+
+    @Test
+    fun commentsWithoutEnteredNamesShowAnonymousWithoutIdentifierWording() {
+        val json = JSONObject().put("type", "comment").put("serviceId", "preview-fixture")
+            .put("commentText", "No contact details needed").put("showUsername", true).toString()
+        ActivityScenario.launch<ConfirmationActivity>(ConfirmationActivity.newIntent(context, json)).use { scenario ->
+            awaitReady(scenario)
+            scenario.onActivity { activity ->
+                val binding = binding(activity)
+                assertEquals(activity.getString(R.string.contributor_anonymous), binding.textCommentPrivacy.text)
+                binding.editTextName.setText("Public name")
+                assertEquals(activity.getString(R.string.contributor_named), binding.textCommentPrivacy.text)
+                binding.editTextName.setText("")
+                assertEquals(activity.getString(R.string.contributor_anonymous), binding.textCommentPrivacy.text)
+            }
+        }
+    }
+
+    @Test
+    fun savedContactsAreNotPrefilledOrSentAndBlankFieldsDoNotEraseTheProfile() {
+        val original = UserDataManager.getUser(context)
+        val stored = original.copy(name = "Saved name", email = "saved@example.invalid", phone = "1234567890", place = "Saved place")
+        assertTrue(UserDataManager.saveUser(context, stored))
+        val captured = java.util.concurrent.atomic.AtomicReference<String>()
+        try {
+            ActivityScenario.launch<ConfirmationActivity>(ConfirmationActivity.newIntent(
+                context, """{"type":"admin_message","messageText":"Valid message","timestamp":123}"""
+            )).use { scenario ->
+                awaitReady(scenario)
+                scenario.onActivity { activity ->
+                    val binding = binding(activity)
+                    assertTrue(binding.editTextName.text.isNullOrBlank())
+                    assertTrue(binding.editTextEmail.text.isNullOrBlank())
+                    assertTrue(binding.editTextPhone.text.isNullOrBlank())
+                    assertTrue(binding.editTextPlace.text.isNullOrBlank())
+                    activity.uploadContribution = { captured.set(it); false }
+                    activity.persistContribution = { false }
+                    binding.buttonApplySuggestion.performClick()
+                }
+                await { captured.get() != null }
+                assertEquals(1, JSONObject(captured.get()).getJSONObject("submittedBy").length())
+                assertEquals(stored, UserDataManager.getUser(context))
+            }
+        } finally {
+            assertTrue(UserDataManager.saveUser(context, original))
+        }
+    }
+
+    @Test
+    fun draftIsRemovedOnlyAfterUploadOrPendingPayloadPersistenceSucceeds() {
+        for ((uploaded, persisted) in listOf(false to false, false to true, true to false)) {
+            val json = schedule().put("type", "new_schedule")
+            val busName = "Submission fixture ${java.util.UUID.randomUUID()}"
+            json.getJSONObject("service").put("name", busName)
+            json.getJSONObject("service").put("serviceId", "NEW-${java.util.UUID.randomUUID()}")
+            val draft = DraftManager.saveDraft(context, json.toString())
+            val uploadedPayload = java.util.concurrent.atomic.AtomicReference<String>()
+            val pendingPayload = java.util.concurrent.atomic.AtomicReference<String>()
+            try {
+                ActivityScenario.launch<ConfirmationActivity>(
+                    ConfirmationActivity.newIntent(context, json.toString())
+                        .putExtra(ConfirmationActivity.EXTRA_DRAFT_FILE_NAME, draft)
+                ).use { scenario ->
+                    awaitReady(scenario)
+                    scenario.onActivity { activity ->
+                        activity.uploadContribution = { uploadedPayload.set(it); uploaded }
+                        activity.persistContribution = { pendingPayload.set(it); persisted }
+                        binding(activity).buttonApplySuggestion.performClick()
+                    }
+                    await { uploadedPayload.get() != null }
+                    if (uploaded || persisted) {
+                        await { DraftManager.getDrafts(context).none { it.fileName == draft } }
+                    } else {
+                        await {
+                            var ready = false
+                            scenario.onActivity { ready = binding(it).buttonApplySuggestion.isEnabled }
+                            ready
+                        }
+                        assertTrue(DraftManager.getDrafts(context).any { it.fileName == draft })
+                    }
+                    if (uploaded) assertNull(pendingPayload.get())
+                    else assertEquals(uploadedPayload.get(), pendingPayload.get())
+                    assertEquals(1, JSONObject(uploadedPayload.get()).getJSONObject("submittedBy").length())
+                }
+            } finally {
+                runBlocking { DraftManager.deleteDraftAsync(context, draft).await() }
+                com.sanchari.bus.data.local.UserDatabaseHelper(context).use {
+                    it.writableDatabase.delete("SubmissionLog", "busName = ?", arrayOf(busName))
+                }
             }
         }
     }

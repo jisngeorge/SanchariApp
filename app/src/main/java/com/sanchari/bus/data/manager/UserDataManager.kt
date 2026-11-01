@@ -3,6 +3,7 @@ package com.sanchari.bus.data.manager
 import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
+import android.database.sqlite.SQLiteException
 import android.util.Log
 import com.sanchari.bus.data.local.DatabaseConstants.RecentViewTable
 import com.sanchari.bus.data.local.DatabaseConstants.SubmissionLogTable
@@ -24,100 +25,88 @@ object UserDataManager {
      * @return true if the save was successful, false otherwise.
      */
     fun saveUser(context: Context, user: User): Boolean {
-        val dbHelper = UserDatabaseHelper(context)
-        val db = dbHelper.writableDatabase
-        var success = false
-        db.beginTransaction()
+        require(user.uuid.isNotBlank()) { "Contributor UUID is required" }
         try {
-            val values = ContentValues().apply {
-                put(UserTable.COLUMN_UUID, user.uuid)
-                put(UserTable.COLUMN_NAME, user.name)
-                put(UserTable.COLUMN_EMAIL, user.email)
-                put(UserTable.COLUMN_PHONE, user.phone)
-                put(UserTable.COLUMN_PLACE, user.place)
-            }
-
-            var operationSuccessful = false
-
-            // Try to update first based on UUID.
-            val updatedRows = db.update(
-                UserTable.TABLE_NAME,
-                values,
-                "${UserTable.COLUMN_UUID} = ?",
-                arrayOf(user.uuid)
-            )
-
-            if (updatedRows > 0) {
-                Log.i(TAG, "Existing user updated with UUID: ${user.uuid}")
-                operationSuccessful = true
-            } else {
-                val newRowId = db.insert(UserTable.TABLE_NAME, null, values)
-                if (newRowId != -1L) {
-                    Log.i(TAG, "New user inserted with UUID: ${user.uuid}")
-                    operationSuccessful = true
-                } else {
-                    Log.e(TAG, "Failed to insert new user with UUID: ${user.uuid}")
+            UserDatabaseHelper(context).use { helper ->
+                val db = helper.writableDatabase
+                db.beginTransaction()
+                try {
+                    val storedUuid = db.query(
+                        UserTable.TABLE_NAME, arrayOf(UserTable.COLUMN_UUID),
+                        null, null, null, null, null, "1"
+                    ).use {
+                        if (it.moveToFirst()) it.getString(0) else null
+                    }
+                    if (storedUuid != null && storedUuid != user.uuid) {
+                        throw SQLiteException("Profile edits cannot replace the contributor identity")
+                    }
+                    val values = ContentValues().apply {
+                        put(UserTable.COLUMN_NAME, user.name)
+                        put(UserTable.COLUMN_EMAIL, user.email)
+                        put(UserTable.COLUMN_PHONE, user.phone)
+                        put(UserTable.COLUMN_PLACE, user.place)
+                    }
+                    if (storedUuid == null) {
+                        values.put(UserTable.COLUMN_UUID, user.uuid)
+                        db.insertOrThrow(UserTable.TABLE_NAME, null, values)
+                    } else {
+                        if (db.update(UserTable.TABLE_NAME, values, "${UserTable.COLUMN_UUID} = ?", arrayOf(user.uuid)) < 1) {
+                            throw SQLiteException("Contributor profile could not be updated")
+                        }
+                    }
+                    db.setTransactionSuccessful()
+                    return true
+                } finally {
+                    db.endTransaction()
                 }
             }
-
-            if (operationSuccessful) {
-                db.setTransactionSuccessful()
-                success = true
-            }
-        } catch (e: Exception) {
+        } catch (e: SQLiteException) {
             Log.e(TAG, "Error saving user", e)
-            success = false
-        } finally {
-            db.endTransaction()
-            db.close()
+            return false
         }
-        return success
     }
 
     /**
-     * Retrieves the current user.
+     * Retrieves the local profile, creating a persisted identity even without personal details.
      */
-    @SuppressLint("Range")
     fun getUser(context: Context): User {
-        val dbHelper = UserDatabaseHelper(context)
-        val db = dbHelper.readableDatabase
-        var user: User? = null
-
-        val cursor = db.query(
-            UserTable.TABLE_NAME,
-            null, null, null, null, null, null, "1"
-        )
-
-        try {
-            if (cursor.moveToFirst()) {
-                val uuidIndex = cursor.getColumnIndex(UserTable.COLUMN_UUID)
-                val nameIndex = cursor.getColumnIndex(UserTable.COLUMN_NAME)
-                val emailIndex = cursor.getColumnIndex(UserTable.COLUMN_EMAIL)
-                val phoneIndex = cursor.getColumnIndex(UserTable.COLUMN_PHONE)
-                val placeIndex = cursor.getColumnIndex(UserTable.COLUMN_PLACE)
-
-                user = User(
-                    uuid = if (uuidIndex != -1) cursor.getString(uuidIndex) else "",
-                    name = if (nameIndex != -1) cursor.getString(nameIndex) else "",
-                    email = if (emailIndex != -1) cursor.getString(emailIndex) else "",
-                    phone = if (phoneIndex != -1) cursor.getString(phoneIndex) else "",
-                    place = if (placeIndex != -1) cursor.getString(placeIndex) else ""
-                )
+        UserDatabaseHelper(context).use { helper ->
+            val db = helper.writableDatabase
+            db.beginTransaction()
+            try {
+                val user = db.query(
+                    UserTable.TABLE_NAME, null, null, null, null, null, null, "1"
+                ).use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        fun text(column: String) = cursor.getString(cursor.getColumnIndexOrThrow(column)).orEmpty()
+                        val storedUuid = text(UserTable.COLUMN_UUID)
+                        val uuid = storedUuid.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString()
+                        if (storedUuid.isBlank()) {
+                            val updated = db.update(UserTable.TABLE_NAME, ContentValues().apply {
+                                put(UserTable.COLUMN_UUID, uuid)
+                            }, "${UserTable.COLUMN_USER_ID} = ?",
+                                arrayOf(cursor.getLong(cursor.getColumnIndexOrThrow(UserTable.COLUMN_USER_ID)).toString()))
+                            if (updated != 1) throw SQLiteException("Contributor identity could not be persisted")
+                        }
+                        User(uuid, text(UserTable.COLUMN_NAME), text(UserTable.COLUMN_EMAIL),
+                            text(UserTable.COLUMN_PHONE), text(UserTable.COLUMN_PLACE))
+                    } else {
+                        val uuid = UUID.randomUUID().toString()
+                        db.insertOrThrow(UserTable.TABLE_NAME, null, ContentValues().apply {
+                            put(UserTable.COLUMN_UUID, uuid)
+                        })
+                        User(uuid, "", "", "", "")
+                    }
+                }
+                db.setTransactionSuccessful()
+                return user
+            } catch (e: SQLiteException) {
+                Log.e(TAG, "Failed to load or persist contributor identity", e)
+                throw e
+            } finally {
+                db.endTransaction()
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting user", e)
-        } finally {
-            cursor.close()
-            db.close()
         }
-
-        return user ?: User(
-            uuid = UUID.randomUUID().toString(),
-            name = "",
-            email = "",
-            phone = "",
-            place = ""
-        )
     }
 
     /**

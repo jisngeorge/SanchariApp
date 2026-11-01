@@ -21,7 +21,8 @@ object ContributionPreview {
         context: Context,
         suggestion: JSONObject,
         original: BusService? = null,
-        originalStops: List<BusStop> = emptyList()
+        originalStops: List<BusStop> = emptyList(),
+        includeUsername: Boolean = true
     ): List<Line> {
         fun label(id: Int, value: String) = context.getString(R.string.preview_field, context.getString(id), value)
         val type = suggestion.getString("type")
@@ -99,8 +100,11 @@ object ContributionPreview {
             }
             "comment" -> {
                 lines += Line(suggestion.getString("commentText"))
-                lines += Line(context.getString(if (suggestion.getBoolean("showUsername"))
-                    R.string.preview_username_shown else R.string.preview_username_hidden))
+                val showUsername = suggestion.getBoolean("showUsername")
+                if (includeUsername) {
+                    lines += Line(context.getString(if (showUsername)
+                        R.string.preview_username_shown else R.string.preview_username_hidden))
+                }
             }
             "running_status_suggestion" -> lines += Line(suggestion.getString("suggestedStatus"))
             "admin_message" -> lines += Line(suggestion.getString("messageText"))
