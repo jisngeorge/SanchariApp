@@ -95,6 +95,7 @@ object SearchManager {
         ).use { cursor ->
             while (cursor.moveToNext()) cursor.getString(0).trim().takeIf { it.isNotEmpty() }?.let(types::add)
         }
+        types.add("Town to Town")
         return types.distinctBy(RouteResultsManager::busTypeKey)
     }
 

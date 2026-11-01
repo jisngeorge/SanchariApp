@@ -15,6 +15,7 @@ import com.sanchari.bus.data.model.BusService
 import com.sanchari.bus.data.model.RouteSearchStatistics
 import com.sanchari.bus.R
 import com.sanchari.bus.databinding.ItemBusServiceBinding
+import com.sanchari.bus.data.manager.RouteResultsManager
 import com.sanchari.bus.ui.helper.TimetableTimeFormatter
 
 class BusServiceAdapter(
@@ -119,7 +120,7 @@ class BusServiceAdapter(
             bindWarning(result)
 
             // Set the icon based on the service type
-            when (service.type.uppercase()) {
+            when (RouteResultsManager.busTypeKey(service.type)) {
                 "ORDINARY" -> {
                     binding.serviceIcon.setImageResource(R.drawable.ic_bus_ordinary)
                     binding.serviceType.text = context.getString(R.string.label_bus_ordinary)
@@ -151,6 +152,10 @@ class BusServiceAdapter(
                 "MINNAL" -> {
                     binding.serviceIcon.setImageResource(R.drawable.ic_bus_minnal)
                     binding.serviceType.text = context.getString(R.string.label_bus_minnal)
+                }
+                "TOWN TO TOWN" -> {
+                    binding.serviceIcon.setImageResource(R.drawable.ic_bus_town_to_town)
+                    binding.serviceType.text = context.getString(R.string.label_bus_town_to_town)
                 }
                 else -> {
                     binding.serviceIcon.setImageResource(R.drawable.ic_bus_placeholder)

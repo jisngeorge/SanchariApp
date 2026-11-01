@@ -95,8 +95,15 @@ class EditorLookupTest {
             db.execSQL("INSERT INTO BusService VALUES (?, ?, ?, 1, 0)", arrayOf("$index", "Test", type))
         }
         val types = SearchManager.getEditorBusTypes(db)
-        assertEquals(setOf("EXPRESS", "LOCAL"), types.map(RouteResultsManager::busTypeKey).toSet())
-        assertEquals(2, types.size)
+        assertEquals(setOf("EXPRESS", "LOCAL", "TOWN TO TOWN"), types.map(RouteResultsManager::busTypeKey).toSet())
+        assertEquals(3, types.size)
+    }
+
+    @Test
+    fun townToTownIsSuggestedWithoutExistingServicesAndPreservesStoredSpelling() {
+        assertEquals(listOf("Town to Town"), SearchManager.getEditorBusTypes(db))
+        db.execSQL("INSERT INTO BusService VALUES ('town', 'Town bus', ' town to town ', 1, 0)")
+        assertEquals(listOf("town to town"), SearchManager.getEditorBusTypes(db))
     }
 
     @Test

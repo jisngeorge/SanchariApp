@@ -358,7 +358,13 @@ is regenerated as a one-based sequence from the editor list.
 Stop names have local autocomplete with ID-bearing choices. Users may still enter
 new places; these retain the `"NEW"` stop ID. Renaming a stop must not retain an
 unrelated existing ID. Duplicate-name choices remain distinct. Bus type is also
-an editable local dropdown and permits new values.
+an editable local dropdown and permits new values. Town to Town is offered even
+when absent from the installed timetable, preserving any existing stored spelling.
+Result icons share a two-part bus silhouette: the fallback is grey/black, Deluxe
+and Minnal have cream upper sections, and Town to Town is sky blue above cream.
+Type-icon matching uses the same trimmed, case-insensitive keys as result filtering.
+The home bus-name field disables Material start-icon tint so the general bus
+icon retains its two colours in both themes.
 
 The suggestion editor groups service details, route stops, and optional notes.
 Each stop uses a card with a header for order/move/remove controls and full-width

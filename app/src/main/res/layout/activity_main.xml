@@ -186,6 +186,7 @@
                 android:layout_marginTop="8dp"
                 android:hint="@string/hint_search_bus_name"
                 app:endIconMode="clear_text"
+                app:startIconTint="@null"
                 app:startIconDrawable="@drawable/ic_bus_placeholder">
 
                 <com.google.android.material.textfield.MaterialAutoCompleteTextView
