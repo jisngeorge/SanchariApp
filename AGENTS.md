@@ -105,12 +105,23 @@ introduction on first run, then initializes data on `Dispatchers.IO`:
 2. It launches `UploadManager.retryPendingUploads` without blocking the rest of initialization.
 3. It loads stop autocomplete options and local recent views, then checks for updates.
 
-The main page is a scrollable, search-first layout: route-search card, bus-name
-search card, Recent Services, then app actions. Preserve its original wording;
+The main page is a compact, scrollable search workspace: title and three-dot menu,
+route-search card, bus-name input, labelled Add Bus and Drafts actions, then a
+compact vertical Recent Services list retaining all five
+entries without a repeated viewed-recently caption. Each full-width row has at least
+a 48dp touch target, with full names available to accessibility and long-press tooltips.
+Search and important actions stay above the fold on a standard 360x800dp phone.
+The page scrolls when needed for recent entries, smaller screens, large fonts,
+keyboard input or inline errors.
+Important actions share a row normally and stack on narrow screens or large fonts.
+Preserve its original wording;
 do not add headings, taglines, descriptions or an icon beside the app title.
 Wildcard/clear controls retain separate 48dp targets; swapping stops does not
-submit a search. Drafts & submissions uses a labelled button with the history icon.
-Update availability uses a green highlight without changing the Update label.
+submit a search. Add Bus has a green icon; Drafts uses a labelled button with the
+history icon and still opens both drafts and submission history.
+The overflow labels are Update, Auto-update, Share, Message admin and Version;
+Auto-update retains the persisted database-update toggle. Update availability uses a green highlight
+and an accessible description on the menu button without changing the Update label.
 Home surfaces and outlines adapt to light/dark mode; content grows with text size.
 
 `BusSearchHandler` delegates SQL work to `SearchManager`. Route search matches
@@ -173,6 +184,7 @@ available for callers that only need the underlying services.
 
 The main From/To fields each have a full-width input and a separate row below it
 with location, wildcard and clear buttons, each with a 48dp touch target.
+Swap uses free space in the From control row rather than a separate vertical row.
 The wildcard button replaces only that field with `*` without opening autocomplete or
 submitting a search; clear removes only that field. There is no wildcard help
 message below the search button. Both-wildcard validation still applies.

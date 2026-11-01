@@ -2,13 +2,16 @@ package com.sanchari.bus.ui.activity
 
 import android.content.Intent
 import android.content.res.ColorStateList
-import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
+import androidx.appcompat.widget.PopupMenu
+import androidx.core.view.doOnLayout
+import android.widget.LinearLayout
+import android.view.ViewGroup
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.color.MaterialColors
@@ -61,11 +64,6 @@ class MainActivity : AppCompatActivity() {
 
         // Initialize Managers
         appUpdateManager = AppUpdateManager(this)
-        binding.checkAutoDatabaseUpdates.isChecked = LocalVersionManager.autoDatabaseUpdatesEnabled(this)
-        binding.checkAutoDatabaseUpdates.setOnCheckedChangeListener { _, checked ->
-            LocalVersionManager.setAutoDatabaseUpdatesEnabled(this, checked)
-            if (!checked) appUpdateManager.cancelAutomaticUpdates()
-        }
         uploadManager = UploadManager(this)
         busSearchHandler = BusSearchHandler(this, binding, addSearchMetadata = { intent, from, to ->
             stopLocationHandler.addSearchMetadata(intent, from, to)
@@ -77,11 +75,7 @@ class MainActivity : AppCompatActivity() {
         stopLocationHandler = StopLocationHandler(this, binding, busSearchHandler::validateMapStop)
         stopLocationHandler.setup(savedInstanceState)
 
-        // --- NEW: Check persisted update state immediately ---
-        if (LocalVersionManager.isUpdateAvailable(this)) {
-            updateUpdateButtonUI(true)
-        }
-        // ----------------------------------------------------
+        updateAvailabilityUI(LocalVersionManager.isUpdateAvailable(this))
 
         // --- NEW: Check First Run & Show Intro Activity ---
         if (LocalVersionManager.isFirstRun(this)) {
@@ -108,75 +102,21 @@ class MainActivity : AppCompatActivity() {
             showDraftsAndSubmissions()
         }
 
-        binding.buttonCheckForUpdates.setOnClickListener {
-            Toast.makeText(this, "Checking for updates...", Toast.LENGTH_SHORT).show()
-            // Force update on manual click
-            val currentT = LocalVersionManager.getTimetableDbVersion(applicationContext)
-            val currentC = LocalVersionManager.getCommunityDbVersion(applicationContext)
-            // Fix: Use named argument for the lambda to resolve ambiguity
-            appUpdateManager.checkForUpdates(
-                forceCheck = true,
-                localTimetableVersion = currentT,
-                localCommunityVersion = currentC,
-                onUpdateAvailable = { isAvailable ->
-                    updateUpdateButtonUI(isAvailable)
-                },
-                onUpdateComplete = ::onUpdatesCompleted
-            )
-        }
-
-        binding.buttonShareApp.setOnClickListener {
-            val appUrl = LocalVersionManager.getLatestAppUrl(this)
-            if (!appUrl.isNullOrBlank()) {
-                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_SUBJECT, "Check out Sanchari Bus App")
-                    putExtra(Intent.EXTRA_TEXT, "Download the Sanchari Bus App here: $appUrl")
-                }
-                startActivity(Intent.createChooser(shareIntent, "Share App via"))
-            } else {
-                // Fallback: Try reading from assets if SharedPreferences is empty
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val assetUrl = getAppUrlFromAssets()
-                    withContext(Dispatchers.Main) {
-                        if (!assetUrl.isNullOrBlank()) {
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_SUBJECT, "Check out Sanchari Bus App")
-                                putExtra(Intent.EXTRA_TEXT, "Download the Sanchari Bus App here: $assetUrl")
-                            }
-                            startActivity(Intent.createChooser(shareIntent, "Share App via"))
-                            // Save it for next time to avoid file IO
-                            LocalVersionManager.saveLatestAppUrl(this@MainActivity, assetUrl)
-                        } else {
-                            Toast.makeText(this@MainActivity, "Update link not available yet. Please check for updates first.", Toast.LENGTH_LONG).show()
-                            val currentT = LocalVersionManager.getTimetableDbVersion(applicationContext)
-                            val currentC = LocalVersionManager.getCommunityDbVersion(applicationContext)
-                            // Fix: Use named argument
-                            appUpdateManager.checkForUpdates(
-                                forceCheck = true,
-                                localTimetableVersion = currentT,
-                                localCommunityVersion = currentC,
-                                onUpdateAvailable = { isAvailable ->
-                                    updateUpdateButtonUI(isAvailable)
-                                },
-                                onUpdateComplete = ::onUpdatesCompleted
-                            )
-                        }
+        binding.homeOverflowButton.setOnClickListener { showHomeOptions() }
+        binding.homePrimaryActions.doOnLayout { actions ->
+            val stacked = resources.configuration.fontScale > 1.2f ||
+                actions.width / resources.displayMetrics.density < 328
+            binding.homePrimaryActions.orientation = if (stacked) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+            for (button in listOf(binding.buttonAddNewBus, binding.buttonDrafts)) {
+                button.layoutParams = (button.layoutParams as LinearLayout.LayoutParams).apply {
+                    width = if (stacked) ViewGroup.LayoutParams.MATCH_PARENT else 0
+                    weight = if (stacked) 0f else 1f
+                    if (stacked) {
+                        marginStart = 0
+                        marginEnd = 0
                     }
                 }
             }
-        }
-
-        // --- NEW: Long Click to show Version Info ---
-        binding.buttonShareApp.setOnLongClickListener {
-            showVersionInfoDialog()
-            true // Consume the click
-        }
-        // --------------------------------------------
-
-        binding.buttonMessageAdmin.setOnClickListener {
-            mainSubmissionHandler.showMessageAdminDialog()
         }
 
         setupRecentSearchesRecyclerView()
@@ -185,24 +125,78 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             Log.i(TAG, "Initializing databases...")
             DatabaseManager.initializeDatabases(applicationContext)
-
-            // 1. Sync Offline Data (fire-and-forget, don't block other init)
             launch { uploadManager.retryPendingUploads() }
-
-            // 2. Load Suggestions
-            Log.i(TAG, "Loading stop suggestions...")
             busSearchHandler.loadStopSuggestions()
+            withContext(Dispatchers.Main) { loadAppData() }
+        }
+    }
 
-            // 3. Load App Data (Recents & Auto-Update Check)
-            Log.i(TAG, "Loading app data...")
-            withContext(Dispatchers.Main) {
-                loadAppData()
+    private fun showHomeOptions() {
+        PopupMenu(this, binding.homeOverflowButton).apply {
+            inflate(R.menu.menu_main)
+            menu.findItem(R.id.action_auto_updates).isChecked =
+                LocalVersionManager.autoDatabaseUpdatesEnabled(this@MainActivity)
+            setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    R.id.action_check_updates -> checkForUpdatesManually()
+                    R.id.action_auto_updates -> {
+                        val enabled = !item.isChecked
+                        LocalVersionManager.setAutoDatabaseUpdatesEnabled(this@MainActivity, enabled)
+                        if (!enabled) appUpdateManager.cancelAutomaticUpdates()
+                    }
+                    R.id.action_share_app -> shareApp()
+                    R.id.action_message_admin -> mainSubmissionHandler.showMessageAdminDialog()
+                    R.id.action_version_info -> showVersionInfoDialog()
+                    else -> return@setOnMenuItemClickListener false
+                }
+                true
+            }
+            show()
+        }
+    }
+
+    private fun checkForUpdatesManually() {
+        Toast.makeText(this, "Checking for updates...", Toast.LENGTH_SHORT).show()
+        appUpdateManager.checkForUpdates(
+            forceCheck = true,
+            localTimetableVersion = LocalVersionManager.getTimetableDbVersion(applicationContext),
+            localCommunityVersion = LocalVersionManager.getCommunityDbVersion(applicationContext),
+            onUpdateAvailable = ::updateAvailabilityUI,
+            onUpdateComplete = ::onUpdatesCompleted
+        )
+    }
+
+    private fun shareApp() {
+        val appUrl = LocalVersionManager.getLatestAppUrl(this)
+        if (!appUrl.isNullOrBlank()) {
+            shareAppUrl(appUrl)
+        } else {
+            lifecycleScope.launch(Dispatchers.IO) {
+                val assetUrl = getAppUrlFromAssets()
+                withContext(Dispatchers.Main) {
+                    if (!assetUrl.isNullOrBlank()) {
+                        shareAppUrl(assetUrl)
+                        LocalVersionManager.saveLatestAppUrl(this@MainActivity, assetUrl)
+                    } else {
+                        Toast.makeText(this@MainActivity, "Update link not available yet. Please check for updates first.", Toast.LENGTH_LONG).show()
+                        checkForUpdatesManually()
+                    }
+                }
             }
         }
     }
 
+    private fun shareAppUrl(url: String) {
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "Check out Sanchari Bus App")
+            putExtra(Intent.EXTRA_TEXT, "Download the Sanchari Bus App here: $url")
+        }
+        startActivity(Intent.createChooser(shareIntent, "Share App via"))
+    }
+
     private fun onUpdatesCompleted() {
-        updateUpdateButtonUI(LocalVersionManager.isUpdateAvailable(this))
+        updateAvailabilityUI(LocalVersionManager.isUpdateAvailable(this))
         lifecycleScope.launch {
             busSearchHandler.loadStopSuggestions()
         }
@@ -257,20 +251,16 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun updateUpdateButtonUI(isUpdateAvailable: Boolean) {
+    private fun updateAvailabilityUI(isUpdateAvailable: Boolean) {
+        binding.homeOverflowButton.isSelected = isUpdateAvailable
+        binding.homeOverflowButton.contentDescription = getString(
+            if (isUpdateAvailable) R.string.home_more_options_update else R.string.home_more_options)
         if (isUpdateAvailable) {
-            binding.buttonCheckForUpdates.setTextColor(AppCompatResources.getColorStateList(this, R.color.primary_action_text))
-            binding.buttonCheckForUpdates.iconTint =
+            binding.homeOverflowButton.imageTintList =
                 AppCompatResources.getColorStateList(this, R.color.primary_action_text)
-            binding.buttonCheckForUpdates.backgroundTintList =
-                AppCompatResources.getColorStateList(this, R.color.primary_action_background)
         } else {
-            // Fix: Explicitly use com.google.android.material.R.attr.colorPrimary to resolve unresolved reference
-            val colorPrimary = MaterialColors.getColor(binding.root, androidx.constraintlayout.widget.R.attr.colorPrimary)
-            binding.buttonCheckForUpdates.setTextColor(colorPrimary)
-            binding.buttonCheckForUpdates.iconTint = ColorStateList.valueOf(colorPrimary)
-            // Reset background tint to null to restore default OutlinedButton behavior (transparent background)
-            binding.buttonCheckForUpdates.backgroundTintList = ColorStateList.valueOf(Color.TRANSPARENT)
+            binding.homeOverflowButton.imageTintList = ColorStateList.valueOf(
+                MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorPrimary))
         }
     }
 
@@ -287,7 +277,7 @@ class MainActivity : AppCompatActivity() {
         """.trimIndent()
 
         AlertDialog.Builder(this)
-            .setTitle("Version Information")
+            .setTitle(R.string.version_information)
             .setMessage(message)
             .setPositiveButton("OK", null)
             .show()
@@ -416,7 +406,7 @@ class MainActivity : AppCompatActivity() {
             forceCheck = false,
             localTimetableVersion = LocalVersionManager.getTimetableDbVersion(this),
             localCommunityVersion = LocalVersionManager.getCommunityDbVersion(this),
-            onUpdateAvailable = ::updateUpdateButtonUI,
+            onUpdateAvailable = ::updateAvailabilityUI,
             onUpdateComplete = ::onUpdatesCompleted
         )
     }

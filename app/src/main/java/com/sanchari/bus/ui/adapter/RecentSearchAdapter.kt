@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.sanchari.bus.data.model.RecentSearch
 import com.sanchari.bus.databinding.ItemRecentSearchBinding
+import androidx.appcompat.widget.TooltipCompat
 
 class RecentSearchAdapter(
     private var recentSearches: List<RecentSearch>,
@@ -31,11 +32,8 @@ class RecentSearchAdapter(
 
         fun bind(recentSearch: RecentSearch) {
             binding.serviceName.text = recentSearch.serviceName
-            // We can add a simple relative time logic later
-            binding.viewedTimestamp.text = "Viewed recently"
-
-            // Removed the line referencing binding.busIcon as it does not exist
-            // in item_recent_search.xml
+            binding.root.contentDescription = recentSearch.serviceName
+            TooltipCompat.setTooltipText(binding.root, recentSearch.serviceName)
 
             binding.root.setOnClickListener {
                 onItemClick(recentSearch)
@@ -51,4 +49,3 @@ class RecentSearchAdapter(
         notifyDataSetChanged()
     }
 }
-

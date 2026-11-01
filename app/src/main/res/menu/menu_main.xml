@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/action_check_updates" android:title="@string/btn_check_updates" />
+    <item android:id="@+id/action_auto_updates" android:checkable="true" android:title="@string/home_menu_auto_updates" />
+    <item android:id="@+id/action_share_app" android:title="@string/home_menu_share" />
+    <item android:id="@+id/action_message_admin" android:title="@string/home_menu_message_admin" />
+    <item android:id="@+id/action_version_info" android:title="@string/home_menu_version" />
+</menu>

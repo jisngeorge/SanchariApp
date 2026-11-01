@@ -1,4 +1,22 @@
 <resources>
+    <style name="Widget.Sanchari.HomeIcon" parent="Widget.AppCompat.ImageButton">
+        <item name="android:layout_width">48dp</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+        <item name="android:padding">12dp</item>
+        <item name="tint">?attr/colorControlNormal</item>
+    </style>
+
+    <style name="Widget.Sanchari.Button.HomeCompact" parent="Widget.Sanchari.Button.HomeSecondary">
+        <item name="android:minHeight">64dp</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">8dp</item>
+        <item name="android:paddingLeft">8dp</item>
+        <item name="android:paddingRight">8dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="iconSize">20dp</item>
+        <item name="iconPadding">4dp</item>
+    </style>
     <style name="Widget.Sanchari.AppBarLayout" parent="Widget.Design.AppBarLayout">
         <item name="android:background">@color/brand_header</item>
     </style>
