@@ -48,9 +48,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var stopLocationHandler: StopLocationHandler
     private lateinit var mainSubmissionHandler: MainSubmissionHandler
 
-    // Temp variables to hold initial DB versions
-    private var initialTimetableVersion = 0
-    private var initialCommunityVersion = 0
+    private var dataInitialized = false
 
     companion object {
         private const val TAG = "MainActivity"
@@ -63,6 +61,11 @@ class MainActivity : AppCompatActivity() {
 
         // Initialize Managers
         appUpdateManager = AppUpdateManager(this)
+        binding.checkAutoDatabaseUpdates.isChecked = LocalVersionManager.autoDatabaseUpdatesEnabled(this)
+        binding.checkAutoDatabaseUpdates.setOnCheckedChangeListener { _, checked ->
+            LocalVersionManager.setAutoDatabaseUpdatesEnabled(this, checked)
+            if (!checked) appUpdateManager.cancelAutomaticUpdates()
+        }
         uploadManager = UploadManager(this)
         busSearchHandler = BusSearchHandler(this, binding, addSearchMetadata = { intent, from, to ->
             stopLocationHandler.addSearchMetadata(intent, from, to)
@@ -186,15 +189,11 @@ class MainActivity : AppCompatActivity() {
             // 1. Sync Offline Data (fire-and-forget, don't block other init)
             launch { uploadManager.retryPendingUploads() }
 
-            // 2. Capture Initial Versions
-            initialTimetableVersion = LocalVersionManager.getTimetableDbVersion(applicationContext)
-            initialCommunityVersion = LocalVersionManager.getCommunityDbVersion(applicationContext)
-
-            // 3. Load Suggestions
+            // 2. Load Suggestions
             Log.i(TAG, "Loading stop suggestions...")
             busSearchHandler.loadStopSuggestions()
 
-            // 4. Load App Data (Recents & Auto-Update Check)
+            // 3. Load App Data (Recents & Auto-Update Check)
             Log.i(TAG, "Loading app data...")
             withContext(Dispatchers.Main) {
                 loadAppData()
@@ -203,7 +202,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onUpdatesCompleted() {
-        updateUpdateButtonUI(false)
+        updateUpdateButtonUI(LocalVersionManager.isUpdateAvailable(this))
         lifecycleScope.launch {
             busSearchHandler.loadStopSuggestions()
         }
@@ -299,9 +298,11 @@ class MainActivity : AppCompatActivity() {
         busSearchHandler.resumeSuggestions()
         stopLocationHandler.onResume()
         refreshRecentSearches()
+        if (dataInitialized) checkAutomaticUpdates()
     }
 
     override fun onPause() {
+        appUpdateManager.onPause()
         stopLocationHandler.onPause()
         busSearchHandler.pauseSuggestions()
         super.onPause()
@@ -398,20 +399,9 @@ class MainActivity : AppCompatActivity() {
                 val recentSearches = UserDataManager.getRecentViews(applicationContext)
                 withContext(Dispatchers.Main) {
                     recentSearchAdapter.updateData(recentSearches)
+                    dataInitialized = true
+                    checkAutomaticUpdates()
                 }
-
-                // Now check for DB updates (Automatic check = false)
-                // Fix: Use named argument
-                appUpdateManager.checkForUpdates(
-                    forceCheck = false,
-                    localTimetableVersion = initialTimetableVersion,
-                    localCommunityVersion = initialCommunityVersion,
-                    onUpdateAvailable = { isAvailable ->
-                        updateUpdateButtonUI(isAvailable)
-                    },
-                    onUpdateComplete = ::onUpdatesCompleted
-                )
-
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading app data", e)
                 withContext(Dispatchers.Main) {
@@ -419,5 +409,15 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun checkAutomaticUpdates() {
+        appUpdateManager.checkForUpdates(
+            forceCheck = false,
+            localTimetableVersion = LocalVersionManager.getTimetableDbVersion(this),
+            localCommunityVersion = LocalVersionManager.getCommunityDbVersion(this),
+            onUpdateAvailable = ::updateUpdateButtonUI,
+            onUpdateComplete = ::onUpdatesCompleted
+        )
     }
 }

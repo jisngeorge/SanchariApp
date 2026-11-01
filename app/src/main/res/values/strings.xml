@@ -1,4 +1,9 @@
 <resources>
+    <string name="auto_database_updates">Automatically update timetable and community data</string>
+    <string name="update_in_progress">An update is already in progress.</string>
+    <string name="database_updates_complete">Timetable and community data are up to date.</string>
+    <string name="database_updates_failed">Could not update all data. Existing data remains available. Tap Update to retry.</string>
+    <string name="database_updates_downloading">Downloading database updates…</string>
     <string name="contributor_privacy">These details are optional. Provide them if you would like the admin to reply or contact you to clarify any doubts about your contribution.</string>
     <string name="contributor_anonymous">Public name: Anonymous.</string>
     <string name="contributor_named">Your supplied name will be shown publicly with this comment.</string>
@@ -200,7 +205,7 @@
     <string name="cd_move_up">Move Up</string>
 
     <!-- Messages -->
-    <string name="msg_admin_contact">Admin may contact you through the provided phone / email to clear any doubts; edits will go live within a week if it is approved.</string>
+    <string name="contribution_review_notice">Your contribution will be reviewed before acceptance. If approved, it may take some time to go live in the app.</string>
     <string name="msg_welcome_sub">Your Community-Driven Bus Guide</string>
     <string name="msg_app_desc">This app works offline using a database stored on your phone. Routes, timings, and ratings are contributed by users like you and updated periodically.\n\nTo get the latest schedules, remember to check for updates regularly. We look forward to your contributions!</string>
     <string name="msg_no_stops_found">No stops found for this service."</string>

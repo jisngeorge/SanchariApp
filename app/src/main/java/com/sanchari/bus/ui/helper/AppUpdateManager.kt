@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import com.sanchari.bus.BuildConfig
+import com.sanchari.bus.R
 import com.sanchari.bus.data.remote.NetworkManager
 import com.sanchari.bus.data.local.DatabaseConstants
 import com.sanchari.bus.data.local.DatabaseManager
@@ -16,14 +17,33 @@ import com.sanchari.bus.data.model.ServerVersionInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import androidx.lifecycle.Lifecycle
 import java.io.File
 import java.util.Date
 
-class AppUpdateManager(private val activity: AppCompatActivity) {
+class AppUpdateManager(
+    private val activity: AppCompatActivity,
+    private val fetchVersions: suspend () -> ServerVersionInfo? = {
+        NetworkManager.fetchVersionInfo(activity)
+    },
+    private val installDatabase: suspend (String, Int, String) -> Boolean = { name, version, url ->
+        DatabaseManager.downloadAndReplaceDatabase(activity, name, version, url)
+    },
+    private val now: () -> Long = System::currentTimeMillis
+) {
+    private var updateJob: Job? = null
+    @Volatile private var automaticOperation = false
+    private var updateDialog: AlertDialog? = null
 
     companion object {
         private const val TAG = "AppUpdateManager"
         private const val UPDATE_INTERVAL_MS = 604800000L // 7 days
+        fun isCheckDue(lastCheck: Long, currentTime: Long): Boolean =
+            lastCheck == 0L || currentTime - lastCheck >= UPDATE_INTERVAL_MS
     }
 
     fun checkForUpdates(
@@ -33,94 +53,88 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
         onUpdateAvailable: ((Boolean) -> Unit)? = null,
         onUpdateComplete: (() -> Unit)? = null
     ) {
-        activity.lifecycleScope.launch(Dispatchers.IO) {
-
-            // 1. Frequency Check
-            if (!forceCheck) {
-                val lastCheckTime = LocalVersionManager.getLastUpdateCheckTime(activity)
-                val currentTime = System.currentTimeMillis()
-                val timeSinceLastCheck = currentTime - lastCheckTime
-
-                if (timeSinceLastCheck < UPDATE_INTERVAL_MS) {
-                    Log.i(TAG, "Skipping update check. Last check was ${Date(lastCheckTime)}.")
-                    return@launch
-                }
+        activity.runOnUiThread {
+            if (updateJob?.isCompleted == false) {
+                if (forceCheck) Toast.makeText(activity, R.string.update_in_progress, Toast.LENGTH_SHORT).show()
+                return@runOnUiThread
             }
+            if (!activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return@runOnUiThread
+            automaticOperation = !forceCheck
+            updateJob = activity.lifecycleScope.launch(Dispatchers.IO) {
 
-            Log.i(TAG, "Comparing against Local Versions - Timetable: $localTimetableVersion, Community: $localCommunityVersion")
-
-            try {
-                Log.i(TAG, "Checking for updates from server...")
-                val serverInfo = NetworkManager.fetchVersionInfo(activity)
-
-                if (serverInfo == null) {
-                    Log.w(TAG, "Could not fetch server version info. Skipping update.")
-                    if (forceCheck) {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(activity, "Update check failed. Please check your internet connection.", Toast.LENGTH_LONG).show()
-                        }
+                if (!forceCheck) {
+                    val lastCheckTime = LocalVersionManager.getLastUpdateCheckTime(activity)
+                    if (!isCheckDue(lastCheckTime, now())) {
+                        Log.i(TAG, "Skipping update check. Last check was ${Date(lastCheckTime)}.")
+                        return@launch
                     }
-                    return@launch
                 }
 
-                // 2. Save timestamp ONLY after successful fetch
-                LocalVersionManager.saveLastUpdateCheckTime(activity, System.currentTimeMillis())
+                var pendingAutomaticDownload = false
+                try {
+                    val serverInfo = fetchVersions()
+                    currentCoroutineContext().ensureActive()
 
-                // 3. Dynamic configuration updates
-                if (!serverInfo.versions.isNullOrBlank()) {
-                    LocalVersionManager.saveVersionsUrl(activity, serverInfo.versions)
-                }
-                if (!serverInfo.communityData.isNullOrBlank()) {
-                    LocalVersionManager.saveCommunityUrl(activity, serverInfo.communityData)
-                }
-
-                if (serverInfo.app != null && !serverInfo.app.url.isNullOrBlank()) {
-                    LocalVersionManager.saveLatestAppUrl(activity, serverInfo.app.url)
-                }
-
-                // 4. Check App Version
-                val currentAppVersion = BuildConfig.VERSION_CODE
-                val serverAppInfo = serverInfo.app
-                var appUpdateAvailable = false
-                if (serverAppInfo != null && serverAppInfo.versionCode > currentAppVersion) {
-                    appUpdateAvailable = true
-                }
-
-                // 5. Check DB Versions
-                val isTimetableUpdateAvailable = serverInfo.timetable.version > localTimetableVersion
-                val isCommunityUpdateAvailable = serverInfo.community.version > localCommunityVersion
-
-                Log.i(TAG, "Server Versions - Timetable: ${serverInfo.timetable.version}, Community: ${serverInfo.community.version}")
-
-                val updateAvailable = isTimetableUpdateAvailable || isCommunityUpdateAvailable || appUpdateAvailable
-
-                LocalVersionManager.setUpdateAvailable(activity, updateAvailable)
-
-                if (updateAvailable) {
-                    Log.i(TAG, "Updates available. Prompting user.")
-                    withContext(Dispatchers.Main) {
-                        onUpdateAvailable?.invoke(true)
-                        promptForUpdate(
-                            isTimetableUpdateAvailable,
-                            isCommunityUpdateAvailable,
-                            appUpdateAvailable,
-                            serverInfo,
-                            onUpdateComplete
-                        )
-                    }
-                } else {
-                    Log.i(TAG, "No new updates.")
-                    withContext(Dispatchers.Main) {
-                        onUpdateAvailable?.invoke(false)
+                    if (serverInfo == null) {
+                        Log.w(TAG, "Could not fetch server version info.")
                         if (forceCheck) {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(activity, "Update check failed. Please check your internet connection.", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                        return@launch
+                    }
+
+                    LocalVersionManager.saveLastUpdateCheckTime(activity, now())
+                    if (!serverInfo.versions.isNullOrBlank()) {
+                        LocalVersionManager.saveVersionsUrl(activity, serverInfo.versions)
+                    }
+                    if (!serverInfo.communityData.isNullOrBlank()) {
+                        LocalVersionManager.saveCommunityUrl(activity, serverInfo.communityData)
+                    }
+                    serverInfo.app?.url?.takeIf { it.isNotBlank() }?.let {
+                        LocalVersionManager.saveLatestAppUrl(activity, it)
+                    }
+
+                    val appUpdateAvailable = (serverInfo.app?.versionCode ?: 0) > BuildConfig.VERSION_CODE
+                    val timetableUpdate = serverInfo.timetable.version > localTimetableVersion
+                    val communityUpdate = serverInfo.community.version > localCommunityVersion
+                    val updateAvailable = timetableUpdate || communityUpdate || appUpdateAvailable
+
+                    LocalVersionManager.setUpdateAvailable(activity, updateAvailable)
+                    withContext(Dispatchers.Main) {
+                        onUpdateAvailable?.invoke(updateAvailable)
+                    }
+
+                    if (!updateAvailable) {
+                        if (forceCheck) withContext(Dispatchers.Main) {
                             Toast.makeText(activity, "App is up to date.", Toast.LENGTH_SHORT).show()
                         }
+                        return@launch
                     }
-                }
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Error in checkForUpdates", e)
-                if (forceCheck) {
+                    val automatic = LocalVersionManager.autoDatabaseUpdatesEnabled(activity)
+                    if (automatic && (timetableUpdate || communityUpdate)) {
+                        pendingAutomaticDownload = true
+                        automaticOperation = true
+                        downloadDatabases(
+                            serverInfo, timetableUpdate, communityUpdate, automatic = true,
+                            onUpdateAvailable = onUpdateAvailable, onUpdateComplete = onUpdateComplete
+                        )
+                        pendingAutomaticDownload = false
+                    }
+                    withContext(Dispatchers.Main) {
+                        if (appUpdateAvailable || !automatic) promptForUpdate(
+                            if (automatic) false else timetableUpdate,
+                            if (automatic) false else communityUpdate,
+                            appUpdateAvailable, serverInfo, onUpdateAvailable, onUpdateComplete
+                        )
+                    }
+                } catch (e: CancellationException) {
+                    if (pendingAutomaticDownload) LocalVersionManager.saveLastUpdateCheckTime(activity, 0L)
+                    throw e
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in checkForUpdates", e)
+                    if (pendingAutomaticDownload) LocalVersionManager.saveLastUpdateCheckTime(activity, 0L)
                     withContext(Dispatchers.Main) {
                         Toast.makeText(activity, "An error occurred while checking for updates.", Toast.LENGTH_SHORT).show()
                     }
@@ -134,6 +148,7 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
         community: Boolean,
         appUpdate: Boolean,
         serverInfo: ServerVersionInfo,
+        onUpdateAvailable: ((Boolean) -> Unit)?,
         onUpdateComplete: (() -> Unit)?
     ) {
         val messages = mutableListOf<String>()
@@ -145,7 +160,8 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
                 messages.joinToString("\n") { "• $it" } +
                 "\n\nDownload now?"
 
-        AlertDialog.Builder(activity)
+        updateDialog?.dismiss()
+        updateDialog = AlertDialog.Builder(activity)
             .setTitle("Updates Available")
             .setMessage(message)
             .setPositiveButton("Download") { dialog, _ ->
@@ -153,7 +169,10 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
                     downloadAndInstallApp(serverInfo.app.url)
                 }
                 if (timetable || community) {
-                    startDatabaseDownload(serverInfo, timetable, community, onUpdateComplete)
+                    automaticOperation = false
+                    updateJob = activity.lifecycleScope.launch(Dispatchers.IO) {
+                        downloadDatabases(serverInfo, timetable, community, false, onUpdateAvailable, onUpdateComplete)
+                    }
                 }
                 dialog.dismiss()
             }
@@ -211,21 +230,24 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
         }
     }
 
-    private fun startDatabaseDownload(
+    private suspend fun downloadDatabases(
         serverInfo: ServerVersionInfo,
         downloadTimetable: Boolean,
         downloadCommunity: Boolean,
+        automatic: Boolean,
+        onUpdateAvailable: ((Boolean) -> Unit)?,
         onUpdateComplete: (() -> Unit)?
     ) {
-        Toast.makeText(activity, "Downloading database updates...", Toast.LENGTH_SHORT).show()
-        activity.lifecycleScope.launch(Dispatchers.IO) {
+        withContext(Dispatchers.Main) {
+            Toast.makeText(activity, R.string.database_updates_downloading, Toast.LENGTH_SHORT).show()
+        }
+        try {
             var timetableSuccess = true
             var communitySuccess = true
 
             if (downloadTimetable) {
                 Log.i(TAG, "Downloading Timetable DB...")
-                timetableSuccess = DatabaseManager.downloadAndReplaceDatabase(
-                    activity,
+                timetableSuccess = installDatabase(
                     DatabaseConstants.TIMETABLE_DATABASE_NAME,
                     serverInfo.timetable.version,
                     serverInfo.timetable.url
@@ -234,37 +256,59 @@ class AppUpdateManager(private val activity: AppCompatActivity) {
 
             if (downloadCommunity) {
                 Log.i(TAG, "Downloading Community DB...")
-                communitySuccess = DatabaseManager.downloadAndReplaceDatabase(
-                    activity,
+                communitySuccess = installDatabase(
                     DatabaseConstants.COMMUNITY_DATABASE_NAME,
                     serverInfo.community.version,
                     serverInfo.community.url
                 )
             }
 
+            currentCoroutineContext().ensureActive()
+            val appRemaining = (serverInfo.app?.versionCode ?: 0) > BuildConfig.VERSION_CODE
+            val remaining = !timetableSuccess || !communitySuccess || appRemaining
+            LocalVersionManager.setUpdateAvailable(activity, remaining)
+            withContext(Dispatchers.Main) {
+                if ((downloadTimetable && timetableSuccess) || (downloadCommunity && communitySuccess)) onUpdateComplete?.invoke()
+                onUpdateAvailable?.invoke(remaining)
+            }
             if (timetableSuccess && communitySuccess) {
                 Log.i(TAG, "All databases updated successfully.")
-                LocalVersionManager.setUpdateAvailable(activity, false)
 
                 withContext(Dispatchers.Main) {
-                    onUpdateComplete?.invoke() // Notify MainActivity to reset UI
-
-                    AlertDialog.Builder(activity)
+                    if (automatic) {
+                        Toast.makeText(activity, R.string.database_updates_complete, Toast.LENGTH_SHORT).show()
+                    } else updateDialog = AlertDialog.Builder(activity)
                         .setTitle("Update Complete")
                         .setMessage("Data updated successfully.")
                         .setPositiveButton("OK", null)
                         .show()
                 }
             } else {
+                LocalVersionManager.saveLastUpdateCheckTime(activity, 0L)
                 Log.e(TAG, "One or more database downloads failed.")
                 withContext(Dispatchers.Main) {
-                    AlertDialog.Builder(activity)
+                    if (automatic) {
+                        Toast.makeText(activity, R.string.database_updates_failed, Toast.LENGTH_LONG).show()
+                    } else updateDialog = AlertDialog.Builder(activity)
                         .setTitle("Update Failed")
                         .setMessage("Could not download all updates. Please try again later.")
                         .setPositiveButton("OK", null)
                         .show()
                 }
             }
+        } catch (e: CancellationException) {
+            LocalVersionManager.saveLastUpdateCheckTime(activity, 0L)
+            throw e
         }
+    }
+
+    fun cancelAutomaticUpdates() {
+        if (automaticOperation) updateJob?.cancel()
+    }
+
+    fun onPause() {
+        updateJob?.cancel()
+        updateDialog?.dismiss()
+        updateDialog = null
     }
 }

@@ -46,10 +46,12 @@
                     android:padding="12dp">
 
                     <TextView
+                        android:id="@+id/textPreviewTitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="@string/preview_title"
-                        android:textAppearance="?attr/textAppearanceTitleSmall"
+                        android:textAppearance="?attr/textAppearanceTitleMedium"
+                        android:textSize="18sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -58,30 +60,37 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
                         android:text="@string/preview_loading"
-                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textAppearance="?attr/textAppearanceBodyLarge"
                         android:textColor="?android:attr/textColorPrimary"
-                        android:textSize="14sp" />
+                        android:textSize="16sp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textSize="16sp"
+                android:textSize="18sp"
                 android:text="@string/title_confirm_details"
                 android:textAppearance="?attr/textAppearanceTitleMedium" />
 
             <TextView
+                android:id="@+id/textContributorHelp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="@string/contributor_privacy" />
+                android:text="@string/contributor_privacy"
+                android:textAppearance="?attr/textAppearanceBodyLarge"
+                android:textColor="?android:attr/textColorPrimary"
+                android:textSize="16sp" />
 
             <TextView
                 android:id="@+id/textCommentPrivacy"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:accessibilityLiveRegion="polite"
+                android:textAppearance="?attr/textAppearanceBodyLarge"
+                android:textColor="?android:attr/textColorPrimary"
+                android:textSize="16sp"
                 android:visibility="gone" />
 
             <com.google.android.material.textfield.TextInputLayout
@@ -142,6 +151,16 @@
                     android:inputType="textCapWords" />
 
             </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:id="@+id/textContributionReview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="@string/contribution_review_notice"
+                android:textAppearance="?attr/textAppearanceBodyLarge"
+                android:textColor="?android:attr/textColorPrimary"
+                android:textSize="16sp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonApplySuggestion"

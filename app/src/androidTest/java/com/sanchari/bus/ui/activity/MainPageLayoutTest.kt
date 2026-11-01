@@ -59,7 +59,8 @@ class MainPageLayoutTest {
                         val originalWords = setOf(
                             R.string.app_name, R.string.title_recent_services, R.string.btn_find_bus,
                             R.string.btn_add_new_bus, R.string.btn_check_updates, R.string.btn_share_app,
-                            R.string.btn_message_admin_report_issue, R.string.home_drafts
+                            R.string.btn_message_admin_report_issue, R.string.home_drafts,
+                            R.string.auto_database_updates
                         ).map(context::getString).toSet()
                         for (label in binding.root.descendants.filterIsInstance<TextView>()) {
                             if (label.visibility == View.VISIBLE && !label.text.isNullOrEmpty()) {
@@ -71,7 +72,8 @@ class MainPageLayoutTest {
                             binding.fromLocationButton, binding.fromWildcardButton, binding.fromClearButton,
                             binding.toLocationButton, binding.toWildcardButton, binding.toClearButton, binding.buttonSwapLocations,
                             binding.searchButton, binding.buttonAddNewBus, binding.buttonDrafts,
-                            binding.buttonCheckForUpdates, binding.buttonShareApp, binding.buttonMessageAdmin
+                            binding.buttonCheckForUpdates, binding.checkAutoDatabaseUpdates,
+                            binding.buttonShareApp, binding.buttonMessageAdmin
                         )
                         for (action in actions) {
                             assertTrue("Touch target too narrow: ${action.id}", action.width >= 48 * density)

@@ -17,6 +17,7 @@ object LocalVersionManager {
     private const val KEY_LATEST_APP_URL = "latest_app_url"
     private const val KEY_IS_UPDATE_AVAILABLE = "is_update_available"
     private const val KEY_IS_FIRST_RUN = "is_first_run"
+    private const val KEY_AUTO_DATABASE_UPDATES = "auto_database_updates"
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -77,6 +78,14 @@ object LocalVersionManager {
         getPrefs(context).edit { putInt(DatabaseConstants.COMMUNITY_DB_VERSION_KEY, version) }
     }
 
+    internal fun saveInstalledDatabaseVersion(context: Context, dbName: String, version: Int) {
+        when (dbName) {
+            DatabaseConstants.TIMETABLE_DATABASE_NAME -> saveTimetableVersion(context, version)
+            DatabaseConstants.COMMUNITY_DATABASE_NAME -> saveCommunityVersion(context, version)
+            else -> error("Not a remotely managed database")
+        }
+    }
+
     // --- Dynamic URL Management ---
 
     fun getVersionsUrl(context: Context): String? {
@@ -117,6 +126,13 @@ object LocalVersionManager {
 
     fun setUpdateAvailable(context: Context, isAvailable: Boolean) {
         getPrefs(context).edit { putBoolean(KEY_IS_UPDATE_AVAILABLE, isAvailable) }
+    }
+
+    fun autoDatabaseUpdatesEnabled(context: Context): Boolean =
+        getPrefs(context).getBoolean(KEY_AUTO_DATABASE_UPDATES, true)
+
+    fun setAutoDatabaseUpdatesEnabled(context: Context, enabled: Boolean) {
+        getPrefs(context).edit { putBoolean(KEY_AUTO_DATABASE_UPDATES, enabled) }
     }
 
     // --- NEW: First Run Management ---

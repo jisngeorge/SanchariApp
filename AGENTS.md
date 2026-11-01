@@ -469,6 +469,10 @@ New wrapped contribution JSON uses consistent two-space indentation for manual
 inspection, including nested objects and arrays; upload and offline storage use
 the same formatted string. Already pending files are not reformatted during retries.
 Confirmation shows a compact preview:
+The confirmation page also states that acceptance follows review and approved
+contributions may take time to go live, without promising approval or a deadline.
+Confirmation headings use 18sp and preview/help/review text 16sp, with theme-aware
+foreground colours and wrapping layouts that respect the system font-size setting.
 schedule proposals use red deletions, green additions and normal unchanged rows,
 compared with the installed timetable (not an edited draft). New schedules are
 all additions. Bus names use blue and bus types teal, retaining red/green +/-
@@ -562,20 +566,25 @@ the stored APK/share link.
 `AppUpdateManager` throttles automatic checks to seven days. Manual checks bypass
 that interval; the timestamp is saved only after a successful manifest fetch.
 It compares each remote database content version to the local preference value
-and compares remote APK `versionCode` to `BuildConfig.VERSION_CODE`. Available
-updates prompt the user to download or defer. The parsed `mandatory` flag is not
-currently enforced.
+and compares remote APK `versionCode` to `BuildConfig.VERSION_CODE`. The home page
+has a persisted, default-enabled "Automatically update timetable and community
+data" checkbox. Enabled checks (including manual checks) download newer database
+snapshots without asking; disabled checks retain the Download/Later prompt.
+Downloads can use mobile data. APK updates always require confirmation, independently
+of database updates; the parsed `mandatory` flag is not enforced. This is an app-open
+check, not scheduled background work. Checks/downloads are serialized per activity
+and cancelled on pause. Failed/interrupted database downloads reset the check
+timestamp so the next app-open check can retry. Partial success refreshes suggestions
+and preserves the update indicator for any remaining database or APK update.
 
-`DatabaseManager.downloadAndReplaceDatabase` downloads to a cache temporary file,
-deletes the installed snapshot, renames the downloaded file into place, resets
-timetable connections/cache when applicable, and rereads `DbVersion`.
-The `newVersion` parameter is currently unused: the downloaded file's content
-version is what is persisted.
-
-Important caveat: despite method comments describing verification/atomic swapping,
-the current implementation does not validate the downloaded SQLite schema,
-integrity, or expected version before deletion, and has no rollback if rename fails.
-Do not assume these safety guarantees exist when modifying the update flow.
+`DatabaseManager.downloadAndReplaceDatabase` serializes snapshot downloads, stages
+each in a unique file in the database directory, and verifies SQLite integrity,
+required tables/columns and an integer `DbVersion` equal to the manifest version.
+It syncs the staged file and publishes it with an Android same-filesystem atomic
+rename, never deleting the installed snapshot first. Failed downloads, validation,
+cancellation before publication and failed renames preserve the installed snapshot.
+Timetable helpers/cache are reset around publication, and the verified content
+version is persisted. User data, drafts and pending uploads are never replaced.
 
 APK updates download to `cacheDir\update.apk` and launch the Android installer
 using FileProvider. Relevant permissions and provider registration are in

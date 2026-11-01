@@ -44,6 +44,7 @@ class MainPageActivityTest {
         val wasFirstRun = LocalVersionManager.isFirstRun(context)
         val lastCheck = LocalVersionManager.getLastUpdateCheckTime(context)
         val hadUpdate = LocalVersionManager.isUpdateAvailable(context)
+        val autoUpdates = LocalVersionManager.autoDatabaseUpdatesEnabled(context)
         val previousRecents = UserDataManager.getRecentViews(context)
         try {
             runBlocking { DatabaseManager.initializeDatabases(context) }
@@ -51,6 +52,7 @@ class MainPageActivityTest {
             LocalVersionManager.setFirstRunCompleted(context)
             LocalVersionManager.saveLastUpdateCheckTime(context, System.currentTimeMillis())
             LocalVersionManager.setUpdateAvailable(context, true)
+            context.getSharedPreferences("SanchariBusPrefs", 0).edit().remove("auto_database_updates").commit()
             ActivityScenario.launch(MainActivity::class.java).use { scenario ->
                 await(scenario) {
                     it.recentSearchesRecyclerView.adapter?.itemCount == 0
@@ -63,6 +65,9 @@ class MainPageActivityTest {
                         WindowCompat.getInsetsController(activity.window, activity.window.decorView)
                             .isAppearanceLightStatusBars)
                     val binding = ActivityMainBinding.bind(activity.findViewById<View>(R.id.homeScrollView).parent as View)
+                    assertTrue(binding.checkAutoDatabaseUpdates.isChecked)
+                    binding.checkAutoDatabaseUpdates.performClick()
+                    assertFalse(LocalVersionManager.autoDatabaseUpdatesEnabled(activity))
                     assertEquals(activity.getString(R.string.btn_check_updates),
                         binding.buttonCheckForUpdates.text.toString())
                     val green = ContextCompat.getColor(activity, R.color.action_green)
@@ -102,6 +107,10 @@ class MainPageActivityTest {
                 await(scenario) {
                     it.recentSearchesRecyclerView.adapter?.itemCount == 1
                 }
+                scenario.onActivity { activity ->
+                    val binding = ActivityMainBinding.bind(activity.findViewById<View>(R.id.homeScrollView).parent as View)
+                    assertFalse(binding.checkAutoDatabaseUpdates.isChecked)
+                }
                 onView(withId(R.id.coordinatesInput)).inRoot(isDialog()).check(matches(withText("12.25, 77.5")))
                 onView(withId(R.id.radiusInput)).inRoot(isDialog()).check(matches(withText("12.5")))
                 onView(withId(android.R.id.button2)).inRoot(isDialog()).perform(click())
@@ -116,6 +125,7 @@ class MainPageActivityTest {
             replaceRecentViews(previousRecents)
             LocalVersionManager.saveLastUpdateCheckTime(context, lastCheck)
             LocalVersionManager.setUpdateAvailable(context, hadUpdate)
+            LocalVersionManager.setAutoDatabaseUpdatesEnabled(context, autoUpdates)
             if (wasFirstRun) context.getSharedPreferences("SanchariBusPrefs", 0)
                 .edit().remove("is_first_run").commit()
         }

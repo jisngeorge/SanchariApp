@@ -13,8 +13,8 @@ android {
         applicationId = "com.sanchari.bus"
         minSdk = 24
         targetSdk = 36
-        versionCode = 10
-        versionName = "10.0"
+        versionCode = 11
+        versionName = "11.0"
 
         // --- RELEASE BUILD OPTIMIZATION ---
         // Uncomment this block when generating a Release APK.
