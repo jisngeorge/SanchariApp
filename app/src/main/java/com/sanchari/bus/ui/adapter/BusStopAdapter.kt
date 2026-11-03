@@ -10,7 +10,8 @@ import com.sanchari.bus.ui.helper.TimetableTimeFormatter
 
 class BusStopAdapter(
     // We initially pass an empty list, data is set via updateStops
-    rawStops: List<BusStop>
+    rawStops: List<BusStop>,
+    private val onStopClick: ((DisplayStop) -> Unit)? = null
 ) : RecyclerView.Adapter<BusStopAdapter.BusStopViewHolder>() {
 
     // We hold the *processed* list for display, not the raw DB list
@@ -22,7 +23,8 @@ class BusStopAdapter(
     data class DisplayStop(
         val locationName: String,
         val timeText: String,
-        val isHalt: Boolean
+        val isHalt: Boolean,
+        val stopIds: List<Int>
     )
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BusStopViewHolder {
@@ -50,6 +52,16 @@ class BusStopAdapter(
         fun bind(stop: DisplayStop) {
             binding.textViewStopName.text = stop.locationName
             binding.textViewScheduledTime.text = stop.timeText
+            binding.root.setOnClickListener(if (onStopClick != null) {
+                { onStopClick.invoke(stop) }
+            } else null)
+            binding.root.isClickable = onStopClick != null
+            binding.root.isFocusable = onStopClick != null
+            binding.root.contentDescription = if (onStopClick != null) {
+                binding.root.context.getString(
+                    com.sanchari.bus.R.string.stop_location_action_description, stop.locationName, stop.timeText
+                )
+            } else null
 
             if (stop.isHalt) {
                 // Highlight halts in Red
@@ -80,7 +92,8 @@ class BusStopAdapter(
                 processed.add(DisplayStop(
                     locationName = current.locationName,
                     timeText = combinedTime,
-                    isHalt = true
+                    isHalt = true,
+                    stopIds = listOf(current.stopId, next.stopId).distinct()
                 ))
 
                 // Skip the next stop since we just merged it
@@ -90,7 +103,8 @@ class BusStopAdapter(
                 processed.add(DisplayStop(
                     locationName = current.locationName,
                     timeText = TimetableTimeFormatter.format(current.scheduledTime),
-                    isHalt = false
+                    isHalt = false,
+                    stopIds = listOf(current.stopId)
                 ))
                 i++
             }

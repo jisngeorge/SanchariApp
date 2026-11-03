@@ -216,6 +216,11 @@ preserving existing titles and wording. Stop times sit below stop names so halt
 ranges can wrap; rating labels sit above their stars, and comment dates below
 usernames. Keep the edit/rating/comment and running-status contribution flows
 unchanged, including the ability to add a rating when no aggregate exists.
+Tapping a detail stop row offers Google Maps or selectable latitude, longitude.
+Look up its exact stored stop ID afresh, never substitute another same-name stop.
+Merged halt rows retain both stop IDs and ask for a physical stop if these differ.
+Missing/invalid coordinates and changed rows show explicit errors. Stop popups
+and coordinate/map lookups are cancelled when the details activity is paused.
 Wildcard result cards label each endpoint place beside its corresponding AM/PM
 time. Ordinary A-to-B results retain compact cards with the service icon/name/type
 and times on the right, without repeating From/To place names on every card.
@@ -293,7 +298,8 @@ Community reads use separate helper instances and close their database connectio
 
 Each home location button offers current device location, manual `latitude, longitude`
 entry in a single copy/paste-friendly field,
-or showing that field's selected stop in Google Maps. The map option is disabled
+or showing that field's selected stop in Google Maps or as selectable coordinates.
+The map and coordinate options are disabled
 for blank/wildcard inputs and otherwise uses existing full-name validation.
 Nearby selection fills only the initiating field, without submitting a search or
 opening autocomplete.

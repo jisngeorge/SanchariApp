@@ -58,6 +58,56 @@ class StopLocationPickerTest {
     private var reload: suspend (Int) -> StopLocation? = { if (it == 1) palai else kochi }
 
     @Test
+    fun bothFieldsOfferSelectableStoredCoordinatesWithoutChangingSearchText() {
+        launch().use { scenario ->
+            for (from in listOf(true, false)) {
+                scenario.onActivity {
+                    binding.fromAutocomplete.setText("Palai", false)
+                    binding.toAutocomplete.setText("Kochi", false)
+                    (if (from) binding.fromLocationButton else binding.toLocationButton).performClick()
+                }
+                onData(anything()).inRoot(isDialog()).atPosition(3).perform(click())
+                onView(withId(android.R.id.message)).inRoot(isDialog()).check { view, error ->
+                    if (error != null) throw error
+                    val text = view as android.widget.TextView
+                    assertEquals(if (from) "Latitude, longitude\n10.0, 76.0"
+                        else "Latitude, longitude\n10.1, 76.1", text.text.toString())
+                    assertTrue(text.isTextSelectable)
+                }
+                onView(withId(android.R.id.button1)).inRoot(isDialog()).perform(click())
+                scenario.onActivity {
+                    assertEquals("Palai", binding.fromAutocomplete.text.toString())
+                    assertEquals("Kochi", binding.toAutocomplete.text.toString())
+                    assertEquals(if (from) 1 else 2, handler.selectedId(from, if (from) "Palai" else "Kochi"))
+                    assertEquals(0, permissionCount.get())
+                }
+            }
+        }
+    }
+
+    @Test
+    fun blankAndWildcardFieldsDisableBothStoredLocationActions() {
+        launch().use { scenario ->
+            for (text in listOf("", "*")) {
+                scenario.onActivity {
+                    binding.fromAutocomplete.setText(text, false)
+                    binding.fromLocationButton.performClick()
+                }
+                onView(androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom(android.widget.ListView::class.java))
+                    .inRoot(isDialog()).check { view, error ->
+                    if (error != null) throw error
+                    val adapter = (view as android.widget.ListView).adapter
+                    assertTrue(adapter.isEnabled(0))
+                    assertTrue(adapter.isEnabled(1))
+                    assertFalse(adapter.isEnabled(2))
+                    assertFalse(adapter.isEnabled(3))
+                }
+                onView(withId(android.R.id.button2)).inRoot(isDialog()).perform(click())
+            }
+        }
+    }
+
+    @Test
     fun manualCoordinatesValidateAndOnlyFillTheInitiatingFieldWithoutPermissions() {
         launch().use { scenario ->
             scenario.onActivity {
@@ -532,6 +582,9 @@ class StopLocationPickerTest {
                 StopLocationManager.rankNearby(lookup(point), meters)
             },
             stopLookup = { reload(it) },
+            maps = StopMapActions(activity,
+                { name -> listOf(palai, kochi).filter { it.name == name } },
+                { reload(it) }),
             permissionGranted = { permission }, permissionRegistry = registry)
         handler.setup(state)
         val installed = handler

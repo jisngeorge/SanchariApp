@@ -1,4 +1,8 @@
 <resources>
+    <string name="stop_open_map">Open in Google Maps</string>
+    <string name="stop_show_coordinates">Show coordinates</string>
+    <string name="stop_coordinates_value">Latitude, longitude\n%1$s, %2$s</string>
+    <string name="stop_location_action_description">%1$s, %2$s. Show map or coordinates.</string>
     <string name="auto_database_updates">Automatically update timetable and community data</string>
     <string name="update_in_progress">An update is already in progress.</string>
     <string name="database_updates_complete">Timetable and community data are up to date.</string>
@@ -14,6 +18,7 @@
     <string name="location_use_current">Use current location</string>
     <string name="location_enter_coordinates">Enter latitude, longitude</string>
     <string name="location_show_stop">Show selected stop in Google Maps</string>
+    <string name="location_show_stop_coordinates">Show selected stop coordinates</string>
     <string name="location_find_nearby">Find nearby stops</string>
     <string name="location_retry">Try current location again</string>
     <string name="location_coordinates">Latitude, longitude</string>

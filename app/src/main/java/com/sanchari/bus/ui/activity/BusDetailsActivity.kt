@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.sanchari.bus.data.model.BusService
 import com.sanchari.bus.ui.adapter.BusStopAdapter
 import com.sanchari.bus.ui.helper.BusSubmissionHandler
+import com.sanchari.bus.ui.helper.StopMapActions
 import com.sanchari.bus.ui.adapter.CommentAdapter
 import com.sanchari.bus.data.manager.CommunityDataManager
 import com.sanchari.bus.data.manager.SearchManager
@@ -37,6 +38,7 @@ class BusDetailsActivity : AppCompatActivity() {
 
     // Refactored Manager
     private lateinit var submissionHandler: BusSubmissionHandler
+    private lateinit var stopMapActions: StopMapActions
 
     // Store the user's details for pre-filling the form
     private var currentUser: User? = null
@@ -58,6 +60,7 @@ class BusDetailsActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         submissionHandler = BusSubmissionHandler(this)
+        stopMapActions = StopMapActions(this)
 
         // Set up the toolbar
         setSupportActionBar(binding.toolbar)
@@ -117,7 +120,9 @@ class BusDetailsActivity : AppCompatActivity() {
 
     private fun setupRecyclerViews() {
         // Bus Stops Adapter
-        busStopAdapter = BusStopAdapter(emptyList())
+        busStopAdapter = BusStopAdapter(emptyList()) { stop ->
+            stopMapActions.showStopOptions(stop.locationName, stop.stopIds)
+        }
         binding.recyclerViewBusStops.apply {
             layoutManager = LinearLayoutManager(this@BusDetailsActivity)
             adapter = busStopAdapter
@@ -249,5 +254,10 @@ class BusDetailsActivity : AppCompatActivity() {
         if (isLoading) {
             binding.textViewError.visibility = View.GONE
         }
+    }
+
+    override fun onPause() {
+        stopMapActions.cancel()
+        super.onPause()
     }
 }

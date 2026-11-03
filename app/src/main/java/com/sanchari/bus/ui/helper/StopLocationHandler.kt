@@ -122,9 +122,9 @@ class StopLocationHandler(
         val text = field(from).text.toString().trim()
         val mapEnabled = text.isNotEmpty() && text != "*"
         val labels = listOf(R.string.location_use_current, R.string.location_enter_coordinates,
-            R.string.location_show_stop).map(activity::getString)
+            R.string.location_show_stop, R.string.location_show_stop_coordinates).map(activity::getString)
         val adapter = object : ArrayAdapter<String>(activity, android.R.layout.simple_list_item_1, labels) {
-            override fun isEnabled(position: Int) = position != 2 || mapEnabled
+            override fun isEnabled(position: Int) = position < 2 || mapEnabled
             override fun areAllItemsEnabled() = mapEnabled
             override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
                 super.getView(position, convertView, parent).apply { isEnabled = isEnabled(position) }
@@ -139,14 +139,16 @@ class StopLocationHandler(
                         requestCurrentLocation()
                     }
                     1 -> showNearbyPopup(from, manual = true)
-                    2 -> {
+                    2, 3 -> {
                         val name = validateMapStop(from) ?: return@setAdapter
                         val preferred = selectedId(from, name)
-                        maps.showStop(name, preferred) { selected ->
+                        val onSelected: (StopLocation) -> Unit = { selected ->
                             if (field(from).text.toString().trim().equals(name, ignoreCase = true)) {
                                 remember(from, selected)
                             }
                         }
+                        if (which == 3) maps.showStopCoordinates(name, preferred, onSelected)
+                        else maps.showStop(name, preferred, onSelected)
                     }
                 }
             }
