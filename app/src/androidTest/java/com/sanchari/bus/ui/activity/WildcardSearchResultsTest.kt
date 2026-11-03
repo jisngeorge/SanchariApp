@@ -9,7 +9,6 @@ import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.doesNotExist
 import androidx.test.espresso.assertion.ViewAssertions.matches
-import androidx.test.espresso.assertion.PositionAssertions.isCompletelyLeftOf
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
@@ -227,32 +226,34 @@ class WildcardSearchResultsTest {
                 val binding = ActivityMainBinding.inflate(activity.layoutInflater)
                 activity.setContentView(binding.root)
                 BusSearchHandler(activity, binding).setup()
-                assertFalse(binding.fromClearButton.isEnabled)
-                assertFalse(binding.toClearButton.isEnabled)
+                assertEquals(com.google.android.material.textfield.TextInputLayout.END_ICON_CLEAR_TEXT,
+                    binding.fromInputLayout.endIconMode)
+                assertEquals(binding.busNameInputLayout.endIconMode, binding.toInputLayout.endIconMode)
+                assertFalse(binding.fromInputLayout.isEndIconVisible)
+                assertFalse(binding.toInputLayout.isEndIconVisible)
+                binding.fromAutocomplete.requestFocus()
                 binding.toAutocomplete.setText("Destination", false)
             }
-            onView(withId(R.id.fromWildcardButton)).check(matches(isDisplayed()))
-                .check(isCompletelyLeftOf(withId(R.id.fromClearButton)))
+            onView(withId(R.id.stopWildcardButton)).check(matches(isDisplayed()))
                 .perform(click())
             onView(withId(R.id.fromAutocomplete)).check(matches(withText("*")))
             onView(withId(R.id.toAutocomplete)).check(matches(withText("Destination")))
-            onView(withId(R.id.fromClearButton)).perform(click())
+            onView(androidx.test.espresso.matcher.ViewMatchers.withContentDescription(R.string.clear_from_stop)).perform(click())
             onView(withId(R.id.fromAutocomplete)).check(matches(withText("")))
             scenario.onActivity { activity ->
                 val field = activity.findViewById<com.google.android.material.textfield.MaterialAutoCompleteTextView>(
                     R.id.fromAutocomplete
                 )
                 field.setText("Original origin", false)
+                activity.findViewById<android.view.View>(R.id.toAutocomplete).requestFocus()
             }
-            onView(withId(R.id.toWildcardButton)).check(matches(isDisplayed()))
-                .check(isCompletelyLeftOf(withId(R.id.toClearButton)))
+            onView(withId(R.id.stopWildcardButton)).check(matches(isDisplayed()))
                 .perform(click())
             onView(withId(R.id.fromAutocomplete)).check(matches(withText("Original origin")))
             onView(withId(R.id.toAutocomplete)).check(matches(withText("*")))
             scenario.onActivity { activity ->
                 for ((fieldId, buttonId) in listOf(
-                    R.id.fromAutocomplete to R.id.fromWildcardButton,
-                    R.id.toAutocomplete to R.id.toWildcardButton
+                    R.id.fromAutocomplete to R.id.stopWildcardButton
                 )) {
                     val field = activity.findViewById<com.google.android.material.textfield.MaterialAutoCompleteTextView>(fieldId)
                     val button = activity.findViewById<android.widget.ImageButton>(buttonId)
@@ -266,7 +267,7 @@ class WildcardSearchResultsTest {
                 }
                 assertFalse(activity.isFinishing)
             }
-            onView(withId(R.id.toClearButton)).perform(click())
+            onView(androidx.test.espresso.matcher.ViewMatchers.withContentDescription(R.string.clear_to_stop)).perform(click())
             onView(withId(R.id.toAutocomplete)).check(matches(withText("")))
             onView(withId(R.id.fromAutocomplete)).check(matches(withText("Original origin")))
             onView(withText("Enter * in one field for any origin or destination.")).check(doesNotExist())

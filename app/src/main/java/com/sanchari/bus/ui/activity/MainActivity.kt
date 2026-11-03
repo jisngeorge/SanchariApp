@@ -72,7 +72,9 @@ class MainActivity : AppCompatActivity() {
 
         // --- Setup UI ---
         busSearchHandler.setup() // Sets up search bars and buttons
-        stopLocationHandler = StopLocationHandler(this, binding, busSearchHandler::validateMapStop)
+        busSearchHandler.restoreSelectedStop(savedInstanceState?.getBoolean("selected_stop_is_from", true) ?: true)
+        stopLocationHandler = StopLocationHandler(this, binding, busSearchHandler::validateMapStop,
+            selectedStopIsFrom = { busSearchHandler.selectedStopIsFrom })
         stopLocationHandler.setup(savedInstanceState)
 
         updateAvailabilityUI(LocalVersionManager.isUpdateAvailable(this))
@@ -309,6 +311,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean("selected_stop_is_from", busSearchHandler.selectedStopIsFrom)
         super.onSaveInstanceState(outState)
         stopLocationHandler.saveState(outState)
     }

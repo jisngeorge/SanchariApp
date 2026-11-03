@@ -43,6 +43,7 @@ class StopLocationHandler(
     private val activity: AppCompatActivity,
     private val binding: ActivityMainBinding,
     private val validateMapStop: (Boolean) -> String?,
+    private val selectedStopIsFrom: () -> Boolean,
     private val deviceLocation: DeviceLocationSource = AndroidDeviceLocationSource(activity),
     private val nearbyLookup: suspend (GeoPoint, Double) -> List<NearbyStop> = { point, radius ->
         withContext(Dispatchers.IO) { StopLocationManager(activity).nearbyStops(point, radius) }
@@ -93,8 +94,7 @@ class StopLocationHandler(
     }
 
     fun setup(savedState: Bundle?) {
-        binding.fromLocationButton.setOnClickListener { showActions(true) }
-        binding.toLocationButton.setOnClickListener { showActions(false) }
+        binding.stopLocationButton.setOnClickListener { showActions(selectedStopIsFrom()) }
         binding.fromAutocomplete.doAfterTextChanged {
             if (fromSelection?.matches(it.toString()) != true) fromSelection = null
             maps.cancel()

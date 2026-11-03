@@ -87,10 +87,12 @@ class StopInputValidationTest {
                 binding.fromAutocomplete.setText("Unknown", false)
                 binding.toAutocomplete.setText("Kochi", false)
                 assertNull(handler.validateRouteStops())
-                binding.fromWildcardButton.performClick()
+                binding.fromAutocomplete.requestFocus()
+                binding.stopWildcardButton.performClick()
                 assertNull(binding.fromInputLayout.error)
                 assertEquals("*" to "Kochi", handler.validateRouteStops())
-                binding.toWildcardButton.performClick()
+                binding.toAutocomplete.requestFocus()
+                binding.stopWildcardButton.performClick()
                 assertNull(handler.validateRouteStops())
                 val error = activity.getString(R.string.wildcard_both_invalid)
                 assertEquals(error, binding.fromInputLayout.error)
@@ -99,7 +101,9 @@ class StopInputValidationTest {
                 assertNull(binding.fromInputLayout.error)
                 assertNull(binding.toInputLayout.error)
                 assertEquals("Palai" to "*", handler.validateRouteStops())
-                binding.fromClearButton.performClick()
+                binding.fromInputLayout.findViewById<android.view.View>(
+                    com.google.android.material.R.id.text_input_end_icon
+                ).performClick()
                 assertNull(binding.fromInputLayout.error)
                 assertNull(handler.validateRouteStops())
                 assertEquals(activity.getString(R.string.stop_name_required), binding.fromInputLayout.error)
@@ -195,14 +199,16 @@ class StopInputValidationTest {
             InstrumentationRegistry.getInstrumentation().waitForIdleSync()
             scenario.onActivity {
                 for ((field, button) in listOf(
-                    binding.fromAutocomplete to binding.fromWildcardButton,
-                    binding.toAutocomplete to binding.toWildcardButton
+                    binding.fromAutocomplete to binding.stopWildcardButton
                 )) {
                     val fieldPosition = IntArray(2)
                     val buttonPosition = IntArray(2)
                     field.getLocationOnScreen(fieldPosition)
                     button.getLocationOnScreen(buttonPosition)
                     assertTrue(buttonPosition[1] >= fieldPosition[1] + field.height)
+                    val toPosition = IntArray(2)
+                    binding.toAutocomplete.getLocationOnScreen(toPosition)
+                    assertTrue(buttonPosition[1] + button.height <= toPosition[1])
                     assertTrue(buttonPosition[0] >= fieldPosition[0])
                     assertTrue(buttonPosition[0] + button.width <= fieldPosition[0] + field.width)
                 }

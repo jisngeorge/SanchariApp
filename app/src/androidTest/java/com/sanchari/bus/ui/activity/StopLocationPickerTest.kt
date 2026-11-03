@@ -58,13 +58,81 @@ class StopLocationPickerTest {
     private var reload: suspend (Int) -> StopLocation? = { if (it == 1) palai else kochi }
 
     @Test
+    fun sharedActionsDefaultToFromAndRetainLastStopTargetAfterFocusMovesElsewhere() {
+        launch().use { scenario ->
+            scenario.onActivity {
+                binding.stopWildcardButton.performClick()
+                assertEquals("*", binding.fromAutocomplete.text.toString())
+                assertEquals("", binding.toAutocomplete.text.toString())
+                binding.fromAutocomplete.setText("Palai", false)
+                binding.toAutocomplete.requestFocus()
+                binding.toAutocomplete.setText("Kochi", false)
+                binding.busNameAutocomplete.requestFocus()
+                binding.stopLocationButton.performClick()
+            }
+            onData(anything()).inRoot(isDialog()).atPosition(3).perform(click())
+            onView(withId(android.R.id.message)).inRoot(isDialog()).check { view, error ->
+                if (error != null) throw error
+                assertEquals("Latitude, longitude\n10.1, 76.1", (view as android.widget.TextView).text.toString())
+            }
+            onView(withId(android.R.id.button1)).inRoot(isDialog()).perform(click())
+            scenario.onActivity { activity ->
+                assertEquals(activity.getString(R.string.wildcard_any_destination),
+                    binding.stopWildcardButton.contentDescription)
+                binding.stopWildcardButton.performClick()
+                assertEquals("Palai", binding.fromAutocomplete.text.toString())
+                assertEquals("*", binding.toAutocomplete.text.toString())
+                binding.fromAutocomplete.requestFocus()
+                binding.busNameAutocomplete.requestFocus()
+                binding.stopWildcardButton.performClick()
+                assertEquals("*", binding.fromAutocomplete.text.toString())
+                assertFalse(binding.fromAutocomplete.isPopupShowing)
+                assertFalse(binding.toAutocomplete.isPopupShowing)
+            }
+        }
+    }
+
+    @Test
+    fun stopClearIconsMatchBusNameAndStayInsideTheirInputs() {
+        launch().use { scenario ->
+            scenario.onActivity { activity ->
+                assertEquals("Search Bus by Name", binding.busNameInputLayout.hint.toString())
+                for ((field, layout) in listOf(
+                    binding.fromAutocomplete to binding.fromInputLayout,
+                    binding.toAutocomplete to binding.toInputLayout
+                )) {
+                    field.requestFocus()
+                    assertEquals(binding.busNameInputLayout.endIconMode, layout.endIconMode)
+                    val clear = layout.findViewById<View>(com.google.android.material.R.id.text_input_end_icon)
+                    assertFalse(layout.isEndIconVisible)
+                    field.setText("Palai", false)
+                    assertTrue(layout.isEndIconVisible)
+                    val density = activity.resources.displayMetrics.density
+                    assertTrue(clear.minimumWidth >= 48 * density)
+                    assertTrue(clear.minimumHeight >= 48 * density)
+                    clear.performClick()
+                    assertEquals("", field.text.toString())
+                    assertFalse(field.isPopupShowing)
+                }
+            }
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            SystemClock.sleep(200)
+            scenario.onActivity {
+                assertFalse(binding.fromInputLayout.isEndIconVisible)
+                assertFalse(binding.toInputLayout.isEndIconVisible)
+            }
+        }
+    }
+
+    @Test
     fun bothFieldsOfferSelectableStoredCoordinatesWithoutChangingSearchText() {
         launch().use { scenario ->
             for (from in listOf(true, false)) {
                 scenario.onActivity {
                     binding.fromAutocomplete.setText("Palai", false)
                     binding.toAutocomplete.setText("Kochi", false)
-                    (if (from) binding.fromLocationButton else binding.toLocationButton).performClick()
+                    (if (from) binding.fromAutocomplete else binding.toAutocomplete).requestFocus()
+                    binding.stopLocationButton.performClick()
                 }
                 onData(anything()).inRoot(isDialog()).atPosition(3).perform(click())
                 onView(withId(android.R.id.message)).inRoot(isDialog()).check { view, error ->
@@ -91,7 +159,7 @@ class StopLocationPickerTest {
             for (text in listOf("", "*")) {
                 scenario.onActivity {
                     binding.fromAutocomplete.setText(text, false)
-                    binding.fromLocationButton.performClick()
+                    binding.stopLocationButton.performClick()
                 }
                 onView(androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom(android.widget.ListView::class.java))
                     .inRoot(isDialog()).check { view, error ->
@@ -112,7 +180,8 @@ class StopLocationPickerTest {
         launch().use { scenario ->
             scenario.onActivity {
                 binding.fromAutocomplete.setText("Palai", false)
-                binding.toLocationButton.performClick()
+                binding.toAutocomplete.requestFocus()
+                binding.stopLocationButton.performClick()
             }
             chooseManual()
             scenario.onActivity {
@@ -139,7 +208,7 @@ class StopLocationPickerTest {
     @Test
     fun manualRadiusDefaultsToFiveKmValidatesAndFiltersAtTheRequestedDistance() {
         launch().use { scenario ->
-            scenario.onActivity { binding.fromLocationButton.performClick() }
+            scenario.onActivity { binding.stopLocationButton.performClick() }
             chooseManual()
             scenario.onActivity { assertEquals("5", popup().radiusInput.text.toString()) }
             findAt(scenario, "10", "76")
@@ -179,7 +248,7 @@ class StopLocationPickerTest {
             DeviceLocationFix(GeoPoint(10.0, 76.0), false, 10f)
         }
         launch().use { scenario ->
-            scenario.onActivity { binding.fromLocationButton.performClick() }
+            scenario.onActivity { binding.stopLocationButton.performClick() }
             chooseCurrent()
             await(scenario) { popup().nearbyStops.adapter?.count == 2 }
             scenario.onActivity {
@@ -200,7 +269,8 @@ class StopLocationPickerTest {
                 assertEquals(2, fixCount.get())
                 assertEquals(40_000.0, receivedRadius, 0.0)
                 handler.close()
-                binding.toLocationButton.performClick()
+                binding.toAutocomplete.requestFocus()
+                binding.stopLocationButton.performClick()
             }
             chooseCurrent()
             await(scenario) { popup().nearbyStops.adapter?.count == 2 }
@@ -217,7 +287,7 @@ class StopLocationPickerTest {
         }
         try {
             launch().use { scenario ->
-                scenario.onActivity { binding.fromLocationButton.performClick() }
+                scenario.onActivity { binding.stopLocationButton.performClick() }
                 chooseManual()
                 findAt(scenario, "10", "76")
                 scenario.onActivity {
@@ -241,7 +311,7 @@ class StopLocationPickerTest {
     @Test
     fun deniedPermissionShowsAnErrorAndManualCoordinatesRemainUsable() {
         launch().use { scenario ->
-            scenario.onActivity { binding.fromLocationButton.performClick() }
+            scenario.onActivity { binding.stopLocationButton.performClick() }
             chooseCurrent()
             await(scenario) {
                 popup().locationStatus.text.toString().contains("Allow location access")
@@ -251,7 +321,7 @@ class StopLocationPickerTest {
                 assertEquals(0, queryCount.get())
             }
             onView(withText(R.string.close)).inRoot(isDialog()).perform(click())
-            scenario.onActivity { binding.fromLocationButton.performClick() }
+            scenario.onActivity { binding.stopLocationButton.performClick() }
             chooseManual()
             findAt(scenario, "10", "76")
             await(scenario) { popup().nearbyStops.adapter?.count == 2 }
@@ -267,7 +337,7 @@ class StopLocationPickerTest {
     fun approximatePermissionAndCurrentFixShowAccuracyAndNearbyStops() {
         grantPermission = true
         launch().use { scenario ->
-            scenario.onActivity { binding.fromLocationButton.performClick() }
+            scenario.onActivity { binding.stopLocationButton.performClick() }
             chooseCurrent()
             await(scenario) { popup().nearbyStops.adapter?.count == 2 }
             scenario.onActivity {
@@ -284,7 +354,7 @@ class StopLocationPickerTest {
         for (reason in listOf(LocationFailure.DISABLED, LocationFailure.UNAVAILABLE)) {
             currentFix = DeviceLocationSource { throw LocationAccessException(reason) }
             launch().use { scenario ->
-                scenario.onActivity { binding.fromLocationButton.performClick() }
+                scenario.onActivity { binding.stopLocationButton.performClick() }
                 chooseCurrent()
                 await(scenario) { popup().findNearbyStops.isEnabled }
                 scenario.onActivity { activity ->
@@ -301,7 +371,7 @@ class StopLocationPickerTest {
     fun emptyNearbyResultsAreNotTreatedAsASelection() {
         lookup = { emptyList() }
         launch().use { scenario ->
-            scenario.onActivity { binding.fromLocationButton.performClick() }
+            scenario.onActivity { binding.stopLocationButton.performClick() }
             chooseManual()
             findAt(scenario, "0", "0")
             await(scenario) { popup().locationStatus.text.contains("No stops") }
@@ -323,12 +393,12 @@ class StopLocationPickerTest {
             } else listOf(NearbyStop(kochi, 200.0))
         }
         launch().use { scenario ->
-            scenario.onActivity { binding.fromLocationButton.performClick() }
+            scenario.onActivity { binding.stopLocationButton.performClick() }
             chooseManual()
             findAt(scenario, "10", "76")
             await(scenario) { oldStarted.get() == 1 }
             onView(withText(R.string.close)).inRoot(isDialog()).perform(click())
-            scenario.onActivity { binding.toLocationButton.performClick() }
+            scenario.onActivity { binding.toAutocomplete.requestFocus(); binding.stopLocationButton.performClick() }
             chooseManual()
             findAt(scenario, "11", "76")
             await(scenario) { popup().nearbyStops.adapter?.count == 1 }
@@ -347,7 +417,7 @@ class StopLocationPickerTest {
     @Test
     fun changedCoordinateInputInvalidatesResultsAndChangedDatabaseRowsCannotBeSelected() {
         launch().use { scenario ->
-            scenario.onActivity { binding.fromLocationButton.performClick() }
+            scenario.onActivity { binding.stopLocationButton.performClick() }
             chooseManual()
             findAt(scenario, "10", "76")
             await(scenario) { popup().nearbyStops.adapter?.count == 2 }
@@ -369,12 +439,12 @@ class StopLocationPickerTest {
     @Test
     fun chosenPhysicalIdsSwapRestoreAndInvalidateWithoutChangingNameBasedSearch() {
         launch().use { scenario ->
-            scenario.onActivity { binding.fromLocationButton.performClick() }
+            scenario.onActivity { binding.stopLocationButton.performClick() }
             chooseManual()
             findAt(scenario, "10", "76")
             await(scenario) { popup().nearbyStops.adapter?.count == 2 }
             chooseNearby(0)
-            scenario.onActivity { binding.toLocationButton.performClick() }
+            scenario.onActivity { binding.toAutocomplete.requestFocus(); binding.stopLocationButton.performClick() }
             chooseManual()
             findAt(scenario, "10", "76")
             await(scenario) { popup().nearbyStops.adapter?.count == 2 }
@@ -392,7 +462,8 @@ class StopLocationPickerTest {
                 assertEquals(2, intent.getIntExtra(SearchResultsActivity.EXTRA_FROM_STOP_ID, -1))
                 assertEquals(1, intent.getIntExtra(SearchResultsActivity.EXTRA_TO_STOP_ID, -1))
                 binding.fromAutocomplete.setText("Changed", false)
-                binding.toWildcardButton.performClick()
+                binding.toAutocomplete.requestFocus()
+                binding.stopWildcardButton.performClick()
                 assertNull(handler.selectedId(true, "Changed"))
                 assertNull(handler.selectedId(false, "*"))
             }
@@ -403,7 +474,7 @@ class StopLocationPickerTest {
     fun databaseFailureShowsAnExplicitErrorAndCanBeRetried() {
         lookup = { throw SQLiteException("Test snapshot unavailable") }
         launch().use { scenario ->
-            scenario.onActivity { binding.fromLocationButton.performClick() }
+            scenario.onActivity { binding.stopLocationButton.performClick() }
             chooseManual()
             findAt(scenario, "10", "76")
             scenario.onActivity { activity ->
@@ -428,7 +499,7 @@ class StopLocationPickerTest {
         }
         try {
             launch().use { scenario ->
-                scenario.onActivity { binding.fromLocationButton.performClick() }
+                scenario.onActivity { binding.stopLocationButton.performClick() }
                 chooseCurrent()
                 scenario.onActivity {
                     handler.onPause()
@@ -456,7 +527,7 @@ class StopLocationPickerTest {
         }
         try {
             launch().use { scenario ->
-                scenario.onActivity { binding.fromLocationButton.performClick() }
+                scenario.onActivity { binding.stopLocationButton.performClick() }
                 chooseManual()
                 val originalPopup = popup()
                 scenario.onActivity { popup().radiusInput.setText("12.5") }
@@ -484,7 +555,7 @@ class StopLocationPickerTest {
     @Test
     fun restoringCoordinateInputDoesNotRestartLocationOrNearbyAnalysis() {
         launch().use { scenario ->
-            scenario.onActivity { binding.fromLocationButton.performClick() }
+            scenario.onActivity { binding.stopLocationButton.performClick() }
             chooseManual()
             scenario.onActivity { activity ->
                 popup().coordinatesInput.setText("12.25, 77.5")
@@ -575,6 +646,7 @@ class StopLocationPickerTest {
             }
         }
         handler = StopLocationHandler(activity, binding, search::validateMapStop,
+            selectedStopIsFrom = { search.selectedStopIsFrom },
             deviceLocation = currentFix,
             nearbyLookup = { point, meters ->
                 queryCount.incrementAndGet()

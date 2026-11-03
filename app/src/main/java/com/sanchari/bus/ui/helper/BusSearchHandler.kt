@@ -7,7 +7,6 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.widget.ArrayAdapter
-import android.widget.ImageButton
 import android.widget.Filterable
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -52,6 +51,24 @@ class BusSearchHandler(
     private var suggestionsActive = true
     private var loadedStopSuggestions: List<String>? = null
     private lateinit var busNameAdapter: BusSearchSuggestionAdapter
+    var selectedStopIsFrom = true
+        private set
+
+    fun restoreSelectedStop(from: Boolean) {
+        selectedStopIsFrom = from
+        updateStopActionDescriptions()
+    }
+
+    private fun updateStopActionDescriptions() {
+        binding.stopLocationButton.contentDescription = activity.getString(
+            if (selectedStopIsFrom) com.sanchari.bus.R.string.location_from_action
+            else com.sanchari.bus.R.string.location_to_action
+        )
+        binding.stopWildcardButton.contentDescription = activity.getString(
+            if (selectedStopIsFrom) com.sanchari.bus.R.string.wildcard_any_origin
+            else com.sanchari.bus.R.string.wildcard_any_destination
+        )
+    }
 
     companion object {
         private const val TAG = "BusSearchHandler"
@@ -66,14 +83,15 @@ class BusSearchHandler(
 
     fun setup() {
         setupBusNameSearch()
-        setupStopActions(
-            binding.fromAutocomplete, binding.fromInputLayout,
-            binding.fromWildcardButton, binding.fromClearButton
-        )
-        setupStopActions(
-            binding.toAutocomplete, binding.toInputLayout,
-            binding.toWildcardButton, binding.toClearButton
-        )
+        setupStopActions(binding.fromAutocomplete, binding.fromInputLayout)
+        setupStopActions(binding.toAutocomplete, binding.toInputLayout)
+        updateStopActionDescriptions()
+        binding.stopWildcardButton.setOnClickListener {
+            val field = if (selectedStopIsFrom) binding.fromAutocomplete else binding.toAutocomplete
+            field.setText("*", false)
+            field.setSelection(field.length())
+            field.dismissDropDown()
+        }
 
         // Bind the "Find Bus" button
         binding.searchButton.setOnClickListener {
@@ -83,22 +101,13 @@ class BusSearchHandler(
 
     private fun setupStopActions(
         field: MaterialAutoCompleteTextView,
-        layout: TextInputLayout,
-        wildcard: ImageButton,
-        clear: ImageButton
+        layout: TextInputLayout
     ) {
-        wildcard.setOnClickListener {
-            field.setText("*", false)
-            field.setSelection(field.length())
-            field.dismissDropDown()
-        }
-        clear.setOnClickListener {
+        layout.setEndIconOnClickListener {
             field.setText("", false)
             field.dismissDropDown()
         }
-        clear.isEnabled = !field.text.isNullOrEmpty()
         field.addTextChangedListener {
-            clear.isEnabled = !it.isNullOrEmpty()
             layout.error = null
             val wildcardError = activity.getString(com.sanchari.bus.R.string.wildcard_both_invalid)
             if (binding.fromInputLayout.error == wildcardError) binding.fromInputLayout.error = null
@@ -106,6 +115,7 @@ class BusSearchHandler(
         }
         field.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
+                restoreSelectedStop(field === binding.fromAutocomplete)
                 refreshStopDropdown(field)
             } else {
                 field.dismissDropDown()

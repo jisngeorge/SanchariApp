@@ -305,7 +305,8 @@ class MainPageActivityTest {
                 scenario.onActivity { activity ->
                     val binding = ActivityMainBinding.bind(activity.findViewById<View>(R.id.homeScrollView).parent as View)
                     binding.fromAutocomplete.setText("Palai", false)
-                    binding.toWildcardButton.performClick()
+                    binding.toAutocomplete.requestFocus()
+                    binding.stopWildcardButton.performClick()
                     binding.buttonSwapLocations.performClick()
                     assertEquals("*", binding.fromAutocomplete.text.toString())
                     assertEquals("Palai", binding.toAutocomplete.text.toString())
@@ -321,7 +322,7 @@ class MainPageActivityTest {
                 }
                 scenario.onActivity { activity ->
                     ActivityMainBinding.bind(activity.findViewById<View>(R.id.homeScrollView).parent as View)
-                        .fromLocationButton.performClick()
+                        .stopLocationButton.performClick()
                 }
                 onData(anything()).inRoot(isDialog()).atPosition(1).perform(click())
                 onView(withId(R.id.coordinatesInput)).inRoot(isDialog())
@@ -339,6 +340,8 @@ class MainPageActivityTest {
                 scenario.onActivity { activity ->
                     val binding = ActivityMainBinding.bind(activity.findViewById<View>(R.id.homeScrollView).parent as View)
                     assertFalse(LocalVersionManager.autoDatabaseUpdatesEnabled(activity))
+                    assertEquals(activity.getString(R.string.location_to_action),
+                        binding.stopLocationButton.contentDescription)
                 }
                 onView(withId(R.id.coordinatesInput)).inRoot(isDialog()).check(matches(withText("12.25, 77.5")))
                 onView(withId(R.id.radiusInput)).inRoot(isDialog()).check(matches(withText("12.5")))

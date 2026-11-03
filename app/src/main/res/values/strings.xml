@@ -148,7 +148,7 @@
     <!-- Search & Input Hints -->
     <string name="hint_from">From</string>
     <string name="hint_to">To</string>
-    <string name="hint_search_bus_name">Or Search Bus by Name</string>
+    <string name="hint_search_bus_name">Search Bus by Name</string>
     <string name="hint_stop_name">Stop Name</string>
     <string name="hint_scheduled_time">Scheduled Time</string>
     <string name="hint_bus_service_name">Bus Service Name</string>

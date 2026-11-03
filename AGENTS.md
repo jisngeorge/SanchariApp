@@ -182,9 +182,13 @@ route-stop row IDs, preserving repeated visits even when their times are equal.
 `SearchManager.findRouteResults` returns these wrappers; `findBusServices` remains
 available for callers that only need the underlying services.
 
-The main From/To fields each have a full-width input and a separate row below it
-with location, wildcard and clear buttons, each with a 48dp touch target.
-Swap uses free space in the From control row rather than a separate vertical row.
+The main From/To fields each have a full-width input with a Material clear-text
+end icon, matching Search Bus by Name and visible only for nonempty focused input.
+One shared location button and wildcard button sit between From and To, alongside
+Swap, with 48dp touch targets. They apply to the last focused From/To field,
+defaulting to From, even when focus moves elsewhere. The target survives recreation
+and their accessibility descriptions identify the active field. Location popups
+retain their initiating target until closed.
 The wildcard button replaces only that field with `*` without opening autocomplete or
 submitting a search; clear removes only that field. There is no wildcard help
 message below the search button. Both-wildcard validation still applies.
@@ -296,9 +300,9 @@ Community reads use separate helper instances and close their database connectio
 
 ## Location-assisted search and maps
 
-Each home location button offers current device location, manual `latitude, longitude`
+The shared home location button offers current device location, manual `latitude, longitude`
 entry in a single copy/paste-friendly field,
-or showing that field's selected stop in Google Maps or as selectable coordinates.
+or showing the active field's selected stop in Google Maps or as selectable coordinates.
 The map and coordinate options are disabled
 for blank/wildcard inputs and otherwise uses existing full-name validation.
 Nearby selection fills only the initiating field, without submitting a search or

@@ -68,7 +68,8 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="@string/hint_from"
-                        app:endIconMode="none"
+                        app:endIconMode="clear_text"
+                        app:endIconContentDescription="@string/clear_from_stop"
                         app:errorIconDrawable="@null">
 
                         <com.google.android.material.textfield.MaterialAutoCompleteTextView
@@ -100,22 +101,17 @@
                             android:layout_weight="1" />
 
                         <androidx.appcompat.widget.AppCompatImageButton
-                            android:id="@+id/fromLocationButton"
+                            android:id="@+id/stopLocationButton"
                             style="@style/Widget.Sanchari.HomeIcon"
                             android:contentDescription="@string/location_from_action"
                             app:srcCompat="@drawable/ic_location" />
 
                         <androidx.appcompat.widget.AppCompatImageButton
-                            android:id="@+id/fromWildcardButton"
+                            android:id="@+id/stopWildcardButton"
                             style="@style/Widget.Sanchari.HomeIcon"
                             android:contentDescription="@string/wildcard_any_origin"
                             app:srcCompat="@drawable/ic_wildcard" />
 
-                        <androidx.appcompat.widget.AppCompatImageButton
-                            android:id="@+id/fromClearButton"
-                            style="@style/Widget.Sanchari.HomeIcon"
-                            android:contentDescription="@string/clear_from_stop"
-                            app:srcCompat="@drawable/ic_clear" />
                     </LinearLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
@@ -124,7 +120,8 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="@string/hint_to"
-                        app:endIconMode="none"
+                        app:endIconMode="clear_text"
+                        app:endIconContentDescription="@string/clear_to_stop"
                         app:errorIconDrawable="@null">
 
                         <com.google.android.material.textfield.MaterialAutoCompleteTextView
@@ -137,31 +134,6 @@
                             android:paddingStart="16dp"
                             android:paddingEnd="16dp" />
                     </com.google.android.material.textfield.TextInputLayout>
-
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="48dp"
-                        android:layout_gravity="end"
-                        android:orientation="horizontal">
-
-                        <androidx.appcompat.widget.AppCompatImageButton
-                            android:id="@+id/toLocationButton"
-                            style="@style/Widget.Sanchari.HomeIcon"
-                            android:contentDescription="@string/location_to_action"
-                            app:srcCompat="@drawable/ic_location" />
-
-                        <androidx.appcompat.widget.AppCompatImageButton
-                            android:id="@+id/toWildcardButton"
-                            style="@style/Widget.Sanchari.HomeIcon"
-                            android:contentDescription="@string/wildcard_any_destination"
-                            app:srcCompat="@drawable/ic_wildcard" />
-
-                        <androidx.appcompat.widget.AppCompatImageButton
-                            android:id="@+id/toClearButton"
-                            style="@style/Widget.Sanchari.HomeIcon"
-                            android:contentDescription="@string/clear_to_stop"
-                            app:srcCompat="@drawable/ic_clear" />
-                    </LinearLayout>
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/searchButton"

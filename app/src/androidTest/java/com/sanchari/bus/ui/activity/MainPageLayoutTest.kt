@@ -89,8 +89,7 @@ class MainPageLayoutTest {
                             }
                         }
                         val actions = listOf(
-                            binding.fromLocationButton, binding.fromWildcardButton, binding.fromClearButton,
-                            binding.toLocationButton, binding.toWildcardButton, binding.toClearButton, binding.buttonSwapLocations,
+                            binding.stopLocationButton, binding.stopWildcardButton, binding.buttonSwapLocations,
                             binding.searchButton, binding.buttonAddNewBus, binding.buttonDrafts,
                             binding.homeOverflowButton
                         )
@@ -143,10 +142,8 @@ class MainPageLayoutTest {
                         binding.toInputLayout.error = context.getString(R.string.stop_name_not_found)
                         layout()
                         for ((field, buttons) in listOf(
-                            binding.fromAutocomplete to listOf(binding.fromLocationButton,
-                                binding.fromWildcardButton, binding.fromClearButton),
-                            binding.toAutocomplete to listOf(binding.toLocationButton,
-                                binding.toWildcardButton, binding.toClearButton)
+                            binding.fromAutocomplete to listOf(binding.stopLocationButton,
+                                binding.stopWildcardButton)
                         )) {
                             fun bounds(view: View): Rect = Rect().also {
                                 view.getDrawingRect(it)
@@ -154,8 +151,10 @@ class MainPageLayoutTest {
                             }
                             val input = bounds(field)
                             val targets = buttons.map(::bounds)
+                            val destination = bounds(binding.toAutocomplete)
                             for (target in targets) {
                                 assertTrue("Controls must sit below the full-width input", target.top >= input.bottom)
+                                assertTrue("Shared controls must sit above To", target.bottom <= destination.top)
                                 assertTrue(target.left >= input.left && target.right <= input.right)
                             }
                             for ((left, right) in targets.zipWithNext()) {

@@ -85,7 +85,7 @@ class SearchAutocompleteTest {
                 handler.setStopSuggestions(listOf("Thiruvananthapuram", "Kochi"))
                 assertSame(from, binding.fromAutocomplete.adapter)
                 assertSame(to, binding.toAutocomplete.adapter)
-                binding.fromWildcardButton.performClick()
+                binding.stopWildcardButton.performClick()
                 assertEquals("*", binding.fromAutocomplete.text.toString())
                 assertFalse(binding.fromAutocomplete.isPopupShowing)
             }
