@@ -10,6 +10,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.action.ViewActions.replaceText
+import androidx.test.espresso.action.ViewActions.scrollTo
 import androidx.test.espresso.assertion.ViewAssertions.doesNotExist
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.withId
@@ -237,6 +238,8 @@ class ScheduleEditorActivityTest {
             }
             instrumentation.waitForIdleSync()
             scenario.onActivity { activity -> estimate(activity, 3) }
+            waitForDialog()
+            onView(withText(R.string.editor_estimate_no_mode)).check(matches(isDisplayed()))
             onView(withText(android.R.string.cancel)).perform(click())
             scenario.onActivity { activity ->
                 assertEquals("", adapter(activity).getStopsData()[3].scheduledTime)
@@ -251,13 +254,54 @@ class ScheduleEditorActivityTest {
                 assertEquals("10:30", adapter(activity).getStopsData()[3].scheduledTime)
                 assertEquals(listOf("A", "B", "A", "B"), adapter(activity).getStopsData().map { it.stopName })
                 adapter(activity).updateTime(3, "11:00")
-                estimate(activity, 3)
             }
+            instrumentation.waitForIdleSync()
+            scenario.onActivity { activity -> estimate(activity, 3) }
             waitForDialog(R.string.editor_replace_time)
             onView(withText(R.string.editor_replace_time)).perform(click())
             onView(withText(R.string.editor_replace_time)).check(doesNotExist())
             scenario.onActivity { activity ->
                 assertEquals("10:30", adapter(activity).getStopsData()[3].scheduledTime)
+            }
+        }
+    }
+
+    @Test
+    fun timeSuggestionLetsContributorChooseMeanMedianAndEachTiedMode() {
+        launch().use { scenario ->
+            scenario.onActivity { activity ->
+                populate(activity,
+                    "A" to "08:00", "B" to "08:10", "A" to "09:00", "B" to "09:20",
+                    "A" to "10:00", "B" to "10:20", "A" to "11:00", "B" to "11:40",
+                    "A" to "12:00", "B" to "12:40", "A" to "13:00", "B" to "14:30",
+                    "A" to "23:45", "B" to ""
+                )
+            }
+            val choices = listOf(
+                Triple(R.string.statistics_mean, 37, "00:22"),
+                Triple(R.string.statistics_median, 30, "00:15"),
+                Triple(R.string.statistics_mode, 20, "00:05"),
+                Triple(R.string.statistics_mode, 40, "00:25")
+            )
+            for ((label, minutes, expectedTime) in choices) {
+                scenario.onActivity { activity ->
+                    adapter(activity).updateTime(13, "")
+                }
+                instrumentation.waitForIdleSync()
+                scenario.onActivity { activity -> estimate(activity, 13) }
+                waitForDialog()
+                val text = context.getString(R.string.editor_estimate_choice,
+                    context.getString(label),
+                    com.sanchari.bus.ui.helper.TimetableTimeFormatter.format(expectedTime),
+                    context.getString(R.string.editor_next_day), minutes)
+                onView(withText(text)).perform(scrollTo(), click())
+                scenario.onActivity { activity ->
+                    assertEquals("", adapter(activity).getStopsData()[13].scheduledTime)
+                }
+                onView(withText(R.string.editor_use_time)).perform(click())
+                scenario.onActivity { activity ->
+                    assertEquals(expectedTime, adapter(activity).getStopsData()[13].scheduledTime)
+                }
             }
         }
     }

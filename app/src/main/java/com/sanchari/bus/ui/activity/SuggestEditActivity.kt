@@ -10,6 +10,7 @@ import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.LinearLayout
+import android.widget.RadioGroup
 import android.widget.Spinner
 import android.widget.ScrollView
 import android.widget.TextView
@@ -33,6 +34,7 @@ import com.sanchari.bus.ui.helper.TimetableTimeFormatter
 import com.sanchari.bus.ui.helper.RouteAnalysisController
 import com.sanchari.bus.ui.helper.DraftManager
 import com.sanchari.bus.R
+import com.google.android.material.radiobutton.MaterialRadioButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -459,44 +461,79 @@ class SuggestEditActivity : AppCompatActivity() {
         val type = binding.editTextServiceType.text.toString()
         estimateJob = lifecycleScope.launch {
             try {
-                val estimate = ScheduleEditorLogic.editorEstimate(snapshot, position)
-                    ?: withContext(Dispatchers.IO) {
-                        ScheduleEditorLogic.timetableEstimate(
+                val estimate = withContext(Dispatchers.IO) {
+                    ScheduleEditorLogic.editorEstimate(snapshot, position)
+                        ?: ScheduleEditorLogic.timetableEstimate(
                             SearchManager.getEditorRouteResults(
                                 applicationContext, snapshot[position - 1].stopName, snapshot[position].stopName
                             ).map { it.service }, type
                         )
-                    }
+                }
                 if (revision != editorRevision) return@launch
                 if (estimate == null) {
                     Toast.makeText(this@SuggestEditActivity, R.string.editor_no_estimate, Toast.LENGTH_LONG).show()
                     return@launch
                 }
                 val previousTime = snapshot[position - 1].scheduledTime
-                val time = estimate.arrival(previousTime)
                 val source = when (estimate.source) {
                     ScheduleEditorLogic.EstimateSource.CURRENT_ROUTE -> getString(R.string.editor_source_route)
                     ScheduleEditorLogic.EstimateSource.BUS_TYPE -> getString(R.string.editor_source_type, type)
                     ScheduleEditorLogic.EstimateSource.ALL_TYPES -> getString(R.string.editor_source_all)
                 }
                 val current = snapshot[position].scheduledTime
-                val message = getString(
-                    R.string.editor_estimate_preview,
-                    TimetableTimeFormatter.format(time),
-                    if (estimate.isNextDay(previousTime)) getString(R.string.editor_next_day) else "",
-                    estimate.minutes, source, estimate.sampleCount
-                ) + if (current.isNotBlank()) {
-                    getString(R.string.editor_replace_current, TimetableTimeFormatter.format(current))
-                } else ""
+                val choices = listOf(
+                    R.string.statistics_mean to estimate.minutes,
+                    R.string.statistics_median to requireNotNull(estimate.statistics.medianMinutes)
+                ) + estimate.statistics.modeMinutes.map { R.string.statistics_mode to it }
+                var selectedMinutes = estimate.minutes
+                val padding = (24 * resources.displayMetrics.density).toInt()
+                val content = LinearLayout(this@SuggestEditActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(padding, 0, padding, 0)
+                }
+                content.addView(TextView(this@SuggestEditActivity).apply {
+                    text = getString(R.string.editor_estimate_preview, source, estimate.sampleCount)
+                    textSize = 16f
+                    setPadding(0, 0, 0, padding / 2)
+                })
+                val group = RadioGroup(this@SuggestEditActivity)
+                choices.forEach { (label, minutes) ->
+                    group.addView(MaterialRadioButton(this@SuggestEditActivity).apply {
+                        id = View.generateViewId()
+                        text = getString(R.string.editor_estimate_choice, getString(label),
+                            TimetableTimeFormatter.format(estimate.arrival(previousTime, minutes)),
+                            if (estimate.isNextDay(previousTime, minutes)) getString(R.string.editor_next_day) else "",
+                            minutes)
+                        textSize = 16f
+                        minimumHeight = padding * 2
+                        setOnCheckedChangeListener { _, checked ->
+                            if (checked) selectedMinutes = minutes
+                        }
+                    }, RadioGroup.LayoutParams(
+                        RadioGroup.LayoutParams.MATCH_PARENT, RadioGroup.LayoutParams.WRAP_CONTENT
+                    ))
+                }
+                group.check(group.getChildAt(0).id)
+                content.addView(group)
+                if (estimate.statistics.modeMinutes.isEmpty()) {
+                    content.addView(TextView(this@SuggestEditActivity).apply {
+                        setText(R.string.editor_estimate_no_mode)
+                        textSize = 16f
+                    })
+                }
+                if (current.isNotBlank()) content.addView(TextView(this@SuggestEditActivity).apply {
+                    text = getString(R.string.editor_replace_current, TimetableTimeFormatter.format(current))
+                    textSize = 16f
+                })
                 estimateDialog = AlertDialog.Builder(this@SuggestEditActivity)
                     .setTitle(R.string.editor_suggest_time)
-                    .setMessage(message)
+                    .setView(ScrollView(this@SuggestEditActivity).apply { addView(content) })
                     .setNegativeButton(android.R.string.cancel, null)
                     .setPositiveButton(
                         if (current.isBlank()) R.string.editor_use_time else R.string.editor_replace_time
                     ) { _, _ ->
                         if (revision == editorRevision && editableStops == snapshot) {
-                            val newPosition = adapter.updateTime(position, time)
+                            val newPosition = adapter.updateTime(position, estimate.arrival(previousTime, selectedMinutes))
                             binding.recyclerViewStopsEditor.smoothScrollToPosition(newPosition)
                         } else Toast.makeText(this@SuggestEditActivity, R.string.editor_route_changed, Toast.LENGTH_LONG).show()
                     }

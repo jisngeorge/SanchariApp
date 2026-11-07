@@ -17,6 +17,8 @@ class RouteSearchStatisticsTest {
         assertEquals(2, statistics.totalCount)
         assertEquals(2, statistics.timedCount)
         assertEquals(83, statistics.averageMinutes)
+        assertEquals(83, statistics.medianMinutes)
+        assertTrue(statistics.modeMinutes.isEmpty())
     }
 
     @Test
@@ -52,6 +54,8 @@ class RouteSearchStatisticsTest {
             assertEquals(services.size, statistics.totalCount)
             assertEquals(0, statistics.timedCount)
             assertNull(statistics.averageMinutes)
+            assertNull(statistics.medianMinutes)
+            assertTrue(statistics.modeMinutes.isEmpty())
         }
     }
 
@@ -65,6 +69,8 @@ class RouteSearchStatisticsTest {
 
         assertEquals(3, statistics.timedCount)
         assertEquals(40, statistics.averageMinutes)
+        assertEquals(30, statistics.medianMinutes)
+        assertEquals(listOf(30), statistics.modeMinutes)
     }
 
     @Test

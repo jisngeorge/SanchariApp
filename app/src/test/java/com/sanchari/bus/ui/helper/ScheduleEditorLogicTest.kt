@@ -262,6 +262,51 @@ class ScheduleEditorLogicTest {
         assertEquals(20, estimate.minutes)
         assertEquals(1, estimate.sampleCount)
         assertEquals(EstimateSource.BUS_TYPE, estimate.source)
+        assertEquals(20, estimate.statistics.medianMinutes)
+        assertTrue(estimate.statistics.modeMinutes.isEmpty())
+    }
+
+    @Test
+    fun editorOffersAllStatisticsFromTheSameDirectionalSamplesAndWrapsSelectedTimes() {
+        val stops = route(
+            "A" to "08:00", "B" to "08:10", "A" to "09:00", "B" to "09:20",
+            "A" to "10:00", "B" to "10:20", "A" to "11:00", "B" to "11:40",
+            "A" to "12:00", "B" to "12:40", "A" to "13:00", "B" to "14:30",
+            "A" to "23:45", "B" to ""
+        )
+        val estimate = requireNotNull(ScheduleEditorLogic.editorEstimate(stops, 13))
+        assertEquals(EstimateSource.CURRENT_ROUTE, estimate.source)
+        assertEquals(6, estimate.sampleCount)
+        assertEquals(37, estimate.minutes)
+        assertEquals(30, estimate.statistics.medianMinutes)
+        assertEquals(listOf(20, 40), estimate.statistics.modeMinutes)
+        assertEquals("00:22", estimate.arrival("23:45"))
+        assertEquals("00:15", estimate.arrival("23:45", 30))
+        assertEquals("00:05", estimate.arrival("23:45", 20))
+        assertEquals("00:25", estimate.arrival("23:45", 40))
+        assertTrue(estimate.isNextDay("23:45", 40))
+        assertFalse(estimate.isNextDay("08:00", 40))
+    }
+
+    @Test
+    fun timetableStatisticsRetainTypePriorityAndExcludeInvalidSamples() {
+        val samples = listOf(
+            service("EXPRESS", "08:00", "08:10"), service("express", "08:00", "08:20"),
+            service("EXPRESS", "08:00", "08:20").copy(isRunning = false),
+            service("EXPRESS", "08:00", "09:00"), service("EXPRESS", "08:00", "08:00"),
+            service("LOCAL", "08:00", "08:50"), service("LOCAL", "08:00", "08:50"),
+            service("LOCAL", "08:00", "08:50")
+        )
+        val estimate = requireNotNull(ScheduleEditorLogic.timetableEstimate(samples, " express "))
+        assertEquals(4, estimate.sampleCount)
+        assertEquals(28, estimate.minutes)
+        assertEquals(20, estimate.statistics.medianMinutes)
+        assertEquals(listOf(20), estimate.statistics.modeMinutes)
+        val all = requireNotNull(ScheduleEditorLogic.timetableEstimate(samples, "NEW TYPE"))
+        assertEquals(EstimateSource.ALL_TYPES, all.source)
+        assertEquals(7, all.sampleCount)
+        assertEquals(50, all.statistics.medianMinutes)
+        assertEquals(listOf(50), all.statistics.modeMinutes)
     }
 
     @Test

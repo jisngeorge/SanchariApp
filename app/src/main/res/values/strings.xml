@@ -116,7 +116,12 @@
     <string name="filter_all_types">All types</string>
     <string name="filter_apply">Apply</string>
     <string name="no_filtered_results">No services match the selected bus types. Use the filter icon to change your selection.</string>
-    <string name="results_summary">Services: %1$d\u0020\u0020\u0020Average time: %2$s</string>
+    <string name="results_summary">Services: %1$d\u0020\u0020Mean: %2$s\u0020\u0020Median: %3$s\u0020\u0020Mode: %4$s</string>
+    <string name="statistics_mean">Mean</string>
+    <string name="statistics_median">Median</string>
+    <string name="statistics_mode">Mode</string>
+    <string name="statistics_no_mode">No mode</string>
+    <string name="statistics_methods">Mean is the average interval; median is the middle interval; modes are the most frequent whole-minute intervals. All tied modes are shown; unique-only intervals have no mode. Mean and median are rounded to the nearest minute. These are timetable estimates, not live travel times.</string>
     <string name="results_summary_details">%1$s\n%2$s</string>
     <plurals name="statistics_coverage">
         <item quantity="one">Scheduled estimate based on %1$d of %2$d displayed service. Includes services marked not running.</item>
@@ -128,6 +133,7 @@
     <string name="service_colour_note">Yellow-orange names indicate journeys longer than 1.5 times the current average. Red names indicate services marked as not running and take priority. Colours do not confirm which route a bus takes.</string>
     <string name="statistics_unavailable">--</string>
     <string name="duration_compact">%1$dh %2$02dm</string>
+    <string name="duration_minutes">%1$dm</string>
     <string name="finding_nearby_stops">Finding nearby stops...</string>
     <string name="close">Close</string>
     <string name="nearby_database_missing">Timetable data is unavailable. Please download it and try again.</string>
@@ -278,7 +284,9 @@
     <string name="editor_source_type">Bus type: %1$s</string>
     <string name="editor_source_all">All bus types</string>
     <string name="editor_next_day">" (next day)"</string>
-    <string name="editor_estimate_preview">Suggested time: %1$s%2$s\nEstimated interval (min): %3$d\nSource: %4$s\nSample intervals: %5$d\n\nThis is a timetable estimate, not live travel time.</string>
+    <string name="editor_estimate_preview">Source: %1$s\nSample intervals: %2$d\n\nChoose the time to use. This is a timetable estimate, not live travel time.</string>
+    <string name="editor_estimate_choice">%1$s: %2$s%3$s\nInterval: %4$d min</string>
+    <string name="editor_estimate_no_mode">Mode: No mode (no repeated interval).</string>
     <string name="editor_replace_current">\n\nCurrent time: %1$s</string>
     <string name="editor_use_time">Use time</string>
     <string name="editor_replace_time">Replace time</string>

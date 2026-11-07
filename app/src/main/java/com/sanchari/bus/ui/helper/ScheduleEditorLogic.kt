@@ -3,9 +3,9 @@ package com.sanchari.bus.ui.helper
 import com.sanchari.bus.data.manager.RouteResultsManager
 import com.sanchari.bus.data.model.BusService
 import com.sanchari.bus.data.model.EditableStop
+import com.sanchari.bus.data.model.JourneyDurationStatistics
 import com.sanchari.bus.data.model.RouteSearchStatistics
 import java.util.Locale
-import kotlin.math.roundToInt
 import kotlin.math.abs
 
 object ScheduleEditorLogic {
@@ -67,17 +67,19 @@ object ScheduleEditorLogic {
     enum class EstimateSource { CURRENT_ROUTE, BUS_TYPE, ALL_TYPES }
 
     data class TimeEstimate(
-        val minutes: Int,
-        val sampleCount: Int,
+        val statistics: JourneyDurationStatistics,
         val source: EstimateSource
     ) {
-        fun arrival(previousTime: String): String {
+        val minutes: Int get() = requireNotNull(statistics.meanMinutes)
+        val sampleCount: Int get() = statistics.sampleCount
+
+        fun arrival(previousTime: String, minutes: Int = this.minutes): String {
             val departure = requireNotNull(RouteSearchStatistics.parseMinutes(previousTime))
             val arrival = (departure + minutes) % 1440
             return String.format(Locale.ROOT, "%02d:%02d", arrival / 60, arrival % 60)
         }
 
-        fun isNextDay(previousTime: String): Boolean =
+        fun isNextDay(previousTime: String, minutes: Int = this.minutes): Boolean =
             requireNotNull(RouteSearchStatistics.parseMinutes(previousTime)) + minutes >= 1440
     }
 
@@ -118,7 +120,7 @@ object ScheduleEditorLogic {
                 }
             }
         }
-        return average(durations, EstimateSource.CURRENT_ROUTE)
+        return summarize(durations.asSequence(), EstimateSource.CURRENT_ROUTE)
     }
 
     fun timetableEstimate(services: List<BusService>, type: String): TimeEstimate? {
@@ -126,16 +128,12 @@ object ScheduleEditorLogic {
         val matching = if (key.isEmpty()) emptyList() else services.filter {
             RouteResultsManager.busTypeKey(it.type) == key
         }
-        return average(matching.mapNotNull(RouteSearchStatistics::journeyMinutes), EstimateSource.BUS_TYPE)
-            ?: average(services.mapNotNull(RouteSearchStatistics::journeyMinutes), EstimateSource.ALL_TYPES)
+        return summarize(matching.asSequence().mapNotNull(RouteSearchStatistics::journeyMinutes), EstimateSource.BUS_TYPE)
+            ?: summarize(services.asSequence().mapNotNull(RouteSearchStatistics::journeyMinutes), EstimateSource.ALL_TYPES)
     }
 
-    private fun average(durations: List<Int>, source: EstimateSource): TimeEstimate? {
-        if (durations.isEmpty()) return null
-        return TimeEstimate(
-            (durations.sumOf { it.toLong() }.toDouble() / durations.size).roundToInt(),
-            durations.size,
-            source
-        )
+    private fun summarize(durations: Sequence<Int>, source: EstimateSource): TimeEstimate? {
+        val statistics = JourneyDurationStatistics.fromDurations(durations)
+        return if (statistics.sampleCount == 0) null else TimeEstimate(statistics, source)
     }
 }

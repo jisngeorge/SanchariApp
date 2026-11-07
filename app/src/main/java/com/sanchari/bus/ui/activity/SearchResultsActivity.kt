@@ -217,13 +217,18 @@ class SearchResultsActivity : AppCompatActivity() {
             return
         }
         val statistics = RouteSearchStatistics.fromServices(results.map { it.service })
-        val average = statistics.averageMinutes
-        val averageLabel = if (average == null) {
+        fun durationLabel(minutes: Int?): String = if (minutes == null) {
             getString(R.string.statistics_unavailable)
-        } else {
-            getString(R.string.duration_compact, average / 60, average % 60)
-        }
-        val summary = getString(R.string.results_summary, results.size, averageLabel)
+        } else if (minutes < 60) {
+            getString(R.string.duration_minutes, minutes)
+        } else getString(R.string.duration_compact, minutes / 60, minutes % 60)
+        val modeLabel = if (statistics.timedCount == 0) {
+            getString(R.string.statistics_unavailable)
+        } else if (statistics.modeMinutes.isEmpty()) {
+            getString(R.string.statistics_no_mode)
+        } else statistics.modeMinutes.joinToString(", ") { durationLabel(it) }
+        val summary = getString(R.string.results_summary, results.size,
+            durationLabel(statistics.averageMinutes), durationLabel(statistics.medianMinutes), modeLabel)
         val details = buildString {
             append(resources.getQuantityString(
                 R.plurals.statistics_coverage,
@@ -234,6 +239,7 @@ class SearchResultsActivity : AppCompatActivity() {
             if (statistics.timedCount < statistics.totalCount) {
                 append(" ").append(getString(R.string.statistics_exclusions))
             }
+            append(" ").append(getString(R.string.statistics_methods))
             append(" ").append(getString(R.string.service_colour_note))
         }
         binding.resultsSummary.text = summary

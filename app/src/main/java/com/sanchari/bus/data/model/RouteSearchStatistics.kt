@@ -1,11 +1,11 @@
 package com.sanchari.bus.data.model
 
-import kotlin.math.roundToInt
-
 data class RouteSearchStatistics(
     val totalCount: Int,
     val timedCount: Int,
     val averageMinutes: Int?,
+    val medianMinutes: Int?,
+    val modeMinutes: List<Int>,
     private val totalJourneyMinutes: Long
 ) {
     fun isSlow(service: BusService): Boolean {
@@ -17,20 +17,16 @@ data class RouteSearchStatistics(
         private val clockTime = Regex("([01][0-9]|2[0-3]):[0-5][0-9]")
 
         fun fromServices(services: List<BusService>): RouteSearchStatistics {
-            var timedCount = 0
-            var total = 0L
-            for (service in services) {
-                val duration = journeyMinutes(service) ?: continue
-                timedCount++
-                total += duration
-            }
+            val statistics = JourneyDurationStatistics.fromDurations(
+                services.asSequence().mapNotNull(::journeyMinutes)
+            )
             return RouteSearchStatistics(
                 totalCount = services.size,
-                timedCount = timedCount,
-                averageMinutes = if (timedCount == 0) null else {
-                    (total.toDouble() / timedCount).roundToInt()
-                },
-                totalJourneyMinutes = total
+                timedCount = statistics.sampleCount,
+                averageMinutes = statistics.meanMinutes,
+                medianMinutes = statistics.medianMinutes,
+                modeMinutes = statistics.modeMinutes,
+                totalJourneyMinutes = statistics.totalMinutes
             )
         }
 

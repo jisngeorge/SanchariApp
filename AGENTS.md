@@ -236,15 +236,22 @@ non-running services in the average; missing/invalid/identical times are exclude
 Red for not-running services takes priority. Filtering recomputes the threshold
 and updates only names whose cached warning state changes; sorting does not
 alter the warning state. Statistics aggregate durations in one pass without an
-intermediate duration list. Wildcard results never
+intermediate duration list. `JourneyDurationStatistics` uses a bounded whole-minute
+histogram shared by result summaries and editor estimates. Wildcard results never
 use the orange warning. The colour is a scheduled-duration warning, not proof of
 an alternate route. Name tooltips/accessibility descriptions explain warnings;
 the summary tooltip/accessibility description explains the colour meanings.
 Only the underlying service is passed to detail/history/contribution flows.
 
-Route results show the service count and average scheduled A-to-B duration
-(rounded to the nearest minute) together above the list as
-`Services: N   Average time: Hh MMm`. Unavailable averages show `--`.
+Route results show the service count and mean, median and mode scheduled A-to-B
+durations above the list in a wrapping 12sp summary. The service count, mean,
+median and mode share one line when space permits and wrap on narrow screens or
+with larger fonts, without truncation. Durations below an hour show only minutes
+(for example, `45m`), not `0h`. Mean and median are rounded
+to the nearest minute; even-sized medians average the two middle durations.
+Modes use exact whole-minute intervals, show every tied mode in ascending order,
+and show `No mode` when no interval repeats. With no valid intervals all three
+show `--`.
 There is no separate
 statistics panel or fastest-service display. Calculations use the currently
 filtered results' matched endpoint times, including services marked not running.
@@ -454,14 +461,17 @@ Analysis metadata is not saved in drafts or contribution JSON; ordinary autosave
 and discard remain available without analysis.
 
 `Suggest time` estimates one row from its immediately preceding timed row.
-It first averages valid direction-specific A-to-B pairs already in the editor
+It first collects valid direction-specific A-to-B pairs already in the editor
 (including intermediate stops, with normal nearest repeated-endpoint matching,
 excluding the target pair), then same-type timetable intervals, then all types.
 It does not borrow reverse-direction samples or estimate same-place halt
 durations. Existing scheduled interval rules apply, including next-day clock
 rollover and exclusion of invalid/identical times. Non-running services remain
-eligible timetable samples. The preview shows source and sample count and changes
-nothing until explicitly accepted. Accepted values remain `HH:mm`; estimate
+eligible timetable samples. The scrollable preview shows source and sample count,
+with selectable mean (default), median and every tied mode arrival time computed
+from the same sample source. Unique-only samples show an unavailable mode rather
+than inventing a fallback. Selecting an option changes nothing until explicitly
+accepted. Accepted values remain `HH:mm`; estimate
 metadata is not part of drafts or contribution JSON. Route/type/time changes
 invalidate pending estimates. Service identity and draft filename survive editor
 recreation.

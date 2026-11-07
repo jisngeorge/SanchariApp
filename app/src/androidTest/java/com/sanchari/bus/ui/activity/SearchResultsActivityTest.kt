@@ -82,7 +82,7 @@ class SearchResultsActivityTest {
     }
 
     @Test
-    fun summaryShowsCountAndAverageWithAlternativeRouteBulbVisible() {
+    fun summaryShowsCountMeanMedianAndModeWithAlternativeRouteBulbVisible() {
         launch(results()).use { scenario ->
             onView(withId(R.id.action_sort_duration)).check(matches(isDisplayed()))
             onView(withId(R.id.action_filter_bus_type)).check(matches(isDisplayed()))
@@ -92,9 +92,9 @@ class SearchResultsActivityTest {
                 assertEquals(4, activity.findViewById<MaterialToolbar>(R.id.toolbar).menu.size())
                 assertTrue(activity.findViewById<View>(R.id.searchResultsRecyclerView).height > 0)
             }
-            assertSummary(scenario, 4, "1h 00m")
+            assertSummary(scenario, 4, "1h 00m", "45m", "30m")
             scenario.recreate()
-            assertSummary(scenario, 4, "1h 00m")
+            assertSummary(scenario, 4, "1h 00m", "45m", "30m")
             onView(withId(R.id.action_suggest_nearby)).check(matches(isDisplayed()))
         }
     }
@@ -196,7 +196,7 @@ class SearchResultsActivityTest {
             awaitNameColour(scenario, "Slow", orange)
             awaitNameColour(scenario, "Stopped", red)
             awaitNameColour(scenario, "Unknown", normal)
-            assertSummary(scenario, 5, "1h 15m")
+            assertSummary(scenario, 5, "1h 15m", "1h 15m", "30m, 2h 00m")
             scenario.onActivity { activity ->
                 val recycler = activity.findViewById<RecyclerView>(R.id.searchResultsRecyclerView)
                 val row = requireNotNull(recycler.findViewHolderForAdapterPosition(2)).itemView
@@ -223,7 +223,7 @@ class SearchResultsActivityTest {
             awaitNames(scenario, listOf("Slow", "Stopped", "Unknown"))
             awaitNameColour(scenario, "Slow", normal)
             awaitNameColour(scenario, "Stopped", red)
-            assertSummary(scenario, 3, "2h 00m")
+            assertSummary(scenario, 3, "2h 00m", "2h 00m", "2h 00m")
             scenario.onActivity { activity ->
                 assertEquals(listOf("Slow"), warningUpdates)
                 assertEquals(0, fullUpdates)
@@ -252,7 +252,7 @@ class SearchResultsActivityTest {
             service("Timed", "08:00", "08:30"),
             service("Unknown", "--:--", "--:--")
         )).use { scenario ->
-            assertSummary(scenario, 2, "0h 30m")
+            assertSummary(scenario, 2, "30m")
             scenario.onActivity {
                 val details = it.findViewById<TextView>(R.id.resultsSummary).contentDescription.toString()
                 assertTrue(details.contains(it.resources.getQuantityString(
@@ -266,14 +266,60 @@ class SearchResultsActivityTest {
         }
     }
 
+    @Test
+    fun summaryOmitsZeroHoursButKeepsHoursAtSixtyMinutes() {
+        for ((arrival, expected) in listOf("08:01" to "1m", "08:59" to "59m", "09:00" to "1h 00m")) {
+            launch(listOf(service("Timed", "08:00", arrival))).use { scenario ->
+                assertSummary(scenario, 1, expected)
+            }
+        }
+    }
+
+    @Test
+    fun statisticsFitOneRowOnStandardPhoneAndWrapWithoutTruncationWhenNeeded() {
+        launch(results()).use { scenario ->
+            scenario.onActivity { activity ->
+                val summary = activity.findViewById<TextView>(R.id.resultsSummary)
+                val originalSize = summary.textSize
+                val density = activity.resources.displayMetrics.density
+                fun measureAt(widthDp: Int) {
+                    summary.measure(
+                        View.MeasureSpec.makeMeasureSpec((widthDp * density).toInt(), View.MeasureSpec.EXACTLY),
+                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                    )
+                    assertEquals(summary.text.length, summary.layout.getLineEnd(summary.lineCount - 1))
+                    for (line in 0 until summary.lineCount) {
+                        assertEquals(0, summary.layout.getEllipsisCount(line))
+                    }
+                }
+                measureAt(360)
+                assertEquals("Service count and all statistics share one row", 1, summary.lineCount)
+                val originalText = summary.text
+                summary.text = activity.getString(R.string.results_summary, 12, "1h 15m", "1h 10m", "1h 00m")
+                measureAt(360)
+                assertEquals("Hour-and-minute values also fit a standard phone", 1, summary.lineCount)
+                summary.text = originalText
+                measureAt(240)
+                assertTrue(summary.lineCount > 1)
+                summary.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, originalSize * 1.5f)
+                measureAt(360)
+                assertTrue(summary.lineCount > 1)
+                summary.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, originalSize)
+                summary.requestLayout()
+            }
+        }
+    }
+
     private fun assertSummary(
         scenario: ActivityScenario<SearchResultsActivity>,
         shown: Int,
-        duration: String
+        duration: String,
+        median: String = duration,
+        mode: String = if (duration == "--") "--" else "No mode"
     ) {
         scenario.onActivity {
             val summary = it.findViewById<TextView>(R.id.resultsSummary).text.toString()
-            assertEquals("Services: $shown   Average time: $duration", summary)
+            assertEquals("Services: $shown  Mean: $duration  Median: $median  Mode: $mode", summary)
         }
     }
 

@@ -43,11 +43,12 @@
         android:layout_height="wrap_content"
         android:paddingHorizontal="16dp"
         android:paddingVertical="8dp"
-        android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
+        android:textSize="12sp"
+        android:breakStrategy="simple"
         app:layout_constraintTop_toBottomOf="@id/tvToolbarTitle"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        tools:text="Services: 12   Average time: 1h 15m" />
+        tools:text="Services: 12  Mean: 45m  Median: 40m  Mode: 30m" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/searchResultsRecyclerView"
