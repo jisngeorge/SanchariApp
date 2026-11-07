@@ -58,6 +58,69 @@ class ScheduleEditorActivityTest {
     }
 
     @Test
+    fun thirdConsecutiveStopBlocksSubmissionForNewAndEditedServicesAndSurvivesRecreation() {
+        val monitor = object : Instrumentation.ActivityMonitor() {
+            override fun onStartActivity(intent: Intent): Instrumentation.ActivityResult? {
+                if (intent.component?.className == ConfirmationActivity::class.java.name) {
+                    fail("Invalid stop sequence must never navigate to confirmation")
+                }
+                return null
+            }
+        }
+        instrumentation.addMonitor(monitor)
+        try {
+            for (existing in listOf(false, true)) {
+                launch().use { scenario ->
+                    scenario.onActivity { activity ->
+                        if (existing) activity.setOriginalService(com.sanchari.bus.data.model.BusService(
+                            "duplicate-stop-test", "Fixture", "ORDINARY", true, 0L, "08:00", "08:30"))
+                        activity.findViewById<TextView>(R.id.editTextServiceName).text = "Fixture"
+                        populate(activity, "New repeated place" to "08:00",
+                            "New repeated place" to "08:10", "New repeated place" to "08:20")
+                        activity.findViewById<android.view.View>(R.id.buttonApplyChanges).performClick()
+                        assertTrue(adapter(activity).validationRequested)
+                        assertFalse(activity.isFinishing)
+                    }
+                    instrumentation.waitForIdleSync()
+                    scenario.onActivity { activity ->
+                        val row = activity.findViewById<RecyclerView>(R.id.recyclerViewStopsEditor)
+                            .findViewHolderForAdapterPosition(2)!!.itemView
+                        assertEquals(context.getString(R.string.editor_consecutive_stop_error),
+                            androidx.core.view.ViewCompat.getStateDescription(row))
+                    }
+                    scenario.recreate()
+                    scenario.onActivity { activity ->
+                        assertTrue(adapter(activity).validationRequested)
+                        assertEquals(3, adapter(activity).itemCount)
+                        activity.findViewById<android.view.View>(R.id.buttonApplyChanges).performClick()
+                    }
+                    scenario.onActivity { activity ->
+                        activity.findViewById<RecyclerView>(R.id.recyclerViewStopsEditor).scrollToPosition(0)
+                    }
+                    instrumentation.waitForIdleSync()
+                    scenario.onActivity { activity ->
+                        val row = activity.findViewById<RecyclerView>(R.id.recyclerViewStopsEditor)
+                            .findViewHolderForAdapterPosition(0)!!.itemView
+                        row.findViewById<TextView>(R.id.editTextStopName).text = "Different place"
+                    }
+                    instrumentation.waitForIdleSync()
+                    scenario.onActivity { activity ->
+                        activity.findViewById<RecyclerView>(R.id.recyclerViewStopsEditor).scrollToPosition(2)
+                    }
+                    instrumentation.waitForIdleSync()
+                    scenario.onActivity { activity ->
+                        val row = activity.findViewById<RecyclerView>(R.id.recyclerViewStopsEditor)
+                            .findViewHolderForAdapterPosition(2)!!.itemView
+                        assertTrue(androidx.core.view.ViewCompat.getStateDescription(row).isNullOrEmpty())
+                    }
+                }
+            }
+        } finally {
+            instrumentation.removeMonitor(monitor)
+        }
+    }
+
+    @Test
     fun freshNewAndEditSessionsShowQuickTipsButRecreationDoesNotRepeatThem() {
         val tips = context.getString(R.string.editor_instructions)
         assertEquals(4, tips.count { it == '\u2022' })

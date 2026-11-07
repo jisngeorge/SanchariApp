@@ -99,7 +99,7 @@ class ConfirmationPreviewActivityTest {
         try {
             for (provided in listOf(false, true)) {
                 val json = JSONObject().put("type", "comment").put("serviceId", "preview-fixture")
-                    .put("commentText", "A valid comment").put("showUsername", true).put("timestamp", 123L).toString()
+                    .put("commentText", "A valid comment").put("showUsername", provided).put("timestamp", 123L).toString()
                 val captured = java.util.concurrent.atomic.AtomicReference<String>()
                 ActivityScenario.launch<ConfirmationActivity>(ConfirmationActivity.newIntent(context, json)).use { scenario ->
                     awaitReady(scenario)
@@ -132,18 +132,26 @@ class ConfirmationPreviewActivityTest {
     }
 
     @Test
-    fun commentsWithoutEnteredNamesShowAnonymousWithoutIdentifierWording() {
+    fun namedCommentsRequireEnteredNameAndPreserveChoiceAcrossRecreation() {
         val json = JSONObject().put("type", "comment").put("serviceId", "preview-fixture")
             .put("commentText", "No contact details needed").put("showUsername", true).toString()
         ActivityScenario.launch<ConfirmationActivity>(ConfirmationActivity.newIntent(context, json)).use { scenario ->
             awaitReady(scenario)
             scenario.onActivity { activity ->
                 val binding = binding(activity)
-                assertEquals(activity.getString(R.string.contributor_anonymous), binding.textCommentPrivacy.text)
+                activity.uploadContribution = { fail("Missing-name comment must not upload"); false }
+                binding.buttonApplySuggestion.performClick()
+                assertEquals(activity.getString(R.string.contributor_comment_name_required), binding.inputName.error)
+                assertEquals(activity.getString(R.string.contributor_comment_name_required), binding.textCommentPrivacy.text)
                 binding.editTextName.setText("Public name")
+                assertNull(binding.inputName.error)
                 assertEquals(activity.getString(R.string.contributor_named), binding.textCommentPrivacy.text)
-                binding.editTextName.setText("")
-                assertEquals(activity.getString(R.string.contributor_anonymous), binding.textCommentPrivacy.text)
+            }
+            scenario.recreate()
+            awaitReady(scenario)
+            scenario.onActivity { activity ->
+                assertEquals("Public name", binding(activity).editTextName.text.toString())
+                assertEquals(activity.getString(R.string.contributor_named), binding(activity).textCommentPrivacy.text)
             }
         }
     }

@@ -13,8 +13,9 @@ object ContributionPayload {
             value.trim().takeIf { it.isNotEmpty() }?.let { contributor.put(key, it) }
         }
         val suggestion = JSONObject(suggestionJson)
-        if (suggestion.getString("type") == "comment" && !contributor.has("name")) {
-            suggestion.put("showUsername", false)
+        require(suggestion.getString("type") != "comment" ||
+            !suggestion.optBoolean("showUsername") || contributor.has("name")) {
+            "A name is required for a non-anonymous comment"
         }
         return JSONObject().put("submittedBy", contributor).put("suggestion", suggestion).toString(2)
     }

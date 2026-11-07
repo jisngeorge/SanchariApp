@@ -27,17 +27,13 @@ import com.sanchari.bus.ui.helper.UploadManager
 import com.sanchari.bus.data.manager.UserDataManager
 import com.sanchari.bus.ui.helper.MainSubmissionHandler
 import com.sanchari.bus.data.model.AppConfig
-import com.sanchari.bus.data.model.SubmissionLog
 import com.sanchari.bus.BuildConfig
 import com.sanchari.bus.R
-import com.sanchari.bus.ui.helper.DraftManager
+import com.sanchari.bus.ui.helper.SavedContributionsDialog
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
@@ -205,52 +201,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showDraftsAndSubmissions() {
-        val drafts = DraftManager.getDrafts(this)
-        val hasLogs = UserDataManager.getSubmissionLogs(this).isNotEmpty()
-
-        if (drafts.isEmpty() && !hasLogs) {
-            Toast.makeText(this, "No drafts or submissions yet.", Toast.LENGTH_SHORT).show()
-            return
+        SavedContributionsDialog.show(this) { draft ->
+            val intent = SuggestEditActivity.newIntentForNew(this)
+            intent.putExtra(SuggestEditActivity.EXTRA_LOAD_DRAFT_FILE, draft.fileName)
+            startActivity(intent)
         }
-
-        if (drafts.isEmpty() && hasLogs) {
-            showSubmissionLogs(UserDataManager.getSubmissionLogs(this))
-            return
-        }
-
-        val displayNames = drafts.map { it.displayName }.toTypedArray()
-
-        val builder = AlertDialog.Builder(this)
-            .setTitle("Saved Drafts")
-            .setItems(displayNames) { _, which ->
-                // Open SuggestEditActivity — user can load draft from history there
-                val intent = SuggestEditActivity.newIntentForNew(this)
-                intent.putExtra(SuggestEditActivity.EXTRA_LOAD_DRAFT_FILE, drafts[which].fileName)
-                startActivity(intent)
-            }
-            .setNegativeButton("Close", null)
-
-        if (hasLogs) {
-            builder.setNeutralButton("Submissions") { _, _ ->
-                showSubmissionLogs(UserDataManager.getSubmissionLogs(this))
-            }
-        }
-
-        builder.show()
-    }
-
-    private fun showSubmissionLogs(logs: List<SubmissionLog>) {
-        val dateFormat = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
-        val items = logs.map { log ->
-            val date = dateFormat.format(Date(log.submittedAt))
-            "${log.busName} (${log.busType}) - ${log.startingPlace}\n$date"
-        }.toTypedArray()
-
-        AlertDialog.Builder(this)
-            .setTitle("Submission History")
-            .setItems(items, null)
-            .setPositiveButton("OK", null)
-            .show()
     }
 
     private fun updateAvailabilityUI(isUpdateAvailable: Boolean) {

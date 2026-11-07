@@ -403,7 +403,11 @@ Each Apply / Proceed tap checks for possible missing stops before confirmation,
 for both new and edited schedules; there is no separate analysis button.
 Required stop names and valid `HH:mm` times are checked first, before querying
 for missing stops. Immediately after these required-field checks, each Apply /
-Proceed tap shows a warning popup if any adjacent row interval exceeds eight
+Proceed tap rejects more than two consecutive rows with the same trimmed,
+case-insensitive stop name, regardless of stop ID. Two-row halts and later repeated
+visits remain valid. Extra consecutive rows have red accessible validation outlines;
+drafts may still retain them. This check is repeated after analysis and draft saving.
+After the stop-sequence check, a warning popup appears if any adjacent row interval exceeds eight
 hours, including existing, newly added and same-place halt rows. Exactly eight
 hours produces no warning; earlier clock times use next-day rollover. The warning
 identifies the first affected pair by stop order, name and AM/PM time. Continue
@@ -481,8 +485,8 @@ timestamp: Unix epoch seconds
 }
 ```
 
-Name, email, phone and place are optional for every contribution type; no completed
-profile is required. Fields start blank on each fresh confirmation and are editable
+Name, email, phone and place are optional except that non-anonymous comments
+require an entered name. No completed profile is required. Fields start blank on each fresh confirmation and are editable
 without a sharing checkbox. The text above them explains that details can help the
 admin reply or clarify doubts; it does not mention the private identifier.
 Only nonblank trimmed values entered for this contribution are sent as strings.
@@ -523,10 +527,12 @@ Other contribution types use the same confirmation/upload path:
 | `running_status_suggestion` | `serviceId`, `suggestedStatus`, `suggestedStatusBoolean`, `timestamp` |
 | `admin_message` | `messageText`, `timestamp` |
 
-Comments retain `showUsername`; without a shared display name it is forced to
-false. Confirmation shows the public name will be Anonymous, without identifier
-wording. The private pseudonymous identifier remains in the payload. With a supplied name, the original display choice
-still applies. Hiding the public name does not remove contacts explicitly shared
+Comments retain `showUsername`. When Post Anonymously is not ticked, confirmation
+requires a nonblank entered name and payload construction rejects a missing name
+instead of silently switching to anonymous. Anonymous comments can omit a name;
+confirmation shows the public name will be Anonymous, without identifier wording.
+Already queued payloads are retried unchanged. The private pseudonymous identifier
+remains in the payload. Hiding the public name does not remove contacts explicitly shared
 with the administrator. Do not describe this as untraceable or anonymous transport.
 Uploads do not update local timetable or community snapshots immediately.
 Coordinate release with processor support for missing personal fields. Google Apps
@@ -556,7 +562,12 @@ not establish that the deployed processor supports this contract.
   or let a late save recreate a discarded/submitted draft. Unchanged snapshots
   are not rewritten; the saved-content marker survives editor recreation.
 - `SuggestionStorageManager` stores failed uploads as complete wrapped payloads in
-  `filesDir\suggestions\suggestion_<timestamp>.json`.
+  `filesDir\suggestions\suggestion_<timestamp>_<UUID>.json`, using atomic writes
+  and unique filenames so simultaneous submissions cannot overwrite each other.
+- Home Drafts and editor history include pending uploads as labelled, read-only
+  entries with a contribution preview and retry explanation, without showing contacts.
+  Pending entries remain until successful upload; retries never turn them into editable drafts.
+  Failed-sync messages explain that retry occurs on the next app opening.
 - Confirmation removes the associated draft only after upload success or successful
   pending-upload persistence. Preserve this protection against lost contributions.
 - `UploadManager` retries pending files during `MainActivity` initialization and

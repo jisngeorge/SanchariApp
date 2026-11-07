@@ -6,9 +6,16 @@ import android.widget.Toast
 import com.sanchari.bus.data.remote.NetworkManager
 import com.sanchari.bus.data.local.SuggestionStorageManager
 import com.sanchari.bus.data.manager.UserDataManager
+import com.sanchari.bus.R
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.IOException
 
 /**
  * Handles the background synchronization of offline suggestions/comments.
@@ -22,39 +29,56 @@ class UploadManager(
 
     companion object {
         private const val TAG = "UploadManager"
+        private val retryMutex = Mutex()
     }
 
     suspend fun retryPendingUploads() = withContext(Dispatchers.IO) {
-        val pendingFiles = SuggestionStorageManager.getPendingSuggestions(context)
-        if (pendingFiles.isEmpty()) return@withContext
+        retryMutex.withLock {
+            val pendingFiles = try {
+                SuggestionStorageManager.getPendingSuggestions(context)
+            } catch (e: IOException) {
+                Log.e(TAG, "Could not read pending submissions", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, R.string.saved_contributions_failed, Toast.LENGTH_LONG).show()
+                }
+                return@withLock
+            }
+            if (pendingFiles.isEmpty()) return@withLock
 
-        Log.i(TAG, "Found ${pendingFiles.size} pending suggestions. Attempting to sync...")
-        var failureCount = 0
+            Log.i(TAG, "Found ${pendingFiles.size} pending suggestions. Attempting to sync...")
+            var failureCount = 0
 
-        for (file in pendingFiles) {
-            try {
-                val jsonPayload = file.readText()
-                val success = upload(jsonPayload)
+            for (file in pendingFiles) {
+                try {
+                    val jsonPayload = file.readText()
+                    val success = upload(jsonPayload)
+                    currentCoroutineContext().ensureActive()
 
-                if (success) {
-                    Log.i(TAG, "Successfully synced: ${file.name}")
-                    logSubmissionFromPayload(jsonPayload)
-                    SuggestionStorageManager.deleteSuggestion(file)
-                } else {
-                    Log.e(TAG, "Failed to sync: ${file.name}")
+                    if (success) {
+                        Log.i(TAG, "Successfully synced: ${file.name}")
+                        logSubmissionFromPayload(jsonPayload)
+                        if (!SuggestionStorageManager.deleteSuggestion(file)) {
+                            Log.e(TAG, "Could not remove uploaded pending submission")
+                            failureCount++
+                        }
+                    } else {
+                        Log.e(TAG, "Failed to sync: ${file.name}")
+                        failureCount++
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error processing pending file: ${file.name}", e)
                     failureCount++
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error processing pending file: ${file.name}", e)
-                failureCount++
             }
-        }
 
-        withContext(Dispatchers.Main) {
-            if (failureCount > 0) {
-                Toast.makeText(context, "Failed to sync $failureCount offline suggestion(s).", Toast.LENGTH_LONG).show()
-            } else if (pendingFiles.isNotEmpty()) {
-                Toast.makeText(context, "Synced all offline suggestions.", Toast.LENGTH_SHORT).show()
+            withContext(Dispatchers.Main) {
+                if (failureCount > 0) {
+                    Toast.makeText(context, context.getString(R.string.pending_upload_failed, failureCount), Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(context, "Synced all offline suggestions.", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }

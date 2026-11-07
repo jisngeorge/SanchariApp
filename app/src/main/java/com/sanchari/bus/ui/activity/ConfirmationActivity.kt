@@ -187,9 +187,16 @@ class ConfirmationActivity : AppCompatActivity() {
         listOf(binding.editTextName, binding.editTextEmail, binding.editTextPhone, binding.editTextPlace)
             .forEach { it.isEnabled = currentUser != null && !submissionInProgress }
         binding.textCommentPrivacy.isVisible = commentContribution
+        binding.textContributorHelp.setText(if (commentContribution && commentRequestsName)
+            R.string.contributor_named_comment_help else R.string.contributor_privacy)
+        if (!binding.editTextName.text.isNullOrBlank()) binding.inputName.error = null
         val nameShown = !binding.editTextName.text.isNullOrBlank() &&
             commentRequestsName
-        binding.textCommentPrivacy.setText(if (nameShown) R.string.contributor_named else R.string.contributor_anonymous)
+        binding.textCommentPrivacy.setText(when {
+            nameShown -> R.string.contributor_named
+            commentRequestsName -> R.string.contributor_comment_name_required
+            else -> R.string.contributor_anonymous
+        })
     }
 
     private fun handleFinalSubmission() {
@@ -202,6 +209,13 @@ class ConfirmationActivity : AppCompatActivity() {
         val newEmail = binding.editTextEmail.text.toString().trim()
         val newPhone = binding.editTextPhone.text.toString().trim()
         val newPlace = binding.editTextPlace.text.toString().trim()
+
+        if (commentContribution && commentRequestsName && newName.isEmpty()) {
+            binding.inputName.error = getString(R.string.contributor_comment_name_required)
+            binding.editTextName.requestFocus()
+            Toast.makeText(this, R.string.contributor_comment_name_required, Toast.LENGTH_LONG).show()
+            return
+        }
 
         if (newEmail.isNotEmpty() && !newEmail.contains("@")) {
             Toast.makeText(this, "Please enter a valid email address", Toast.LENGTH_SHORT).show()
@@ -260,7 +274,8 @@ class ConfirmationActivity : AppCompatActivity() {
                     // If upload fails, save locally
                     if (savedLocally) {
                         deleteDraftIfExists()
-                        showSuccessDialog("Network unavailable. Suggestion saved offline and will sync later.")
+                        Toast.makeText(this@ConfirmationActivity, R.string.pending_upload_saved, Toast.LENGTH_LONG).show()
+                        showSuccessDialog(getString(R.string.pending_upload_saved))
                     } else {
                         submissionInProgress = false
                         binding.buttonApplySuggestion.isEnabled = previewReady

@@ -1,4 +1,16 @@
 <resources>
+    <string name="contributor_comment_name_required">Enter your name to post a non-anonymous comment.</string>
+    <string name="contributor_named_comment_help">Your name is required because Post Anonymously was not selected. Email, phone and place are optional; provide them if the admin may need to reply or clarify doubts.</string>
+    <string name="editor_consecutive_stop_error">The same stop cannot appear more than twice consecutively.</string>
+    <string name="editor_consecutive_stop">%1$s appears more than twice consecutively (stop %2$d). Remove or correct the extra entry.</string>
+    <string name="pending_upload_label">Pending upload: %1$s</string>
+    <string name="pending_upload_title">Pending upload</string>
+    <string name="pending_upload_help">This submission is saved on your device and cannot be edited. Upload will be retried when you next open the app. It stays here until uploaded successfully.</string>
+    <string name="pending_upload_synced">This submission has already been uploaded.</string>
+    <string name="saved_contributions_empty">No drafts or submissions yet.</string>
+    <string name="saved_contributions_failed">Could not load drafts or pending submissions. Please try again.</string>
+    <string name="pending_upload_failed">Failed to sync %1$d offline suggestion(s). They remain in Drafts and will be retried when you next open the app.</string>
+    <string name="pending_upload_saved">Upload failed. Your submission is saved in Drafts and will be retried when you next open the app.</string>
     <string name="stop_open_map">Open in Google Maps</string>
     <string name="stop_show_coordinates">Show coordinates</string>
     <string name="stop_coordinates_value">Latitude, longitude\n%1$s, %2$s</string>
@@ -184,7 +196,7 @@
     <string name="title_welcome">Welcome to Sanchari!</string>
     <string name="title_how_it_works">How it works</string>
     <string name="title_tell_us">Tell us about yourself</string>
-    <string name="title_confirm_details">Optional contributor details</string>
+    <string name="title_confirm_details">Contributor details</string>
     <string name="title_alternative_routes">Alternative Routes</string>
     <string name="label_punctuality_5">Punctuality</string>
     <string name="label_driving_comfort_5">Driving and Comfort</string>

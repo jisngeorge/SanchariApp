@@ -159,7 +159,10 @@ class StopEditAdapter(
         }
 
         fun showHighlight(highlighted: Boolean) {
-            val error = if (validationRequested) stops.getOrNull(bindingAdapterPosition)?.let(::requiredError) else null
+            val error = if (validationRequested) stops.getOrNull(bindingAdapterPosition)?.let {
+                requiredError(it) ?: if (ScheduleEditorLogic.isExcessiveConsecutiveStop(stops, bindingAdapterPosition))
+                    R.string.editor_consecutive_stop_error else null
+            } else null
             binding.root.strokeColor = MaterialColors.getColor(binding.root,
                 if (error != null) androidx.appcompat.R.attr.colorError else androidx.appcompat.R.attr.colorPrimary)
             binding.root.strokeWidth = if (error != null || highlighted)
@@ -234,6 +237,12 @@ class StopEditAdapter(
                     if (row != RecyclerView.NO_POSITION) {
                         stops[row].stopName = s?.toString().orEmpty()
                         showNameFeedback(stops[row])
+                        if (validationRequested) binding.root.post {
+                            val current = bindingAdapterPosition
+                            if (current != RecyclerView.NO_POSITION && current < stops.lastIndex) {
+                                notifyItemRangeChanged(current + 1, minOf(2, stops.lastIndex - current), ValidationChanged)
+                            }
+                        }
                         onRouteChanged()
                     }
                 }
@@ -265,6 +274,10 @@ class StopEditAdapter(
         onRouteChanged()
         notifyItemMoved(position, position + direction)
         notifyItemRangeChanged(minOf(position, position + direction), 2)
+        if (validationRequested) {
+            val start = maxOf(position, target) + 1
+            if (start < stops.size) notifyItemRangeChanged(start, minOf(2, stops.size - start), ValidationChanged)
+        }
     }
 
     fun updateTime(position: Int, time: String): Int {

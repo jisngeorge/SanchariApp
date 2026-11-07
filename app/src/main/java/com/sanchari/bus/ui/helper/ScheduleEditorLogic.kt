@@ -9,6 +9,14 @@ import kotlin.math.roundToInt
 import kotlin.math.abs
 
 object ScheduleEditorLogic {
+    fun isExcessiveConsecutiveStop(stops: List<EditableStop>, position: Int): Boolean =
+        position >= 2 && position < stops.size && stops[position].stopName.isNotBlank() &&
+            stops[position].stopName.trim().equals(stops[position - 1].stopName.trim(), ignoreCase = true) &&
+            stops[position].stopName.trim().equals(stops[position - 2].stopName.trim(), ignoreCase = true)
+
+    fun excessiveConsecutiveStopPositions(stops: List<EditableStop>): List<Int> =
+        stops.indices.filter { isExcessiveConsecutiveStop(stops, it) }
+
     fun updateTimeAndSort(stops: MutableList<EditableStop>, position: Int, time: String): Int {
         require(position in stops.indices)
         val updatedStop = stops[position]

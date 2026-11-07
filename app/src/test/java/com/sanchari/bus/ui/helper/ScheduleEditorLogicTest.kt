@@ -8,6 +8,20 @@ import org.junit.Test
 
 class ScheduleEditorLogicTest {
     @Test
+    fun consecutiveSameStopsAllowHaltsAndLaterVisitsButRejectThirdAndFurtherRows() {
+        val stops = route("A" to "08:00", "a " to "08:05", " A " to "08:10",
+            "A" to "08:15", "B" to "08:20", "A" to "08:30", "A" to "08:35")
+        assertEquals(listOf(2, 3), ScheduleEditorLogic.excessiveConsecutiveStopPositions(stops))
+        assertTrue(ScheduleEditorLogic.excessiveConsecutiveStopPositions(
+            route("A" to "08:00", "A" to "08:05", "B" to "08:10", "A" to "08:20")
+        ).isEmpty())
+        assertTrue(ScheduleEditorLogic.excessiveConsecutiveStopPositions(emptyList()).isEmpty())
+        assertTrue(ScheduleEditorLogic.excessiveConsecutiveStopPositions(
+            route("" to "", " " to "", "" to "")
+        ).isEmpty())
+    }
+
+    @Test
     fun selectingTimeMovesNewStopsBetweenExistingTimesAndKeepsTheirIdentity() {
         val stops = route("A" to "08:00", "B" to "09:00", "C" to "")
         stops[2] = stops[2].copy(originalStopId = -1)

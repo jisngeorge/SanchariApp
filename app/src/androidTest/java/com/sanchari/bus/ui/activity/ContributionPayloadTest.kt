@@ -39,17 +39,13 @@ class ContributionPayloadTest {
             "running_status_suggestion", "admin_message")) {
             val original = JSONObject().put("type", type).put("timestamp", 1234567890L)
                 .put("serviceId", "unchanged-id")
-            if (type == "comment") original.put("showUsername", true)
+            if (type == "comment") original.put("showUsername", false)
             val root = JSONObject(ContributionPayload.wrap(
                 original.toString(), profile.copy(name = "", email = "", phone = "", place = "")))
             val contributor = root.getJSONObject("submittedBy")
             assertEquals(1, contributor.length())
             assertEquals(profile.uuid, contributor.getString("uuid"))
             val suggestion = root.getJSONObject("suggestion")
-            if (type == "comment") {
-                assertFalse(suggestion.getBoolean("showUsername"))
-                original.put("showUsername", false)
-            }
             assertEquals(original.toString(), suggestion.toString())
         }
     }
@@ -67,13 +63,20 @@ class ContributionPayloadTest {
     }
 
     @Test
-    fun commentNameChoiceIsRetainedOnlyWhenADisplayNameIsShared() {
+    fun commentNameChoiceIsRetainedAndNamedCommentsRequireAName() {
         for (requested in listOf(false, true)) {
             val suggestion = JSONObject().put("type", "comment").put("showUsername", requested)
             val withName = JSONObject(ContributionPayload.wrap(suggestion.toString(), profile))
             assertEquals(requested, withName.getJSONObject("suggestion").getBoolean("showUsername"))
-            val noName = JSONObject(ContributionPayload.wrap(suggestion.toString(), profile.copy(name = "")))
-            assertFalse(noName.getJSONObject("suggestion").getBoolean("showUsername"))
+            if (requested) {
+                try {
+                    ContributionPayload.wrap(suggestion.toString(), profile.copy(name = " "))
+                    fail("Named comments must not silently become anonymous")
+                } catch (_: IllegalArgumentException) { }
+            } else {
+                val noName = JSONObject(ContributionPayload.wrap(suggestion.toString(), profile.copy(name = "")))
+                assertFalse(noName.getJSONObject("suggestion").getBoolean("showUsername"))
+            }
         }
     }
 
