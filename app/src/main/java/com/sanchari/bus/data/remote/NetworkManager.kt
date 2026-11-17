@@ -5,6 +5,9 @@ import android.util.Log
 import com.sanchari.bus.data.local.LocalVersionManager
 import com.sanchari.bus.data.model.ServerVersionInfo
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
@@ -110,41 +113,49 @@ object NetworkManager {
     }
 
     suspend fun downloadFile(url: String, targetFile: File): Boolean {
-        return withContext(Dispatchers.IO) {
-            val request = Request.Builder().url(url).build()
-            try {
-                client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        handleUnsuccessfulResponse(response)
-                        return@withContext false
-                    }
-
-                    val body = response.body
-                    if (body == null) {
-                        Log.e(TAG, "Response body was null for file download: $url")
-                        return@withContext false
-                    }
-
-                    try {
-                        targetFile.sink().buffer().use { sink: BufferedSink ->
-                            sink.writeAll(body.source())
+        return coroutineScope {
+            val call = client.newCall(Request.Builder().url(url).build())
+            val download = async(Dispatchers.IO) {
+                try {
+                    call.execute().use { response ->
+                        if (!response.isSuccessful) {
+                            handleUnsuccessfulResponse(response)
+                            return@async false
                         }
-                        Log.i(TAG, "File downloaded successfully: ${targetFile.name}")
-                        return@withContext true
-                    } catch (e: IOException) {
-                        Log.e(TAG, "Failed to write downloaded file to disk: ${targetFile.name}", e)
-                        if (targetFile.exists()) {
-                            targetFile.delete()
+
+                        val body = response.body
+                        if (body == null) {
+                            Log.e(TAG, "Response body was null for file download: $url")
+                            return@async false
                         }
-                        return@withContext false
+
+                        try {
+                            targetFile.sink().buffer().use { sink: BufferedSink ->
+                                sink.writeAll(body.source())
+                            }
+                            Log.i(TAG, "File downloaded successfully: ${targetFile.name}")
+                            return@async true
+                        } catch (e: IOException) {
+                            Log.e(TAG, "Failed to write downloaded file to disk: ${targetFile.name}", e)
+                            if (targetFile.exists()) {
+                                targetFile.delete()
+                            }
+                            return@async false
+                        }
                     }
+                } catch (e: IOException) {
+                    Log.e(TAG, "Network failure during file download: $url", e)
+                    return@async false
+                } catch (e: Exception) {
+                    Log.e(TAG, "Unexpected error during file download: $url", e)
+                    return@async false
                 }
-            } catch (e: IOException) {
-                Log.e(TAG, "Network failure during file download: $url", e)
-                return@withContext false
-            } catch (e: Exception) {
-                Log.e(TAG, "Unexpected error during file download: $url", e)
-                return@withContext false
+            }
+            try {
+                download.await()
+            } finally {
+                // Release the socket before waiting for the blocking IO worker to finish.
+                if (!isActive) call.cancel()
             }
         }
     }

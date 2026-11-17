@@ -9,6 +9,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.os.SystemClock
 import android.view.View
+import android.widget.AdapterView
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -17,6 +18,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onData
 import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.UiController
+import androidx.test.espresso.ViewAction
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.action.ViewActions.closeSoftKeyboard
 import androidx.test.espresso.action.ViewActions.replaceText
@@ -44,6 +47,7 @@ import com.sanchari.bus.data.model.RecentSearch
 import com.sanchari.bus.databinding.ActivityMainBinding
 import kotlinx.coroutines.runBlocking
 import org.hamcrest.Matchers.anything
+import org.hamcrest.Matcher
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -52,6 +56,35 @@ import java.util.concurrent.atomic.AtomicInteger
 
 @RunWith(AndroidJUnit4::class)
 class MainPageActivityTest {
+    @Test
+    fun populatedStopFieldsShowClearImmediatelyOnFocusAndClearOnlyThatField() = isolatedHome {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            await(scenario) {
+                MainActivity::class.java.getDeclaredField("dataInitialized")
+                    .apply { isAccessible = true }.getBoolean(it.root.context as MainActivity)
+            }
+            scenario.onActivity {
+                val binding = mainBinding(it)
+                binding.fromAutocomplete.setText("From fixture", false)
+                binding.toAutocomplete.setText("To fixture", false)
+                binding.busNameAutocomplete.requestFocus()
+                assertFalse(binding.fromInputLayout.isEndIconVisible)
+                assertFalse(binding.toInputLayout.isEndIconVisible)
+                binding.fromAutocomplete.requestFocus()
+                assertTrue(binding.fromInputLayout.isEndIconVisible)
+                assertFalse(binding.toInputLayout.isEndIconVisible)
+                binding.toAutocomplete.requestFocus()
+                assertFalse(binding.fromInputLayout.isEndIconVisible)
+                assertTrue(binding.toInputLayout.isEndIconVisible)
+                binding.toInputLayout.findViewById<View>(
+                    com.google.android.material.R.id.text_input_end_icon).performClick()
+                assertEquals("", binding.toAutocomplete.text.toString())
+                assertEquals("From fixture", binding.fromAutocomplete.text.toString())
+                assertFalse(binding.toInputLayout.isEndIconVisible)
+            }
+        }
+    }
+
     @Test
     fun primaryActionsStayVisibleAndAllFiveVerticalRecentsRemainReachable() = isolatedHome {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -176,7 +209,7 @@ class MainPageActivityTest {
                         .apply { isAccessible = true }.getBoolean(it.root.context as MainActivity)
                 }
                 scenario.onActivity { activity ->
-                    val manager = AppUpdateManager(activity, fetchVersions = {
+                    val manager = AppUpdateManager(activity, downloadApp = { error("Unexpected APK download") }, fetchVersions = {
                         fetched.incrementAndGet()
                         ServerVersionInfo(
                             DatabaseVersion(LocalVersionManager.getTimetableDbVersion(context), "fixture"),
@@ -188,10 +221,12 @@ class MainPageActivityTest {
                         .apply { isAccessible = true }.set(activity, manager)
                     mainBinding(activity).homeOverflowButton.performClick()
                 }
-                onView(withText(R.string.btn_check_updates)).inRoot(isPlatformPopup()).perform(click())
+                onView(withText(R.string.btn_check_updates)).inRoot(isPlatformPopup()).perform(activate())
+                onView(withText(R.string.update_app)).inRoot(isDialog()).perform(activate())
+                onView(withText(R.string.apk_download)).inRoot(isDialog()).perform(activate())
                 await(scenario) { it.homeOverflowButton.isSelected }
                 assertEquals(1, fetched.get())
-                onView(withText("Later")).inRoot(isDialog()).perform(click())
+                onView(withText("Later")).inRoot(isDialog()).perform(activate())
                 scenario.onActivity { activity ->
                     val button = mainBinding(activity).homeOverflowButton
                     val image = Bitmap.createBitmap(button.width, button.height, Bitmap.Config.ARGB_8888)
@@ -200,16 +235,16 @@ class MainPageActivityTest {
                     image.recycle()
                     button.performClick()
                 }
-                onView(withText(R.string.home_menu_share)).inRoot(isPlatformPopup()).perform(click())
+                onView(withText(R.string.home_menu_share)).inRoot(isPlatformPopup()).perform(activate())
                 assertEquals(1, shares.size)
                 @Suppress("DEPRECATION")
                 val send = shares.single().getParcelableExtra<Intent>(Intent.EXTRA_INTENT)!!
                 assertEquals(Intent.ACTION_SEND, send.action)
                 assertTrue(send.getStringExtra(Intent.EXTRA_TEXT)!!.contains("https://example.invalid/update.apk"))
                 scenario.onActivity { mainBinding(it).homeOverflowButton.performClick() }
-                onView(withText(R.string.home_menu_message_admin)).inRoot(isPlatformPopup()).perform(click())
+                onView(withText(R.string.home_menu_message_admin)).inRoot(isPlatformPopup()).perform(activate())
                 onView(withId(R.id.editTextMessage)).inRoot(isDialog()).check(matches(isDisplayed()))
-                onView(withText(android.R.string.cancel)).inRoot(isDialog()).perform(click())
+                onView(withText(android.R.string.cancel)).inRoot(isDialog()).perform(activate())
                 scenario.onActivity { activity ->
                     val available = MainActivity::class.java.getDeclaredMethod("updateAvailabilityUI", Boolean::class.javaPrimitiveType)
                         .apply { isAccessible = true }
@@ -221,6 +256,25 @@ class MainPageActivityTest {
             }
         } finally {
             instrumentation.removeMonitor(monitor)
+        }
+    }
+
+    private fun activate(): ViewAction = object : ViewAction {
+        override fun getConstraints(): Matcher<View> = isDisplayed()
+        override fun getDescription(): String = "Activate a visible menu item or button"
+        override fun perform(uiController: UiController, view: View) {
+            if (view.isClickable) {
+                assertTrue(view.performClick())
+            } else {
+                var row = view
+                while (row.parent !is AdapterView<*>) {
+                    row = row.parent as? View ?: error("No menu adapter for this view")
+                }
+                val parent = row.parent as AdapterView<*>
+                val position = parent.getPositionForView(row)
+                assertTrue(parent.performItemClick(row, position, parent.getItemIdAtPosition(position)))
+            }
+            uiController.loopMainThreadUntilIdle()
         }
     }
 

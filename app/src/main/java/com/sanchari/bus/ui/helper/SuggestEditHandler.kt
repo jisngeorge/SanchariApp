@@ -36,6 +36,7 @@ class SuggestEditHandler(
     }
 
     var lastSavedContent: String? = null
+    var initialContent: String? = null
     var isDiscarded = false
         private set
     private var pendingSave: Deferred<String>? = null
@@ -183,6 +184,10 @@ class SuggestEditHandler(
         return root.toString()
     }
 
+    fun captureInitialContent() {
+        initialContent = currentContent()
+    }
+
     private fun persistDraft(force: Boolean = false): Deferred<String>? {
         if (isDiscarded) return null
         adapter.commitNames()
@@ -194,6 +199,7 @@ class SuggestEditHandler(
         if (suggestActivity.currentDraftFileName == null && name.isEmpty() && type.isEmpty() &&
             notes.isEmpty() && stops.none { it.stopName.isNotBlank() || it.scheduledTime.isNotBlank() }) return null
         val content = currentContent()
+        if (suggestActivity.currentDraftFileName == null && content == initialContent) return null
         if (pendingSave != null && pendingContent == content) return pendingSave
         if (!force && pendingSave == null && lastSavedContent == content) return null
         val json = buildJsonPayload(suggestActivity.getOriginalService(), name, type, stops, notes)

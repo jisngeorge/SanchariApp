@@ -83,7 +83,7 @@
     <string name="home_drafts">Drafts</string>
     <string name="home_more_options">More options</string>
     <string name="home_more_options_update">More options, updates available</string>
-    <string name="home_menu_auto_updates">Auto-update</string>
+    <string name="home_menu_auto_updates">Auto update DB</string>
     <string name="home_menu_share">Share</string>
     <string name="home_menu_message_admin">Message admin</string>
     <string name="home_menu_version">Version</string>
@@ -156,6 +156,20 @@
     <string name="btn_find_bus">Find Bus</string>
     <string name="btn_add_new_bus">Add Bus</string>
     <string name="btn_check_updates">Update</string>
+    <string name="update_app">App update</string>
+    <string name="update_check_databases">Check DB updates</string>
+    <string name="update_choose_type">Check timetable and community database updates, or update the app.</string>
+    <string name="update_google_play">Google Play</string>
+    <string name="update_options_message">Update the app through Google Play, or check for an APK download.</string>
+    <string name="update_play_unavailable">Google Play could not be opened. You can still download the APK.</string>
+    <string name="apk_download">Download APK</string>
+    <string name="apk_downloading">Downloading APK. Please wait…</string>
+    <string name="apk_saving">Saving APK. Please wait…</string>
+    <string name="apk_saved">APK saved. Install it manually from the saved location.</string>
+    <string name="apk_save_failed">Could not download or save the APK. Please try again.</string>
+    <string name="apk_save_cancelled">APK save cancelled.</string>
+    <string name="apk_downloads_fallback">File picker unavailable. The APK will be saved to Downloads.</string>
+    <string name="apk_downloads_permission">Storage permission is needed to save the APK to Downloads on this Android version.</string>
     <string name="btn_share_app">Share App</string>
     <string name="btn_add_rating">Add Your Rating</string>
     <string name="btn_add_comment">Add Comment</string>
@@ -243,7 +257,7 @@
     <!-- Feature Descriptions -->
     <string name="desc_feat_search"><b>Find Bus:</b> Enter "From" and "To" places to find available bus services and their timings.</string>
     <string name="desc_feat_add"><b>Add New:</b> Know a bus route that is missing? Use "Add Bus" to submit it to the community.</string>
-    <string name="desc_feat_update"><b>Update:</b> Use "Check for Updates" regularly to download the latest schedules, ratings, and comments.</string>
+    <string name="desc_feat_update"><b>Update:</b> Check DB updates for the latest schedules, ratings, and comments. Choose App update for Google Play or APK downloads. Auto update DB controls automatic database updates only.</string>
     <string name="desc_feat_contribute"><b>Contribute:</b> Open any bus detail page to rate the service, add comments, or suggest corrections to the schedule.</string>
     <string name="desc_history">History</string>
     <string name="editor_edit_title">Suggest an Edit</string>

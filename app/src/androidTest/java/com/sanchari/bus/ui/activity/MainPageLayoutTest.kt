@@ -183,7 +183,7 @@ class MainPageLayoutTest {
             }.menu
             val expected = linkedMapOf(
                 R.id.action_check_updates to "Update",
-                R.id.action_auto_updates to "Auto-update",
+                R.id.action_auto_updates to "Auto update DB",
                 R.id.action_share_app to "Share",
                 R.id.action_message_admin to "Message admin",
                 R.id.action_version_info to "Version"

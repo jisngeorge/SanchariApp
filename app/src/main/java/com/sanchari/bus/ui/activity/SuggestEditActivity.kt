@@ -73,6 +73,7 @@ class SuggestEditActivity : AppCompatActivity() {
         private const val KEY_DRAFT_FILE = "KEY_DRAFT_FILE"
         private const val KEY_INITIAL_LOADING = "KEY_INITIAL_LOADING"
         private const val KEY_SAVED_DRAFT_CONTENT = "KEY_SAVED_DRAFT_CONTENT"
+        private const val KEY_INITIAL_CONTENT = "KEY_INITIAL_CONTENT"
         private const val KEY_DRAFT_DISCARDED = "KEY_DRAFT_DISCARDED"
         private const val KEY_STOP_VALIDATION = "KEY_STOP_VALIDATION"
 
@@ -174,6 +175,7 @@ class SuggestEditActivity : AppCompatActivity() {
         outState.putString(KEY_DRAFT_FILE, currentDraftFileName)
         outState.putBoolean(KEY_INITIAL_LOADING, initialLoading)
         outState.putString(KEY_SAVED_DRAFT_CONTENT, handler.lastSavedContent)
+        outState.putString(KEY_INITIAL_CONTENT, handler.initialContent)
         outState.putBoolean(KEY_DRAFT_DISCARDED, handler.isDiscarded)
         outState.putBoolean(KEY_STOP_VALIDATION, adapter.validationRequested)
     }
@@ -210,6 +212,7 @@ class SuggestEditActivity : AppCompatActivity() {
         currentDraftFileName = savedInstanceState.getString(KEY_DRAFT_FILE)
         if (savedInstanceState.getBoolean(KEY_STOP_VALIDATION)) adapter.validateRequiredFields()
         handler.lastSavedContent = savedInstanceState.getString(KEY_SAVED_DRAFT_CONTENT)
+        handler.initialContent = savedInstanceState.getString(KEY_INITIAL_CONTENT)
         if (savedInstanceState.getBoolean(KEY_DRAFT_DISCARDED)) {
             handler.discardAndExit()
             return
@@ -243,6 +246,7 @@ class SuggestEditActivity : AppCompatActivity() {
         } else {
             binding.toolbar.title = "Add New Bus Service"
             addNewStop()
+            handler.captureInitialContent()
             handler.showInstructionsDialog()
         }
     }
@@ -288,6 +292,7 @@ class SuggestEditActivity : AppCompatActivity() {
                 editableStops.clear()
                 editableStops.addAll(stops.map(EditableStop::fromBusStop))
                 adapter.routeReplaced()
+                handler.captureInitialContent()
                 setInitialLoading(false)
                 if (showTips) handler.showInstructionsDialog()
             } catch (e: SQLiteException) {
@@ -339,7 +344,9 @@ class SuggestEditActivity : AppCompatActivity() {
             return false
         }
         val type = binding.editTextServiceType.text.toString().trim()
-        val canonical = busTypes.firstOrNull {
+        val canonical = originalService?.type?.takeIf {
+            RouteResultsManager.busTypeKey(it) == RouteResultsManager.busTypeKey(type)
+        }?.trim() ?: busTypes.firstOrNull {
             RouteResultsManager.busTypeKey(it) == RouteResultsManager.busTypeKey(type)
         } ?: type
         if (canonical != binding.editTextServiceType.text.toString()) {

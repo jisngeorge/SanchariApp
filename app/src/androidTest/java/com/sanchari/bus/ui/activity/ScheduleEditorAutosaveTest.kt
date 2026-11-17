@@ -16,6 +16,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.sanchari.bus.R
 import com.sanchari.bus.data.local.DatabaseManager
 import com.sanchari.bus.data.model.BusService
+import com.sanchari.bus.data.manager.SearchManager
 import com.sanchari.bus.databinding.ActivitySuggestEditBinding
 import com.sanchari.bus.ui.helper.DraftManager
 import com.sanchari.bus.ui.adapter.StopEditAdapter
@@ -247,6 +248,54 @@ class ScheduleEditorAutosaveTest {
         }
         flushWrites()
         assertEquals(initialFiles, DraftManager.getDrafts(context).map { it.fileName }.toSet())
+    }
+
+    @Test
+    fun untouchedInstalledServiceDoesNotCreateADraftOnBackgroundRecreationOrExplicitSave() {
+        val installed = SearchManager.searchBusServicesByName(context, "").first {
+            DraftManager.getDraftForService(context, it.serviceId) == null
+        }
+        val alternateType = if (installed.type.any { it.isUpperCase() })
+            installed.type.lowercase(java.util.Locale.ROOT) else installed.type.uppercase(java.util.Locale.ROOT)
+        val service = installed.copy(type = alternateType)
+        ActivityScenario.launch<SuggestEditActivity>(
+            SuggestEditActivity.newIntentForEdit(context, service)
+        ).use { scenario ->
+            await {
+                var ready = false
+                scenario.onActivity { ready = binding(it).buttonApplyChanges.isEnabled }
+                ready
+            }
+            onView(withText(R.string.editor_got_it)).perform(click())
+            scenario.moveToState(Lifecycle.State.CREATED)
+            flushWrites()
+            assertNull(DraftManager.getDraftForService(context, service.serviceId))
+            scenario.moveToState(Lifecycle.State.RESUMED)
+            scenario.recreate()
+            scenario.onActivity {
+                assertNull(it.currentDraftFileName)
+                // Changing a value and restoring it is still an unchanged editor.
+                binding(it).editTextServiceName.setText("Temporary edit")
+                binding(it).editTextServiceName.setText(service.name)
+                binding(it).buttonSaveDraft.performClick()
+            }
+            awaitExit(scenario)
+        }
+        flushWrites()
+        assertNull(DraftManager.getDraftForService(context, service.serviceId))
+    }
+
+    @Test
+    fun unchangedExistingDraftIsRetainedByExplicitSave() {
+        val file = fixture("Unchanged existing draft")
+        val before = draft(file)
+        launch(file).use { scenario ->
+            scenario.onActivity { binding(it).buttonSaveDraft.performClick() }
+            awaitExit(scenario)
+        }
+        assertEquals(before.getJSONObject("service").getString("serviceId"),
+            draft(file).getJSONObject("service").getString("serviceId"))
+        assertEquals("Unchanged existing draft", draft(file).getJSONObject("service").getString("name"))
     }
 
     @Test

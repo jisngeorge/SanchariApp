@@ -103,17 +103,25 @@ class BusSearchHandler(
         field: MaterialAutoCompleteTextView,
         layout: TextInputLayout
     ) {
+        // Own visibility: Material's clear-text delegate also owns a focus listener.
+        layout.endIconMode = TextInputLayout.END_ICON_CUSTOM
+        layout.setEndIconDrawable(com.google.android.material.R.drawable.mtrl_ic_cancel)
+        fun updateClearIcon() {
+            layout.isEndIconVisible = field.hasFocus() && !field.text.isNullOrEmpty()
+        }
         layout.setEndIconOnClickListener {
             field.setText("", false)
             field.dismissDropDown()
         }
         field.addTextChangedListener {
+            updateClearIcon()
             layout.error = null
             val wildcardError = activity.getString(com.sanchari.bus.R.string.wildcard_both_invalid)
             if (binding.fromInputLayout.error == wildcardError) binding.fromInputLayout.error = null
             if (binding.toInputLayout.error == wildcardError) binding.toInputLayout.error = null
         }
         field.setOnFocusChangeListener { _, hasFocus ->
+            updateClearIcon()
             if (hasFocus) {
                 restoreSelectedStop(field === binding.fromAutocomplete)
                 refreshStopDropdown(field)
@@ -123,6 +131,7 @@ class BusSearchHandler(
             }
         }
         field.setOnClickListener { refreshStopDropdown(field) }
+        updateClearIcon()
     }
 
     /**

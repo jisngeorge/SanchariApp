@@ -12,6 +12,9 @@ import androidx.core.graphics.ColorUtils
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
+import androidx.test.espresso.action.GeneralSwipeAction
+import androidx.test.espresso.action.Swipe
+import androidx.test.espresso.action.Press
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
@@ -31,6 +34,43 @@ import java.util.Calendar
 
 @RunWith(AndroidJUnit4::class)
 class SearchResultsActivityTest {
+    @Test
+    fun outerEdgeFastScrollbarDragsToLaterServicesWithoutASeparateColumn() {
+        val services = (1..200).map { service("Scrollbar service $it", "08:00", "09:00") }
+        launch(services).use { scenario ->
+            awaitNames(scenario, services.map { it.name })
+            scenario.onActivity { activity ->
+                val recycler = activity.findViewById<RecyclerView>(R.id.searchResultsRecyclerView)
+                assertEquals((recycler.parent as View).width, recycler.right)
+                recycler.scrollBy(0, 20)
+            }
+            onView(withId(R.id.searchResultsRecyclerView)).perform(GeneralSwipeAction(
+                Swipe.SLOW,
+                { view ->
+                    val recycler = view as RecyclerView
+                    val location = IntArray(2)
+                    recycler.getLocationOnScreen(location)
+                    val center = recycler.height.toFloat() *
+                        (recycler.computeVerticalScrollOffset() + recycler.computeVerticalScrollExtent() / 2f) /
+                        recycler.computeVerticalScrollRange()
+                    floatArrayOf(location[0] + recycler.width - 1f, location[1] + center)
+                },
+                { view ->
+                    val location = IntArray(2)
+                    view.getLocationOnScreen(location)
+                    floatArrayOf(location[0] + view.width - 1f, location[1] + view.height * 0.8f)
+                },
+                Press.FINGER
+            ))
+            scenario.onActivity { activity ->
+                val recycler = activity.findViewById<RecyclerView>(R.id.searchResultsRecyclerView)
+                val manager = recycler.layoutManager as androidx.recyclerview.widget.LinearLayoutManager
+                assertTrue("Dragging at the outer edge should fast-scroll through the list",
+                    manager.findFirstVisibleItemPosition() > 100)
+            }
+        }
+    }
+
     @Test
     fun slowWarningUsesReadableYellowOrangeDistinctFromRedInBothThemes() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext

@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.color.MaterialColors
 import com.sanchari.bus.databinding.ActivityMainBinding
 import com.sanchari.bus.ui.helper.AppUpdateManager
+import com.sanchari.bus.ui.helper.ApkDownloadManager
 import com.sanchari.bus.ui.helper.BusSearchHandler
 import com.sanchari.bus.ui.helper.StopLocationHandler
 import com.sanchari.bus.data.local.DatabaseManager
@@ -42,6 +43,7 @@ class MainActivity : AppCompatActivity() {
 
     // Refactored Managers
     private lateinit var appUpdateManager: AppUpdateManager
+    private lateinit var apkDownloadManager: ApkDownloadManager
     private lateinit var uploadManager: UploadManager
     private lateinit var busSearchHandler: BusSearchHandler
     private lateinit var stopLocationHandler: StopLocationHandler
@@ -59,7 +61,8 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         // Initialize Managers
-        appUpdateManager = AppUpdateManager(this)
+        apkDownloadManager = ApkDownloadManager(this, savedInstanceState)
+        appUpdateManager = AppUpdateManager(this, apkDownloadManager::download)
         uploadManager = UploadManager(this)
         busSearchHandler = BusSearchHandler(this, binding, addSearchMetadata = { intent, from, to ->
             stopLocationHandler.addSearchMetadata(intent, from, to)
@@ -154,9 +157,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkForUpdatesManually() {
-        Toast.makeText(this, "Checking for updates...", Toast.LENGTH_SHORT).show()
-        appUpdateManager.checkForUpdates(
-            forceCheck = true,
+        appUpdateManager.showUpdateOptions(
             localTimetableVersion = LocalVersionManager.getTimetableDbVersion(applicationContext),
             localCommunityVersion = LocalVersionManager.getCommunityDbVersion(applicationContext),
             onUpdateAvailable = ::updateAvailabilityUI,
@@ -249,6 +250,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
+        apkDownloadManager.onPause()
         appUpdateManager.onPause()
         stopLocationHandler.onPause()
         busSearchHandler.pauseSuggestions()
@@ -266,6 +268,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
+        apkDownloadManager.saveState(outState)
         outState.putBoolean("selected_stop_is_from", busSearchHandler.selectedStopIsFrom)
         super.onSaveInstanceState(outState)
         stopLocationHandler.saveState(outState)

@@ -52,7 +52,7 @@ All paths below are relative to the repository root. Kotlin source lives under
 | `ui\helper` | Search UI, updates, contribution construction, drafts, pending-upload retry |
 | `ui\adapter` | Bus, stop, comment, recent-view, and editable-stop list presentation |
 | `app\src\main\assets` | Bundled database snapshots and initial `app_config.json` |
-| `app\src\main\res` | Layouts, strings, icons, themes, and FileProvider configuration |
+| `app\src\main\res` | Layouts, strings, icons, and themes |
 
 ## Local data and ownership
 
@@ -119,8 +119,8 @@ do not add headings, taglines, descriptions or an icon beside the app title.
 Wildcard/clear controls retain separate 48dp targets; swapping stops does not
 submit a search. Add Bus has a green icon; Drafts uses a labelled button with the
 history icon and still opens both drafts and submission history.
-The overflow labels are Update, Auto-update, Share, Message admin and Version;
-Auto-update retains the persisted database-update toggle. Update availability uses a green highlight
+The overflow labels are Update, Auto update DB, Share, Message admin and Version;
+Auto update DB retains the persisted database-update toggle. Update availability uses a green highlight
 and an accessible description on the menu button without changing the Update label.
 Home surfaces and outlines adapt to light/dark mode; content grows with text size.
 
@@ -184,6 +184,7 @@ available for callers that only need the underlying services.
 
 The main From/To fields each have a full-width input with a Material clear-text
 end icon, matching Search Bus by Name and visible only for nonempty focused input.
+Focusing a populated From/To field shows its clear icon immediately, without typing.
 One shared location button and wildcard button sit between From and To, alongside
 Swap, with 48dp touch targets. They apply to the last focused From/To field,
 defaulting to From, even when focus moves elsewhere. The target survives recreation
@@ -212,8 +213,10 @@ nested repeated-stop scans. Preserve clock-time result ordering and endpoint row
 identities separately from this route-order computation.
 
 `SearchResultsActivity` receives Parcelable route-search results through Intent extras and
-opens `BusDetailsActivity`. Details load ordered route stops and community data;
-contribution actions are handled by `BusSubmissionHandler`. Non-running services
+opens `BusDetailsActivity`. Details load ordered route stops and community data.
+The results list has a slim blue draggable fast-scroll thumb at its outer edge,
+overlaying the list rather than reserving a separate column.
+Contribution actions are handled by `BusSubmissionHandler`. Non-running services
 remain visible, with warning styling rather than being removed from searches.
 Bus details reuse the main page's rounded card styling and light/dark surfaces,
 preserving existing titles and wording. Stop times sit below stop names so halt
@@ -560,7 +563,10 @@ not establish that the deployed processor supports this contract.
   and queued saves resolve any competing filename to the same service draft.
 - The editor automatically saves the latest changes on Back, toolbar exit and
   backgrounding, and before opening history or confirmation. Incomplete drafts
-  are allowed; untouched empty new editors do not create files. Repeated saves
+  are allowed; fresh new/existing-service editors do not create a draft while
+  their contents match the initial editor snapshot, including after recreation
+  and explicit Save Draft. Once a draft exists, its existing save behavior is
+  preserved. Repeated saves
   retain the filename and service ID. Only explicit confirmed Discard deletes
   work; cancellation and ordinary navigation preserve it.
 - Successful saves show the same `Draft Saved` toast for Save Draft, Back,
@@ -635,9 +641,21 @@ cancellation before publication and failed renames preserve the installed snapsh
 Timetable helpers/cache are reset around publication, and the verified content
 version is persisted. User data, drafts and pending uploads are never replaced.
 
-APK updates download to `cacheDir\update.apk` and launch the Android installer
-using FileProvider. Relevant permissions and provider registration are in
-`AndroidManifest.xml`; cache sharing is configured in `res\xml\provider_paths.xml`.
+Update offers Check DB updates and App update separately. Check DB updates handles
+only timetable/community snapshots; App update offers Google Play or Download APK,
+whose manifest check handles only the app. Scoped checks preserve the combined
+update indicator and do not postpone the automatic all-updates check.
+Available APK update prompts also offer Google Play.
+The store app is preferred, with the Play listing in a browser as fallback.
+`ApkDownloadManager` downloads to a unique temporary cache file, then opens the
+system save-file picker with `Sanchari_v<versionName>.apk` (manifest versionCode
+if APK version metadata is unavailable). Progress popups cover download and save;
+the picker itself shows destination selection. Cancellation never opens an installer.
+If no picker is installed, save to public Downloads using MediaStore on Android
+10+, or legacy storage permission limited to Android 9 and earlier.
+Successful saving shows a toast asking the user to install manually.
+There is no installer intent, FileProvider, or REQUEST_INSTALL_PACKAGES permission.
+Pending picker state survives recreation; active downloads/saves cancel on pause.
 
 ## Guidance for changes
 

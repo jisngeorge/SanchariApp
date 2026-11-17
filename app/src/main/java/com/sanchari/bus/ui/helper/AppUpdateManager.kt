@@ -1,11 +1,12 @@
 package com.sanchari.bus.ui.helper
 
 import android.content.Intent
+import android.content.ActivityNotFoundException
+import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import com.sanchari.bus.BuildConfig
 import com.sanchari.bus.R
@@ -14,6 +15,7 @@ import com.sanchari.bus.data.local.DatabaseConstants
 import com.sanchari.bus.data.local.DatabaseManager
 import com.sanchari.bus.data.local.LocalVersionManager
 import com.sanchari.bus.data.model.ServerVersionInfo
+import com.sanchari.bus.data.model.AppVersion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -22,11 +24,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import androidx.lifecycle.Lifecycle
-import java.io.File
 import java.util.Date
 
 class AppUpdateManager(
     private val activity: AppCompatActivity,
+    private val downloadApp: (AppVersion) -> Unit,
     private val fetchVersions: suspend () -> ServerVersionInfo? = {
         NetworkManager.fetchVersionInfo(activity)
     },
@@ -39,6 +41,8 @@ class AppUpdateManager(
     @Volatile private var automaticOperation = false
     private var updateDialog: AlertDialog? = null
 
+    enum class UpdateScope { ALL, DATABASES, APP }
+
     companion object {
         private const val TAG = "AppUpdateManager"
         private const val UPDATE_INTERVAL_MS = 604800000L // 7 days
@@ -46,12 +50,68 @@ class AppUpdateManager(
             lastCheck == 0L || currentTime - lastCheck >= UPDATE_INTERVAL_MS
     }
 
+    fun showUpdateOptions(
+        localTimetableVersion: Int,
+        localCommunityVersion: Int,
+        onUpdateAvailable: (Boolean) -> Unit,
+        onUpdateComplete: () -> Unit
+    ) {
+        updateDialog?.dismiss()
+        updateDialog = AlertDialog.Builder(activity)
+            .setTitle(R.string.btn_check_updates)
+            .setMessage(R.string.update_choose_type)
+            .setPositiveButton(R.string.update_check_databases) { _, _ ->
+                checkForUpdates(true, localTimetableVersion, localCommunityVersion,
+                    onUpdateAvailable, onUpdateComplete, UpdateScope.DATABASES)
+            }
+            .setNeutralButton(R.string.update_app) { _, _ ->
+                showAppUpdateOptions(localTimetableVersion, localCommunityVersion,
+                    onUpdateAvailable, onUpdateComplete)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun showAppUpdateOptions(
+        localTimetableVersion: Int,
+        localCommunityVersion: Int,
+        onUpdateAvailable: (Boolean) -> Unit,
+        onUpdateComplete: () -> Unit
+    ) {
+        updateDialog?.dismiss()
+        updateDialog = AlertDialog.Builder(activity)
+            .setTitle(R.string.update_app)
+            .setMessage(R.string.update_options_message)
+            .setPositiveButton(R.string.update_google_play) { _, _ -> openGooglePlay() }
+            .setNeutralButton(R.string.apk_download) { _, _ ->
+                checkForUpdates(true, localTimetableVersion, localCommunityVersion,
+                    onUpdateAvailable, onUpdateComplete, UpdateScope.APP)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun openGooglePlay() {
+        try {
+            activity.startActivity(Intent(Intent.ACTION_VIEW,
+                Uri.parse("market://details?id=${activity.packageName}")).setPackage("com.android.vending"))
+        } catch (_: ActivityNotFoundException) {
+            try {
+                activity.startActivity(Intent(Intent.ACTION_VIEW,
+                    Uri.parse("https://play.google.com/store/apps/details?id=${activity.packageName}")))
+            } catch (_: ActivityNotFoundException) {
+                Toast.makeText(activity, R.string.update_play_unavailable, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     fun checkForUpdates(
         forceCheck: Boolean,
         localTimetableVersion: Int,
         localCommunityVersion: Int,
         onUpdateAvailable: ((Boolean) -> Unit)? = null,
-        onUpdateComplete: (() -> Unit)? = null
+        onUpdateComplete: (() -> Unit)? = null,
+        scope: UpdateScope = UpdateScope.ALL
     ) {
         activity.runOnUiThread {
             if (updateJob?.isCompleted == false) {
@@ -85,7 +145,7 @@ class AppUpdateManager(
                         return@launch
                     }
 
-                    LocalVersionManager.saveLastUpdateCheckTime(activity, now())
+                    if (scope == UpdateScope.ALL) LocalVersionManager.saveLastUpdateCheckTime(activity, now())
                     if (!serverInfo.versions.isNullOrBlank()) {
                         LocalVersionManager.saveVersionsUrl(activity, serverInfo.versions)
                     }
@@ -106,27 +166,32 @@ class AppUpdateManager(
                         onUpdateAvailable?.invoke(updateAvailable)
                     }
 
-                    if (!updateAvailable) {
+                    val checkApp = scope != UpdateScope.DATABASES && appUpdateAvailable
+                    val checkTimetable = scope != UpdateScope.APP && timetableUpdate
+                    val checkCommunity = scope != UpdateScope.APP && communityUpdate
+                    if (!checkApp && !checkTimetable && !checkCommunity) {
                         if (forceCheck) withContext(Dispatchers.Main) {
-                            Toast.makeText(activity, "App is up to date.", Toast.LENGTH_SHORT).show()
+                            val message = if (scope == UpdateScope.DATABASES)
+                                activity.getString(R.string.database_updates_complete) else "App is up to date."
+                            Toast.makeText(activity, message, Toast.LENGTH_SHORT).show()
                         }
                         return@launch
                     }
                     val automatic = LocalVersionManager.autoDatabaseUpdatesEnabled(activity)
-                    if (automatic && (timetableUpdate || communityUpdate)) {
+                    if (automatic && (checkTimetable || checkCommunity)) {
                         pendingAutomaticDownload = true
                         automaticOperation = true
                         downloadDatabases(
-                            serverInfo, timetableUpdate, communityUpdate, automatic = true,
+                            serverInfo, checkTimetable, checkCommunity, automatic = true,
                             onUpdateAvailable = onUpdateAvailable, onUpdateComplete = onUpdateComplete
                         )
                         pendingAutomaticDownload = false
                     }
                     withContext(Dispatchers.Main) {
-                        if (appUpdateAvailable || !automatic) promptForUpdate(
-                            if (automatic) false else timetableUpdate,
-                            if (automatic) false else communityUpdate,
-                            appUpdateAvailable, serverInfo, onUpdateAvailable, onUpdateComplete
+                        if (checkApp || !automatic) promptForUpdate(
+                            if (automatic) false else checkTimetable,
+                            if (automatic) false else checkCommunity,
+                            checkApp, serverInfo, onUpdateAvailable, onUpdateComplete
                         )
                     }
                 } catch (e: CancellationException) {
@@ -161,17 +226,17 @@ class AppUpdateManager(
                 "\n\nDownload now?"
 
         updateDialog?.dismiss()
-        updateDialog = AlertDialog.Builder(activity)
+        val builder = AlertDialog.Builder(activity)
             .setTitle("Updates Available")
             .setMessage(message)
-            .setPositiveButton("Download") { dialog, _ ->
-                if (appUpdate && serverInfo.app != null) {
-                    downloadAndInstallApp(serverInfo.app.url)
-                }
-                if (timetable || community) {
-                    automaticOperation = false
-                    updateJob = activity.lifecycleScope.launch(Dispatchers.IO) {
-                        downloadDatabases(serverInfo, timetable, community, false, onUpdateAvailable, onUpdateComplete)
+            .setPositiveButton(if (appUpdate) activity.getString(R.string.apk_download) else "Download") { dialog, _ ->
+                automaticOperation = false
+                updateJob = activity.lifecycleScope.launch(Dispatchers.IO) {
+                    if (timetable || community) {
+                        downloadDatabases(serverInfo, timetable, community, appUpdate, onUpdateAvailable, onUpdateComplete)
+                    }
+                    withContext(Dispatchers.Main) {
+                        if (appUpdate && serverInfo.app != null) downloadApp(serverInfo.app)
                     }
                 }
                 dialog.dismiss()
@@ -180,54 +245,10 @@ class AppUpdateManager(
                 dialog.dismiss()
             }
             .setCancelable(false)
-            .show()
-    }
-
-    private fun downloadAndInstallApp(apkUrl: String) {
-        Toast.makeText(activity, "Downloading new app version...", Toast.LENGTH_SHORT).show()
-        activity.lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val apkFile = File(activity.cacheDir, "update.apk")
-                if (apkFile.exists()) apkFile.delete()
-
-                val success = NetworkManager.downloadFile(apkUrl, apkFile)
-
-                if (success) {
-                    installApk(apkFile) // No context switch needed, handled internally
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(activity, "Download failed.", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error downloading APK", e)
-            }
+        if (appUpdate) {
+            builder.setNeutralButton(R.string.update_google_play) { _, _ -> openGooglePlay() }
         }
-    }
-
-    // Now a suspend function to offload FileProvider logic to IO thread
-    private suspend fun installApk(file: File) = withContext(Dispatchers.IO) {
-        try {
-            val uri = FileProvider.getUriForFile(
-                activity,
-                "${activity.packageName}.provider",
-                file
-            )
-
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/vnd.android.package-archive")
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
-            }
-
-            withContext(Dispatchers.Main) {
-                activity.startActivity(intent)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error installing APK", e)
-            withContext(Dispatchers.Main) {
-                Toast.makeText(activity, "Error launching installer.", Toast.LENGTH_SHORT).show()
-            }
-        }
+        updateDialog = builder.show()
     }
 
     private suspend fun downloadDatabases(
