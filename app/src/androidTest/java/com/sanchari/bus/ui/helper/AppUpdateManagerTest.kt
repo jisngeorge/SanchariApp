@@ -204,9 +204,21 @@ class AppUpdateManagerTest {
                 assertEquals("market://details?id=${context.packageName}", it.data.toString())
                 assertNull(it.type)
             }
-            @Suppress("DEPRECATION")
-            val requested = context.packageManager.getPackageInfo(context.packageName,
-                android.content.pm.PackageManager.GET_PERMISSIONS).requestedPermissions.orEmpty()
+            val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.packageManager.getPackageInfo(
+                    context.packageName,
+                    android.content.pm.PackageManager.PackageInfoFlags.of(
+                        android.content.pm.PackageManager.GET_PERMISSIONS.toLong()
+                    )
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                context.packageManager.getPackageInfo(
+                    context.packageName,
+                    android.content.pm.PackageManager.GET_PERMISSIONS
+                )
+            }
+            val requested = packageInfo.requestedPermissions.orEmpty()
             assertFalse(requested.contains("android.permission.REQUEST_INSTALL_PACKAGES"))
         } finally {
             instrumentation.removeMonitor(monitor)

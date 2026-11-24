@@ -2,13 +2,13 @@ package com.sanchari.bus.ui.activity
 
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.MenuItem
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.IntentCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.sanchari.bus.data.model.BusService
@@ -63,12 +63,7 @@ class BusDetailsActivity : AppCompatActivity() {
         supportActionBar?.title = "Bus Details"
 
         // Get the bus service details
-        busService = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableExtra(EXTRA_BUS_SERVICE, BusService::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            intent.getParcelableExtra(EXTRA_BUS_SERVICE)
-        }
+        busService = IntentCompat.getParcelableExtra(intent, EXTRA_BUS_SERVICE, BusService::class.java)
 
         if (busService == null) {
             Toast.makeText(this, "Error: Bus details not found.", Toast.LENGTH_LONG).show()

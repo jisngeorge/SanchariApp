@@ -338,7 +338,7 @@ class ScheduleEditorAutosaveTest {
                     scenario.onActivity {
                         val row = binding(it).recyclerViewStopsEditor.findViewHolderForAdapterPosition(1)!!
                             .itemView as com.google.android.material.card.MaterialCardView
-                        outlined = row.strokeWidth > 0 && row.strokeColor ==
+                        outlined = row.strokeWidth > 0 && row.strokeColorStateList?.defaultColor ==
                             com.google.android.material.color.MaterialColors.getColor(row,
                                 androidx.appcompat.R.attr.colorError)
                     }

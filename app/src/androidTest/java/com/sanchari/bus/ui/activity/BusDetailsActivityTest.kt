@@ -87,8 +87,9 @@ class BusDetailsActivityTest {
                         R.id.buttonStatusYes, group.checkedButtonId)
                     binding(it).buttonSuggestEdit.performClick()
                 }
-                @Suppress("DEPRECATION")
-                val forwarded = editorIntent?.getParcelableExtra<BusService>("EXTRA_BUS_SERVICE")
+                val forwarded = editorIntent?.let {
+                    androidx.core.content.IntentCompat.getParcelableExtra(it, "EXTRA_BUS_SERVICE", BusService::class.java)
+                }
                 assertEquals(service, forwarded)
                 scenario.recreate()
                 scenario.onActivity {

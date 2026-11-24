@@ -291,10 +291,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private val appConfigJson = Json { ignoreUnknownKeys = true }
+
     private fun getAppUrlFromAssets(): String? {
         return try {
             val jsonString = assets.open("app_config.json").bufferedReader().use { it.readText() }
-            val config = Json { ignoreUnknownKeys = true }.decodeFromString<AppConfig>(jsonString)
+            val config = appConfigJson.decodeFromString<AppConfig>(jsonString)
             config.latestAppUrl
         } catch (e: Exception) {
             Log.e(TAG, "Failed to read app_config.json from MainActivity", e)

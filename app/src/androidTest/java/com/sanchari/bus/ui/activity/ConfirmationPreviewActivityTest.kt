@@ -57,7 +57,9 @@ class ConfirmationPreviewActivityTest {
                 val binding = binding(activity)
                 assertTrue(binding.textContributionPreview.text.contains("Please keep this comment"))
                 assertEquals(activity.getString(R.string.contribution_review_notice), binding.textContributionReview.text)
-                val scale = activity.resources.displayMetrics.scaledDensity
+                val scale = android.util.TypedValue.applyDimension(
+                    android.util.TypedValue.COMPLEX_UNIT_SP, 1f, activity.resources.displayMetrics
+                )
                 assertEquals(18f, binding.textPreviewTitle.textSize / scale, 0.1f)
                 for (text in listOf(binding.textContributionPreview, binding.textContributionReview,
                     binding.textContributorHelp, binding.textCommentPrivacy)) {

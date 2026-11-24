@@ -77,9 +77,17 @@ class ApkDownloadManager(
                 val name = withContext(Dispatchers.IO) {
                     if (!downloadFile(version.url, staged)) throw IOException("APK download failed")
                     currentCoroutineContext().ensureActive()
-                    @Suppress("DEPRECATION")
-                    val versionName = activity.packageManager.getPackageArchiveInfo(staged.path, 0)
-                        ?.versionName?.takeIf { it.isNotBlank() } ?: version.versionCode.toString()
+                    val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        activity.packageManager.getPackageArchiveInfo(
+                            staged.path,
+                            PackageManager.PackageInfoFlags.of(0)
+                        )
+                    } else {
+                        @Suppress("DEPRECATION")
+                        activity.packageManager.getPackageArchiveInfo(staged.path, 0)
+                    }
+                    val versionName = packageInfo?.versionName?.takeIf { it.isNotBlank() }
+                        ?: version.versionCode.toString()
                     "Sanchari_v${versionName.replace(Regex("[^A-Za-z0-9._-]"), "_")}.apk"
                 }
                 fileName = name

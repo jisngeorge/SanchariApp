@@ -56,7 +56,11 @@ class ScheduleEditorLayoutTest {
                     binding.stopNameLayout.offsetDescendantRectToMyCoords(binding.editTextStopName, inputBounds)
                     val textTop = inputBounds.top + binding.editTextStopName.baseline +
                         binding.editTextStopName.paint.fontMetrics.top
-                    val floatingLabelHeight = ceil(12 * context.resources.displayMetrics.scaledDensity).toInt()
+                    val floatingLabelHeight = ceil(
+                        android.util.TypedValue.applyDimension(
+                            android.util.TypedValue.COMPLEX_UNIT_SP, 12f, context.resources.displayMetrics
+                        )
+                    ).toInt()
                     assertTrue("Stop label must be above text (text top=$textTop, label height=$floatingLabelHeight)",
                         textTop >= floatingLabelHeight)
                     val horizontalInset = (16 * context.resources.displayMetrics.density).roundToInt()

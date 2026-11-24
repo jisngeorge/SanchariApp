@@ -237,8 +237,9 @@ class MainPageActivityTest {
                 }
                 onView(withText(R.string.home_menu_share)).inRoot(isPlatformPopup()).perform(activate())
                 assertEquals(1, shares.size)
-                @Suppress("DEPRECATION")
-                val send = shares.single().getParcelableExtra<Intent>(Intent.EXTRA_INTENT)!!
+                val send = androidx.core.content.IntentCompat.getParcelableExtra(
+                    shares.single(), Intent.EXTRA_INTENT, Intent::class.java
+                )!!
                 assertEquals(Intent.ACTION_SEND, send.action)
                 assertTrue(send.getStringExtra(Intent.EXTRA_TEXT)!!.contains("https://example.invalid/update.apk"))
                 scenario.onActivity { mainBinding(it).homeOverflowButton.performClick() }

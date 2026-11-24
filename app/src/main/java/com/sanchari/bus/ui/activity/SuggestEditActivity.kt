@@ -2,7 +2,6 @@ package com.sanchari.bus.ui.activity
 
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.database.sqlite.SQLiteException
@@ -16,6 +15,8 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.IntentCompat
+import androidx.core.os.BundleCompat
 import androidx.core.widget.doAfterTextChanged
 import androidx.core.view.ViewCompat
 import androidx.activity.OnBackPressedCallback
@@ -185,12 +186,7 @@ class SuggestEditActivity : AppCompatActivity() {
         val serviceType = savedInstanceState.getString(KEY_SERVICE_TYPE)
         val editNotes = savedInstanceState.getString(KEY_EDIT_NOTES)
         val stops: ArrayList<EditableStop>? =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                savedInstanceState.getParcelableArrayList(KEY_STOPS, EditableStop::class.java)
-            } else {
-                @Suppress("DEPRECATION")
-                savedInstanceState.getParcelableArrayList(KEY_STOPS)
-            }
+            BundleCompat.getParcelableArrayList(savedInstanceState, KEY_STOPS, EditableStop::class.java)
 
         binding.editTextServiceName.setText(serviceName)
         binding.editTextServiceType.setText(serviceType)
@@ -202,12 +198,7 @@ class SuggestEditActivity : AppCompatActivity() {
             adapter.routeReplaced()
         }
         setOriginalService(
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                savedInstanceState.getParcelable(KEY_ORIGINAL_SERVICE, BusService::class.java)
-            } else {
-                @Suppress("DEPRECATION")
-                savedInstanceState.getParcelable(KEY_ORIGINAL_SERVICE)
-            }
+            BundleCompat.getParcelable(savedInstanceState, KEY_ORIGINAL_SERVICE, BusService::class.java)
         )
         currentDraftFileName = savedInstanceState.getString(KEY_DRAFT_FILE)
         if (savedInstanceState.getBoolean(KEY_STOP_VALIDATION)) adapter.validateRequiredFields()
@@ -223,12 +214,7 @@ class SuggestEditActivity : AppCompatActivity() {
     }
 
     private fun loadFromIntent() {
-        originalService = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableExtra(EXTRA_BUS_SERVICE, BusService::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            intent.getParcelableExtra(EXTRA_BUS_SERVICE)
-        }
+        originalService = IntentCompat.getParcelableExtra(intent, EXTRA_BUS_SERVICE, BusService::class.java)
 
         // Check if we should auto-load a specific draft
         val draftFileToLoad = intent.getStringExtra(EXTRA_LOAD_DRAFT_FILE)

@@ -403,7 +403,7 @@ class RouteAnalysisActivityTest {
                 assertMissingTimes(scenario)
                 scenario.onActivity {
                     val first = binding(it).recyclerViewStopsEditor.findViewHolderForAdapterPosition(0)!!.itemView as MaterialCardView
-                    assertNotEquals(MaterialColors.getColor(first, androidx.appcompat.R.attr.colorError), first.strokeColor)
+                    assertNotEquals(MaterialColors.getColor(first, androidx.appcompat.R.attr.colorError), first.strokeColorStateList?.defaultColor)
                 }
             } finally {
                 db.execSQL("ALTER TABLE AnalysisTestRouteStop RENAME TO RouteStop")
@@ -432,11 +432,11 @@ class RouteAnalysisActivityTest {
                 instrumentation.waitForIdleSync()
                 scenario.onActivity {
                     val first = binding(it).recyclerViewStopsEditor.findViewHolderForAdapterPosition(0)!!.itemView as MaterialCardView
-                    assertEquals(MaterialColors.getColor(first, androidx.appcompat.R.attr.colorError), first.strokeColor)
+                    assertEquals(MaterialColors.getColor(first, androidx.appcompat.R.attr.colorError), first.strokeColorStateList?.defaultColor)
                     assertTrue(first.strokeWidth > 0)
                     val input = first.findViewById<android.widget.AutoCompleteTextView>(R.id.editTextStopName)
                     input.setText(names[0], false)
-                    assertNotEquals(MaterialColors.getColor(first, androidx.appcompat.R.attr.colorError), first.strokeColor)
+                    assertNotEquals(MaterialColors.getColor(first, androidx.appcompat.R.attr.colorError), first.strokeColorStateList?.defaultColor)
                     assertTrue(forwarded.isEmpty())
                 }
             } finally {
@@ -458,7 +458,7 @@ class RouteAnalysisActivityTest {
             assertTrue(it.supportFragmentManager.fragments.none { fragment -> fragment is MaterialTimePicker })
             missing.forEach { position ->
                 val row = binding(it).recyclerViewStopsEditor.findViewHolderForAdapterPosition(position)!!.itemView as MaterialCardView
-                assertEquals(MaterialColors.getColor(row, androidx.appcompat.R.attr.colorError), row.strokeColor)
+                assertEquals(MaterialColors.getColor(row, androidx.appcompat.R.attr.colorError), row.strokeColorStateList?.defaultColor)
                 assertTrue(row.strokeWidth > 0)
                 assertEquals(context.getString(R.string.editor_stop_time_required),
                     androidx.core.view.ViewCompat.getStateDescription(row))

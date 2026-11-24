@@ -1,6 +1,5 @@
 package com.sanchari.bus.ui.activity
 
-import android.os.Build
 import android.os.Bundle
 import android.os.Parcelable
 import android.util.Log
@@ -8,6 +7,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.TooltipCompat
+import androidx.core.content.IntentCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -328,12 +328,6 @@ class SearchResultsActivity : AppCompatActivity() {
         }
     }
 
-    private inline fun <reified T : Parcelable> getParcelableArrayList(key: String): ArrayList<T>? {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableArrayListExtra(key, T::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            intent.getParcelableArrayListExtra(key)
-        }
-    }
+    private inline fun <reified T : Parcelable> getParcelableArrayList(key: String): ArrayList<T>? =
+        IntentCompat.getParcelableArrayListExtra(intent, key, T::class.java)
 }
