@@ -1,0 +1,18 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/action_check_db_updates"
+        android:icon="@drawable/ic_database"
+        android:title="@string/home_menu_check_db_updates" />
+    <item
+        android:id="@+id/action_home_settings"
+        android:icon="@drawable/ic_settings"
+        android:title="@string/home_menu_settings" />
+    <item
+        android:id="@+id/action_share_app"
+        android:icon="@drawable/ic_share"
+        android:title="@string/home_menu_share" />
+    <item
+        android:id="@+id/action_message_admin"
+        android:icon="@drawable/ic_message"
+        android:title="@string/home_menu_message_admin" />
+</menu>

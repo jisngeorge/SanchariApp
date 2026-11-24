@@ -6,6 +6,7 @@
     <color name="brand_primary_variant">#0D47A1</color>
     <color name="brand_header">#1565C0</color>
     <color name="brand_on_primary">#FFFFFF</color>
+    <color name="home_update_arrow">#B9F6CA</color>
     <color name="action_green">#2E7D32</color>
     <color name="action_green_variant">#1B5E20</color>
     <color name="action_on_green">#FFFFFF</color>

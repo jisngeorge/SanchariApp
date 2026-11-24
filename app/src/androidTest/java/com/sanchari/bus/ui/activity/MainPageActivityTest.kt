@@ -5,8 +5,6 @@ import android.content.Intent
 import android.app.Activity
 import android.app.Instrumentation
 import android.graphics.Rect
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.os.SystemClock
 import android.view.View
 import android.widget.AdapterView
@@ -23,9 +21,9 @@ import androidx.test.espresso.ViewAction
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.action.ViewActions.closeSoftKeyboard
 import androidx.test.espresso.action.ViewActions.replaceText
+import androidx.test.espresso.assertion.ViewAssertions.doesNotExist
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.RootMatchers.isDialog
-import androidx.test.espresso.matcher.RootMatchers.isPlatformPopup
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
@@ -186,10 +184,12 @@ class MainPageActivityTest {
     }
 
     @Test
-    fun overflowManualUpdateShareAdminAndUpdateIndicatorUseExistingFlows() = isolatedHome {
+    fun drawerManualUpdateShareAdminAndUpdateIndicatorUseExistingFlows() = isolatedHome {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         LocalVersionManager.saveLatestAppUrl(context, "https://example.invalid/sanchari.apk")
         val fetched = AtomicInteger()
+        val failFetch = java.util.concurrent.atomic.AtomicBoolean(false)
+        val installed = AtomicInteger()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val shares = CopyOnWriteArrayList<Intent>()
         val monitor = object : Instrumentation.ActivityMonitor() {
@@ -211,48 +211,62 @@ class MainPageActivityTest {
                 scenario.onActivity { activity ->
                     val manager = AppUpdateManager(activity, downloadApp = { error("Unexpected APK download") }, fetchVersions = {
                         fetched.incrementAndGet()
-                        ServerVersionInfo(
+                        if (failFetch.get()) null else ServerVersionInfo(
                             DatabaseVersion(LocalVersionManager.getTimetableDbVersion(context), "fixture"),
                             DatabaseVersion(LocalVersionManager.getCommunityDbVersion(context), "fixture"),
                             AppVersion(BuildConfig.VERSION_CODE + 1, "https://example.invalid/update.apk")
                         )
-                    })
+                    }, installDatabase = { _, _, _ -> installed.incrementAndGet(); true })
                     MainActivity::class.java.getDeclaredField("appUpdateManager")
                         .apply { isAccessible = true }.set(activity, manager)
-                    mainBinding(activity).homeOverflowButton.performClick()
+                    assertEquals(View.GONE, mainBinding(activity).homeUpdateButton.visibility)
+                    mainBinding(activity).homeMenuButton.performClick()
                 }
-                onView(withText(R.string.btn_check_updates)).inRoot(isPlatformPopup()).perform(activate())
-                onView(withText(R.string.update_app)).inRoot(isDialog()).perform(activate())
-                onView(withText(R.string.apk_download)).inRoot(isDialog()).perform(activate())
-                await(scenario) { it.homeOverflowButton.isSelected }
+                await(scenario) { it.homeDrawer.isDrawerOpen(it.homeNavigation) }
+                onView(withText(R.string.home_menu_check_db_updates)).perform(click())
+                await(scenario) { it.homeUpdateButton.visibility == View.VISIBLE }
                 assertEquals(1, fetched.get())
-                onView(withText("Later")).inRoot(isDialog()).perform(activate())
+                assertEquals("Database-only check must not download unchanged data", 0, installed.get())
+                onView(withText(R.string.apk_download)).check(doesNotExist())
+
                 scenario.onActivity { activity ->
-                    val button = mainBinding(activity).homeOverflowButton
-                    val image = Bitmap.createBitmap(button.width, button.height, Bitmap.Config.ARGB_8888)
-                    button.draw(Canvas(image))
-                    assertEquals(ContextCompat.getColor(activity, R.color.action_green), image.getPixel(8, button.height / 2))
-                    image.recycle()
+                    val button = mainBinding(activity).homeUpdateButton
+                    assertEquals(ContextCompat.getColor(activity, R.color.home_update_arrow), button.imageTintList?.defaultColor)
                     button.performClick()
                 }
-                onView(withText(R.string.home_menu_share)).inRoot(isPlatformPopup()).perform(activate())
+                awaitDialogText(R.string.updates_list_title)
+                assertEquals("Tapping the arrow re-checks for updates", 2, fetched.get())
+                onView(withId(R.id.updateGooglePlay)).inRoot(isDialog()).check(matches(isDisplayed()))
+                onView(withId(R.id.updateApk)).inRoot(isDialog()).check(matches(isDisplayed()))
+                onView(withId(R.id.timetableUpdateRow)).inRoot(isDialog())
+                    .check(matches(org.hamcrest.Matchers.not(isDisplayed())))
+                onView(withText(R.string.updates_later)).inRoot(isDialog()).perform(activate())
+
+                failFetch.set(true)
+                scenario.onActivity { mainBinding(it).homeUpdateButton.performClick() }
+                awaitDialogText(R.string.updates_list_title)
+                assertEquals(3, fetched.get())
+                onView(withId(R.id.updateApk)).inRoot(isDialog()).check(matches(isDisplayed()))
+                onView(withText(R.string.updates_later)).inRoot(isDialog()).perform(activate())
+                scenario.onActivity { assertEquals(View.VISIBLE, mainBinding(it).homeUpdateButton.visibility) }
+
+                scenario.onActivity { mainBinding(it).homeMenuButton.performClick() }
+                await(scenario) { it.homeDrawer.isDrawerOpen(it.homeNavigation) }
+                onView(withText(R.string.home_menu_share)).perform(click())
                 assertEquals(1, shares.size)
                 val send = androidx.core.content.IntentCompat.getParcelableExtra(
                     shares.single(), Intent.EXTRA_INTENT, Intent::class.java
                 )!!
                 assertEquals(Intent.ACTION_SEND, send.action)
                 assertTrue(send.getStringExtra(Intent.EXTRA_TEXT)!!.contains("https://example.invalid/update.apk"))
-                scenario.onActivity { mainBinding(it).homeOverflowButton.performClick() }
-                onView(withText(R.string.home_menu_message_admin)).inRoot(isPlatformPopup()).perform(activate())
+                scenario.onActivity { mainBinding(it).homeMenuButton.performClick() }
+                await(scenario) { it.homeDrawer.isDrawerOpen(it.homeNavigation) }
+                onView(withText(R.string.home_menu_message_admin)).perform(click())
                 onView(withId(R.id.editTextMessage)).inRoot(isDialog()).check(matches(isDisplayed()))
                 onView(withText(android.R.string.cancel)).inRoot(isDialog()).perform(activate())
                 scenario.onActivity { activity ->
-                    val available = MainActivity::class.java.getDeclaredMethod("updateAvailabilityUI", Boolean::class.javaPrimitiveType)
-                        .apply { isAccessible = true }
-                    available.invoke(activity, false)
-                    assertFalse(mainBinding(activity).homeOverflowButton.isSelected)
-                    assertEquals(activity.getString(R.string.home_more_options),
-                        mainBinding(activity).homeOverflowButton.contentDescription)
+                    assertEquals(activity.getString(R.string.home_updates_available),
+                        mainBinding(activity).homeUpdateButton.contentDescription)
                 }
             }
         } finally {
@@ -279,8 +293,30 @@ class MainPageActivityTest {
         }
     }
 
+    private fun awaitDialogText(text: Int) {
+        val deadline = SystemClock.uptimeMillis() + 5_000
+        while (true) {
+            try {
+                onView(withText(text)).inRoot(isDialog()).check(matches(isDisplayed()))
+                return
+            } catch (e: Throwable) {
+                if (SystemClock.uptimeMillis() > deadline) throw e
+                SystemClock.sleep(50)
+            }
+        }
+    }
+
     private fun mainBinding(activity: MainActivity) =
-        ActivityMainBinding.bind(activity.findViewById<View>(R.id.homeScrollView).parent as View)
+        ActivityMainBinding.bind(activity.findViewById(R.id.homeDrawer))
+
+    private fun saveKnownUpdates(appUpdate: Boolean = false, timetableUpdate: Boolean = false) {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        LocalVersionManager.saveRemoteVersions(context, ServerVersionInfo(
+            DatabaseVersion(LocalVersionManager.getTimetableDbVersion(context) + if (timetableUpdate) 1 else 0, "fixture"),
+            DatabaseVersion(LocalVersionManager.getCommunityDbVersion(context), "fixture"),
+            if (appUpdate) AppVersion(BuildConfig.VERSION_CODE + 1, "https://example.invalid/update.apk") else null
+        ))
+    }
 
     private fun isolatedHome(test: () -> Unit) {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -294,7 +330,7 @@ class MainPageActivityTest {
             LocalVersionManager.setFirstRunCompleted(context)
             LocalVersionManager.saveLastUpdateCheckTime(context, System.currentTimeMillis())
             LocalVersionManager.setAutoDatabaseUpdatesEnabled(context, false)
-            LocalVersionManager.setUpdateAvailable(context, false)
+            saveKnownUpdates()
             test()
         } finally {
             replaceRecentViews(previousRecents)
@@ -314,21 +350,10 @@ class MainPageActivityTest {
     }
 
     @Test
-    fun recentServicesSwapAndOriginalUpdateLabelWorkAcrossResumeAndRecreation() {
+    fun recentServicesSwapAndDrawerWorkAcrossResumeAndRecreation() = isolatedHome {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        assertTrue("This test must not retry existing queued contributions",
-            context.filesDir.resolve("suggestions").listFiles().orEmpty().none { it.extension == "json" })
-        val wasFirstRun = LocalVersionManager.isFirstRun(context)
-        val lastCheck = LocalVersionManager.getLastUpdateCheckTime(context)
-        val hadUpdate = LocalVersionManager.isUpdateAvailable(context)
-        val autoUpdates = LocalVersionManager.autoDatabaseUpdatesEnabled(context)
-        val previousRecents = UserDataManager.getRecentViews(context)
-        try {
-            runBlocking { DatabaseManager.initializeDatabases(context) }
             replaceRecentViews(emptyList())
-            LocalVersionManager.setFirstRunCompleted(context)
-            LocalVersionManager.saveLastUpdateCheckTime(context, System.currentTimeMillis())
-            LocalVersionManager.setUpdateAvailable(context, true)
+            saveKnownUpdates(timetableUpdate = true)
             context.getSharedPreferences("SanchariBusPrefs", 0).edit().remove("auto_database_updates").commit()
             ActivityScenario.launch(MainActivity::class.java).use { scenario ->
                 await(scenario) {
@@ -341,24 +366,35 @@ class MainPageActivityTest {
                     assertEquals(activity.resources.getBoolean(R.bool.light_status_bar),
                         WindowCompat.getInsetsController(activity.window, activity.window.decorView)
                             .isAppearanceLightStatusBars)
-                    val binding = ActivityMainBinding.bind(activity.findViewById<View>(R.id.homeScrollView).parent as View)
+                    val binding = mainBinding(activity)
                     assertTrue(LocalVersionManager.autoDatabaseUpdatesEnabled(activity))
-                    val onGreen = ContextCompat.getColor(activity, R.color.action_on_green)
-                    assertTrue(binding.homeOverflowButton.isSelected)
-                    assertEquals(onGreen, binding.homeOverflowButton.imageTintList?.defaultColor)
-                    assertEquals(activity.getString(R.string.home_more_options_update),
-                        binding.homeOverflowButton.contentDescription)
-                    binding.homeOverflowButton.performClick()
+                    assertEquals(View.GONE, binding.homeUpdateButton.visibility)
+                    binding.homeDrawer.openDrawer(binding.homeNavigation, false)
+                    activity.onBackPressedDispatcher.onBackPressed()
                 }
-                for (label in listOf(R.string.btn_check_updates, R.string.home_menu_share,
-                    R.string.home_menu_message_admin, R.string.home_menu_auto_updates,
-                    R.string.home_menu_version)) {
-                    onView(withText(label)).inRoot(isPlatformPopup()).check(matches(isDisplayed()))
+                await(scenario) { !it.homeDrawer.isDrawerVisible(it.homeNavigation) }
+                scenario.onActivity { mainBinding(it).homeMenuButton.performClick() }
+                await(scenario) { it.homeDrawer.isDrawerOpen(it.homeNavigation) }
+                for (label in listOf(R.string.home_menu_check_db_updates, R.string.home_menu_settings,
+                    R.string.home_menu_share, R.string.home_menu_message_admin)) {
+                    onView(withText(label)).check(matches(isDisplayed()))
                 }
-                onView(withText(R.string.home_menu_auto_updates)).inRoot(isPlatformPopup()).perform(click())
+                scenario.onActivity { activity ->
+                    val menu = mainBinding(activity).homeNavigation.menu
+                    for (i in 0 until menu.size()) assertNotNull(menu.getItem(i).icon)
+                }
+                onView(withText(R.string.home_menu_settings)).perform(click())
+                onView(withId(R.id.autoDatabaseUpdates))
+                    .check(matches(androidx.test.espresso.matcher.ViewMatchers.isChecked()))
+                onView(withId(R.id.autoDatabaseUpdates)).perform(click())
+                onView(withId(R.id.autoDatabaseUpdates))
+                    .check(matches(org.hamcrest.Matchers.not(androidx.test.espresso.matcher.ViewMatchers.isChecked())))
+                androidx.test.espresso.Espresso.pressBack()
+                await(scenario) { it.homeUpdateButton.visibility == View.VISIBLE }
                 assertFalse(LocalVersionManager.autoDatabaseUpdatesEnabled(context))
                 scenario.onActivity { activity ->
-                    val binding = ActivityMainBinding.bind(activity.findViewById<View>(R.id.homeScrollView).parent as View)
+                    val binding = mainBinding(activity)
+                    assertEquals(View.VISIBLE, binding.homeUpdateButton.visibility)
                     binding.fromAutocomplete.setText("Palai", false)
                     binding.toAutocomplete.requestFocus()
                     binding.stopWildcardButton.performClick()
@@ -376,8 +412,7 @@ class MainPageActivityTest {
                         it.recentSearchesRecyclerView.adapter?.itemCount == 1
                 }
                 scenario.onActivity { activity ->
-                    ActivityMainBinding.bind(activity.findViewById<View>(R.id.homeScrollView).parent as View)
-                        .stopLocationButton.performClick()
+                    mainBinding(activity).stopLocationButton.performClick()
                 }
                 onData(anything()).inRoot(isDialog()).atPosition(1).perform(click())
                 onView(withId(R.id.coordinatesInput)).inRoot(isDialog())
@@ -393,21 +428,15 @@ class MainPageActivityTest {
                     it.recentSearchesRecyclerView.adapter?.itemCount == 1
                 }
                 scenario.onActivity { activity ->
-                    val binding = ActivityMainBinding.bind(activity.findViewById<View>(R.id.homeScrollView).parent as View)
+                    val binding = mainBinding(activity)
                     assertFalse(LocalVersionManager.autoDatabaseUpdatesEnabled(activity))
+                    assertEquals(View.VISIBLE, binding.homeUpdateButton.visibility)
                     assertEquals(activity.getString(R.string.location_to_action),
                         binding.stopLocationButton.contentDescription)
                 }
                 onView(withId(R.id.coordinatesInput)).inRoot(isDialog()).check(matches(withText("12.25, 77.5")))
                 onView(withId(R.id.radiusInput)).inRoot(isDialog()).check(matches(withText("12.5")))
                 onView(withId(android.R.id.button2)).inRoot(isDialog()).perform(click())
-                scenario.onActivity { activity ->
-                    ActivityMainBinding.bind(activity.findViewById<View>(R.id.homeScrollView).parent as View)
-                        .homeOverflowButton.performClick()
-                }
-                onView(withText(R.string.home_menu_version)).inRoot(isPlatformPopup()).perform(click())
-                onView(withText(R.string.version_information)).inRoot(isDialog()).check(matches(isDisplayed()))
-                onView(withText(android.R.string.ok)).inRoot(isDialog()).perform(click())
                 scenario.moveToState(Lifecycle.State.CREATED)
                 replaceRecentViews(emptyList())
                 scenario.moveToState(Lifecycle.State.RESUMED)
@@ -415,14 +444,6 @@ class MainPageActivityTest {
                     it.recentSearchesRecyclerView.adapter?.itemCount == 0
                 }
             }
-        } finally {
-            replaceRecentViews(previousRecents)
-            LocalVersionManager.saveLastUpdateCheckTime(context, lastCheck)
-            LocalVersionManager.setUpdateAvailable(context, hadUpdate)
-            LocalVersionManager.setAutoDatabaseUpdatesEnabled(context, autoUpdates)
-            if (wasFirstRun) context.getSharedPreferences("SanchariBusPrefs", 0)
-                .edit().remove("is_first_run").commit()
-        }
     }
 
     private fun await(scenario: ActivityScenario<MainActivity>, condition: (ActivityMainBinding) -> Boolean) {
@@ -430,7 +451,7 @@ class MainPageActivityTest {
         do {
             var matched = false
             scenario.onActivity { activity ->
-                matched = condition(ActivityMainBinding.bind(activity.findViewById<View>(R.id.homeScrollView).parent as View))
+                matched = condition(mainBinding(activity))
             }
             if (matched) return
             SystemClock.sleep(25)

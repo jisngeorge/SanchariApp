@@ -15,7 +15,6 @@
     <string name="stop_show_coordinates">Show coordinates</string>
     <string name="stop_coordinates_value">Latitude, longitude\n%1$s, %2$s</string>
     <string name="stop_location_action_description">%1$s, %2$s. Show map or coordinates.</string>
-    <string name="auto_database_updates">Automatically update timetable and community data</string>
     <string name="update_in_progress">An update is already in progress.</string>
     <string name="database_updates_complete">Timetable and community data are up to date.</string>
     <string name="database_updates_failed">Could not update all data. Existing data remains available. Tap Update to retry.</string>
@@ -81,13 +80,36 @@
     <string name="analysis_finish">Continue</string>
     <string name="app_name">Sanchari</string>
     <string name="home_drafts">Drafts</string>
-    <string name="home_more_options">More options</string>
-    <string name="home_more_options_update">More options, updates available</string>
-    <string name="home_menu_auto_updates">Auto update DB</string>
+    <string name="home_open_navigation">Open navigation menu</string>
+    <string name="home_menu_title">Navigation menu</string>
+    <string name="home_updates_available">Updates available</string>
+    <string name="home_menu_settings">Settings</string>
+    <string name="home_settings_auto_updates">Automatically update timetable and community data</string>
+    <string name="home_settings_update_app">Check for app update</string>
+    <string name="home_menu_check_db_updates">Check DB updates</string>
+    <string name="navigate_up">Navigate up</string>
+    <string name="settings_updates_heading">Updates</string>
+    <string name="settings_about_heading">About</string>
+    <string name="settings_app_version">App version</string>
+    <string name="settings_version_code">Version code</string>
+    <string name="settings_timetable_db">Timetable database</string>
+    <string name="settings_community_db">Community database</string>
+    <string name="settings_version_code_hint">Long-press for debug information</string>
+    <string name="debug_title">Debug information</string>
+    <string name="debug_copy">Copy</string>
+    <string name="debug_copied">Debug information copied.</string>
+    <string name="updates_checking">Checking for updates…</string>
+    <string name="updates_check_failed_cached">Could not check for the latest updates. Showing previously detected updates.</string>
+    <string name="updates_none">Everything is up to date.</string>
+    <string name="updates_list_title">Available updates</string>
+    <string name="updates_app_item">New app version (%1$d)</string>
+    <string name="updates_timetable_item">Bus timetable (v%1$d → v%2$d)</string>
+    <string name="updates_community_item">Community ratings (v%1$d → v%2$d)</string>
+    <string name="updates_install">Update</string>
+    <string name="updates_later">Later</string>
+    <string name="updates_details_unavailable">Update details are unavailable. Please check your internet connection and try again.</string>
     <string name="home_menu_share">Share</string>
     <string name="home_menu_message_admin">Message admin</string>
-    <string name="home_menu_version">Version</string>
-    <string name="version_information">Version Information</string>
     <string name="desc_swap_locations">Swap Locations</string>
     <string name="wildcard_any_origin">Use any origin (*)</string>
     <string name="wildcard_any_destination">Use any destination (*)</string>
@@ -157,8 +179,6 @@
     <string name="btn_add_new_bus">Add Bus</string>
     <string name="btn_check_updates">Update</string>
     <string name="update_app">App update</string>
-    <string name="update_check_databases">Check DB updates</string>
-    <string name="update_choose_type">Check timetable and community database updates, or update the app.</string>
     <string name="update_google_play">Google Play</string>
     <string name="update_options_message">Update the app through Google Play, or check for an APK download.</string>
     <string name="update_play_unavailable">Google Play could not be opened. You can still download the APK.</string>
@@ -207,7 +227,7 @@
     <string name="hint_your_message">Your message…</string>
 
     <!-- Headings & Labels -->
-    <string name="title_recent_services">Recent Services</string>
+    <string name="title_recent_services">Recent Searches</string>
     <string name="title_bus_stops">Bus Stops</string>
     <string name="title_error_message">Error message</string>
     <string name="title_community_ratings">Community Ratings</string>

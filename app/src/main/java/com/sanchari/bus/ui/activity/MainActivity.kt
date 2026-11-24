@@ -1,20 +1,21 @@
 package com.sanchari.bus.ui.activity
 
 import android.content.Intent
-import android.content.res.ColorStateList
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.content.res.AppCompatResources
-import androidx.appcompat.widget.PopupMenu
+import androidx.appcompat.widget.TooltipCompat
+import androidx.core.view.GravityCompat
 import androidx.core.view.doOnLayout
+import androidx.core.view.isVisible
+import androidx.drawerlayout.widget.DrawerLayout
 import android.widget.LinearLayout
 import android.view.ViewGroup
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.android.material.color.MaterialColors
 import com.sanchari.bus.databinding.ActivityMainBinding
 import com.sanchari.bus.ui.helper.AppUpdateManager
 import com.sanchari.bus.ui.helper.ApkDownloadManager
@@ -28,7 +29,6 @@ import com.sanchari.bus.ui.helper.UploadManager
 import com.sanchari.bus.data.manager.UserDataManager
 import com.sanchari.bus.ui.helper.MainSubmissionHandler
 import com.sanchari.bus.data.model.AppConfig
-import com.sanchari.bus.BuildConfig
 import com.sanchari.bus.R
 import com.sanchari.bus.ui.helper.SavedContributionsDialog
 import kotlinx.serialization.json.Json
@@ -76,7 +76,9 @@ class MainActivity : AppCompatActivity() {
             selectedStopIsFrom = { busSearchHandler.selectedStopIsFrom })
         stopLocationHandler.setup(savedInstanceState)
 
-        updateAvailabilityUI(LocalVersionManager.isUpdateAvailable(this))
+        LocalVersionManager.migrateUpdateAvailability(this)
+        setupHomeNavigation()
+        updateAvailabilityUI()
 
         // --- NEW: Check First Run & Show Intro Activity ---
         if (LocalVersionManager.isFirstRun(this)) {
@@ -103,7 +105,7 @@ class MainActivity : AppCompatActivity() {
             showDraftsAndSubmissions()
         }
 
-        binding.homeOverflowButton.setOnClickListener { showHomeOptions() }
+        binding.homeUpdateButton.setOnClickListener { checkForUpdatesManually() }
         binding.homePrimaryActions.doOnLayout { actions ->
             val stacked = resources.configuration.fontScale > 1.2f ||
                 actions.width / resources.displayMetrics.density < 328
@@ -132,35 +134,60 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showHomeOptions() {
-        PopupMenu(this, binding.homeOverflowButton).apply {
-            inflate(R.menu.menu_main)
-            menu.findItem(R.id.action_auto_updates).isChecked =
-                LocalVersionManager.autoDatabaseUpdatesEnabled(this@MainActivity)
-            setOnMenuItemClickListener { item ->
-                when (item.itemId) {
-                    R.id.action_check_updates -> checkForUpdatesManually()
-                    R.id.action_auto_updates -> {
-                        val enabled = !item.isChecked
-                        LocalVersionManager.setAutoDatabaseUpdatesEnabled(this@MainActivity, enabled)
-                        if (!enabled) appUpdateManager.cancelAutomaticUpdates()
-                    }
-                    R.id.action_share_app -> shareApp()
-                    R.id.action_message_admin -> mainSubmissionHandler.showMessageAdminDialog()
-                    R.id.action_version_info -> showVersionInfoDialog()
-                    else -> return@setOnMenuItemClickListener false
-                }
-                true
+    private fun setupHomeNavigation() {
+        val drawer = binding.homeDrawer
+        val navigation = binding.homeNavigation
+        drawer.setDrawerTitle(GravityCompat.START, getString(R.string.home_menu_title))
+        val closeOnBack = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                drawer.closeDrawer(navigation)
             }
-            show()
+        }
+        onBackPressedDispatcher.addCallback(this, closeOnBack)
+        drawer.addDrawerListener(object : DrawerLayout.SimpleDrawerListener() {
+            override fun onDrawerSlide(drawerView: View, slideOffset: Float) {
+                closeOnBack.isEnabled = slideOffset > 0f
+            }
+
+            override fun onDrawerOpened(drawerView: View) {
+                closeOnBack.isEnabled = true
+            }
+
+            override fun onDrawerClosed(drawerView: View) {
+                closeOnBack.isEnabled = false
+            }
+        })
+        drawer.doOnLayout { closeOnBack.isEnabled = drawer.isDrawerVisible(navigation) }
+        binding.homeMenuButton.setOnClickListener { drawer.openDrawer(navigation) }
+        TooltipCompat.setTooltipText(binding.homeMenuButton, binding.homeMenuButton.contentDescription)
+        TooltipCompat.setTooltipText(binding.homeUpdateButton, binding.homeUpdateButton.contentDescription)
+        navigation.setNavigationItemSelectedListener { item ->
+            drawer.closeDrawer(navigation, false)
+            when (item.itemId) {
+                R.id.action_check_db_updates -> checkDatabaseUpdates()
+                R.id.action_home_settings -> startActivity(Intent(this, SettingsActivity::class.java))
+                R.id.action_share_app -> shareApp()
+                R.id.action_message_admin -> mainSubmissionHandler.showMessageAdminDialog()
+                else -> return@setNavigationItemSelectedListener false
+            }
+            true
         }
     }
 
+    private fun checkDatabaseUpdates() {
+        appUpdateManager.checkForUpdates(
+            forceCheck = true,
+            localTimetableVersion = LocalVersionManager.getTimetableDbVersion(this),
+            localCommunityVersion = LocalVersionManager.getCommunityDbVersion(this),
+            onUpdateAvailable = { updateAvailabilityUI() },
+            onUpdateComplete = ::onUpdatesCompleted,
+            scope = AppUpdateManager.UpdateScope.DATABASES
+        )
+    }
+
     private fun checkForUpdatesManually() {
-        appUpdateManager.showUpdateOptions(
-            localTimetableVersion = LocalVersionManager.getTimetableDbVersion(applicationContext),
-            localCommunityVersion = LocalVersionManager.getCommunityDbVersion(applicationContext),
-            onUpdateAvailable = ::updateAvailabilityUI,
+        appUpdateManager.showAvailableUpdates(
+            onUpdateAvailable = { updateAvailabilityUI() },
             onUpdateComplete = ::onUpdatesCompleted
         )
     }
@@ -195,7 +222,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onUpdatesCompleted() {
-        updateAvailabilityUI(LocalVersionManager.isUpdateAvailable(this))
+        updateAvailabilityUI()
         lifecycleScope.launch {
             busSearchHandler.loadStopSuggestions()
         }
@@ -209,40 +236,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateAvailabilityUI(isUpdateAvailable: Boolean) {
-        binding.homeOverflowButton.isSelected = isUpdateAvailable
-        binding.homeOverflowButton.contentDescription = getString(
-            if (isUpdateAvailable) R.string.home_more_options_update else R.string.home_more_options)
-        if (isUpdateAvailable) {
-            binding.homeOverflowButton.imageTintList =
-                AppCompatResources.getColorStateList(this, R.color.primary_action_text)
-        } else {
-            binding.homeOverflowButton.imageTintList = ColorStateList.valueOf(
-                MaterialColors.getColor(binding.root, androidx.appcompat.R.attr.colorPrimary))
-        }
-    }
-
-    private fun showVersionInfoDialog() {
-        val appVersionName = BuildConfig.VERSION_NAME
-        val appVersionCode = BuildConfig.VERSION_CODE
-        val tVersion = LocalVersionManager.getTimetableDbVersion(applicationContext)
-        val cVersion = LocalVersionManager.getCommunityDbVersion(applicationContext)
-
-        val message = """
-            App Version: $appVersionName ($appVersionCode)
-            Timetable DB: v$tVersion
-            Community DB: v$cVersion
-        """.trimIndent()
-
-        AlertDialog.Builder(this)
-            .setTitle(R.string.version_information)
-            .setMessage(message)
-            .setPositiveButton("OK", null)
-            .show()
+    private fun updateAvailabilityUI() {
+        binding.homeUpdateButton.isVisible = LocalVersionManager.updateAvailability(this)
+            .showHomeAction(LocalVersionManager.autoDatabaseUpdatesEnabled(this))
     }
 
     override fun onResume() {
         super.onResume()
+        updateAvailabilityUI()
         busSearchHandler.resumeSuggestions()
         stopLocationHandler.onResume()
         if (dataInitialized) {
@@ -355,6 +356,7 @@ class MainActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     recentSearchAdapter.updateData(recentSearches)
                     dataInitialized = true
+                    updateAvailabilityUI()
                     checkAutomaticUpdates()
                 }
             } catch (e: Exception) {
@@ -371,7 +373,7 @@ class MainActivity : AppCompatActivity() {
             forceCheck = false,
             localTimetableVersion = LocalVersionManager.getTimetableDbVersion(this),
             localCommunityVersion = LocalVersionManager.getCommunityDbVersion(this),
-            onUpdateAvailable = ::updateAvailabilityUI,
+            onUpdateAvailable = { updateAvailabilityUI() },
             onUpdateComplete = ::onUpdatesCompleted
         )
     }

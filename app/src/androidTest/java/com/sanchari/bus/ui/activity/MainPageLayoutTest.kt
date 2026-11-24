@@ -40,6 +40,7 @@ class MainPageLayoutTest {
                             R.style.Theme_SanchariApp_NoActionBar
                         )
                         val binding = ActivityMainBinding.inflate(LayoutInflater.from(context))
+                        binding.homeUpdateButton.visibility = View.VISIBLE
                         binding.recentSearchesRecyclerView.layoutManager =
                             LinearLayoutManager(context)
                         binding.recentSearchesRecyclerView.adapter = RecentSearchAdapter(
@@ -57,6 +58,25 @@ class MainPageLayoutTest {
                             parent.layout(0, 0, width, height)
                         }
                         layout()
+                        layout()
+                        val title = binding.textViewTitle
+                        val color = { id: Int -> androidx.core.content.ContextCompat.getColor(context, id) }
+                        assertEquals(color(R.color.brand_header),
+                            (binding.homeHeader.background as android.graphics.drawable.ColorDrawable).color)
+                        assertEquals(color(R.color.brand_on_primary), title.currentTextColor)
+                        assertEquals(color(R.color.brand_on_primary), binding.homeMenuButton.imageTintList?.defaultColor)
+                        val drawerHeader = binding.homeNavigation.getHeaderView(0) as ViewGroup
+                        assertEquals(color(R.color.white),
+                            (drawerHeader.background as android.graphics.drawable.ColorDrawable).color)
+                        assertEquals(context.getString(R.string.app_name),
+                            drawerHeader.descendants.filterIsInstance<TextView>().single().text.toString())
+                        assertNotNull(drawerHeader.descendants.filterIsInstance<android.widget.ImageView>().single().drawable)
+                        val titleCenter = (title.left + title.right) / 2
+                        assertEquals((title.parent as View).width / 2, titleCenter)
+                        binding.homeUpdateButton.visibility = View.GONE
+                        layout()
+                        assertEquals(titleCenter, (title.left + title.right) / 2)
+                        binding.homeUpdateButton.visibility = View.VISIBLE
                         layout()
                         assertEquals(context.getString(R.string.app_name), binding.textViewTitle.text.toString())
                         assertEquals(context.getString(R.string.title_recent_services),
@@ -81,7 +101,7 @@ class MainPageLayoutTest {
                             R.string.app_name, R.string.title_recent_services, R.string.btn_find_bus,
                             R.string.btn_add_new_bus, R.string.home_drafts
                         ).map(context::getString).toSet()
-                        for (label in binding.root.descendants.filterIsInstance<TextView>()) {
+                        for (label in binding.homeScrollView.descendants.filterIsInstance<TextView>()) {
                             if (label.visibility == View.VISIBLE && !label.text.isNullOrEmpty() &&
                                 label.id != R.id.serviceName) {
                                 assertTrue("Unexpected main-page wording: ${label.text}",
@@ -91,7 +111,7 @@ class MainPageLayoutTest {
                         val actions = listOf(
                             binding.stopLocationButton, binding.stopWildcardButton, binding.buttonSwapLocations,
                             binding.searchButton, binding.buttonAddNewBus, binding.buttonDrafts,
-                            binding.homeOverflowButton
+                            binding.homeMenuButton, binding.homeUpdateButton
                         )
                         for (action in actions) {
                             assertTrue("Touch target too narrow: ${action.id}", action.width >= 48 * density)
@@ -99,7 +119,7 @@ class MainPageLayoutTest {
                             assertFalse(action.contentDescription.isNullOrBlank() &&
                                 (action !is TextView || action.text.isNullOrBlank()))
                         }
-                        for (label in binding.root.descendants.filterIsInstance<TextView>()) {
+                        for (label in binding.homeScrollView.descendants.filterIsInstance<TextView>()) {
                             if (label is EditText || label.visibility != View.VISIBLE || label.layout == null) continue
                             val text = label.layout
                             assertTrue("Text clipped vertically: ${label.text} at font scale $fontScale",
@@ -173,26 +193,29 @@ class MainPageLayoutTest {
     }
 
     @Test
-    fun overflowUsesShortLabelsWithoutChangingActions() {
+    fun drawerUsesShortLabelsForHomeActions() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         instrumentation.runOnMainSync {
             val context = ContextThemeWrapper(instrumentation.targetContext,
                 R.style.Theme_SanchariApp_NoActionBar)
-            val menu = androidx.appcompat.widget.PopupMenu(context, View(context)).apply {
-                inflate(R.menu.menu_main)
-            }.menu
+            val navigation = ActivityMainBinding.inflate(LayoutInflater.from(context)).homeNavigation
+            val menu = navigation.menu
             val expected = linkedMapOf(
-                R.id.action_check_updates to "Update",
-                R.id.action_auto_updates to "Auto update DB",
+                R.id.action_check_db_updates to "Check DB updates",
+                R.id.action_home_settings to "Settings",
                 R.id.action_share_app to "Share",
-                R.id.action_message_admin to "Message admin",
-                R.id.action_version_info to "Version"
+                R.id.action_message_admin to "Message admin"
             )
             assertEquals(expected.size, menu.size())
-            expected.forEach { (id, label) ->
-                assertEquals(label, menu.findItem(id).title.toString())
+            expected.entries.forEachIndexed { index, (id, label) ->
+                assertEquals(id, menu.getItem(index).itemId)
+                assertEquals(label, menu.getItem(index).title.toString())
+                assertNotNull("Every drawer item needs an icon", menu.getItem(index).icon)
             }
-            assertTrue(menu.findItem(R.id.action_auto_updates).isCheckable)
+            val background = navigation.background
+            val fill = (background as? com.google.android.material.shape.MaterialShapeDrawable)?.fillColor?.defaultColor
+                ?: (background as android.graphics.drawable.ColorDrawable).color
+            assertEquals(androidx.core.content.ContextCompat.getColor(context, R.color.brand_header), fill)
         }
     }
 }

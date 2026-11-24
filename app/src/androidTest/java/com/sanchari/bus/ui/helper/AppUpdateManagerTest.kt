@@ -17,12 +17,14 @@ import androidx.test.espresso.assertion.ViewAssertions.doesNotExist
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.RootMatchers.isDialog
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.sanchari.bus.BuildConfig
 import com.sanchari.bus.data.local.DatabaseManager
 import com.sanchari.bus.data.local.LocalVersionManager
+import com.sanchari.bus.data.local.DatabaseConstants
 import com.sanchari.bus.data.model.AppVersion
 import com.sanchari.bus.data.model.DatabaseVersion
 import com.sanchari.bus.data.model.ServerVersionInfo
@@ -32,6 +34,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
 import org.hamcrest.Matchers.containsString
+import org.hamcrest.Matchers.not
 import org.hamcrest.Matcher
 import org.junit.Assert.*
 import org.junit.Test
@@ -58,6 +61,10 @@ class AppUpdateManagerTest {
         try {
             runBlocking { DatabaseManager.initializeDatabases(context) }
             LocalVersionManager.setFirstRunCompleted(context)
+            LocalVersionManager.saveRemoteVersions(context, ServerVersionInfo(
+                DatabaseVersion(LocalVersionManager.getTimetableDbVersion(context), "fixture"),
+                DatabaseVersion(LocalVersionManager.getCommunityDbVersion(context), "fixture")
+            ))
             LocalVersionManager.saveLastUpdateCheckTime(context, currentTime)
             LocalVersionManager.setAutoDatabaseUpdatesEnabled(context, true)
             ActivityScenario.launch(MainActivity::class.java).use { scenario ->
@@ -128,15 +135,98 @@ class AppUpdateManagerTest {
             manager = AppUpdateManager(it, downloadApp = { error("Unexpected APK download") },
                 fetchVersions = { info.copy(app = AppVersion(BuildConfig.VERSION_CODE + 1, "fixture")) },
                 installDatabase = { _, _, _ -> installed.incrementAndGet(); true })
-            manager.showUpdateOptions(1, 1, {}, {})
+            manager.checkForUpdates(true, 1, 1, scope = AppUpdateManager.UpdateScope.DATABASES)
         }
-        clickDialogButton(com.sanchari.bus.R.string.update_check_databases)
         awaitCheck(scenario, manager)
         assertEquals(2, installed.get())
-        assertTrue(LocalVersionManager.isUpdateAvailable(context))
+        assertTrue(LocalVersionManager.updateAvailability(context).app)
         assertEquals(1234L, LocalVersionManager.getLastUpdateCheckTime(context))
         onView(withText(com.sanchari.bus.R.string.update_google_play)).check(doesNotExist())
         onView(withText(containsString("New App Version"))).check(doesNotExist())
+    }
+
+    @Test
+    fun updateListRechecksAndInstallsOnlyTheSelectedTimetable() = fixture { scenario ->
+        val installed = CopyOnWriteArrayList<String>()
+        val fetched = AtomicInteger()
+        lateinit var manager: AppUpdateManager
+        LocalVersionManager.saveInstalledDatabaseVersion(context, DatabaseConstants.TIMETABLE_DATABASE_NAME, 1)
+        LocalVersionManager.saveInstalledDatabaseVersion(context, DatabaseConstants.COMMUNITY_DATABASE_NAME, 1)
+        LocalVersionManager.saveLastUpdateCheckTime(context, 1234L)
+        scenario.onActivity {
+            manager = AppUpdateManager(it, downloadApp = { error("Unexpected APK download") },
+                fetchVersions = {
+                    fetched.incrementAndGet()
+                    info.copy(app = AppVersion(BuildConfig.VERSION_CODE + 1, "fixture"))
+                },
+                installDatabase = { name, version, _ ->
+                    installed.add(name)
+                    LocalVersionManager.saveInstalledDatabaseVersion(context, name, version)
+                    true
+                })
+            manager.showAvailableUpdates({}, {})
+        }
+        awaitCheck(scenario, manager)
+        assertEquals(1, fetched.get())
+        onView(withText(com.sanchari.bus.R.string.updates_list_title)).inRoot(isDialog()).check(matches(isDisplayed()))
+        onView(withId(com.sanchari.bus.R.id.updateGooglePlay)).inRoot(isDialog()).check(matches(isDisplayed()))
+        onView(withId(com.sanchari.bus.R.id.updateApk)).inRoot(isDialog()).check(matches(isDisplayed()))
+        onView(withId(com.sanchari.bus.R.id.updateCommunity)).inRoot(isDialog()).check(matches(isDisplayed()))
+        onView(withId(com.sanchari.bus.R.id.updateTimetable)).inRoot(isDialog()).perform(click())
+        awaitCheck(scenario, manager)
+        assertEquals("A manifest fetched for the popup is reused", 1, fetched.get())
+        assertEquals(listOf(DatabaseConstants.TIMETABLE_DATABASE_NAME), installed.toList())
+        val remaining = LocalVersionManager.updateAvailability(context)
+        assertFalse(remaining.timetable)
+        assertTrue(remaining.community)
+        assertTrue(remaining.app)
+        assertEquals(1234L, LocalVersionManager.getLastUpdateCheckTime(context))
+    }
+
+    @Test
+    fun failedUpdateListCheckShowsCachedUpdatesAndRefetchesBeforeInstalling() = fixture { scenario ->
+        val installed = CopyOnWriteArrayList<String>()
+        val fetched = AtomicInteger()
+        lateinit var manager: AppUpdateManager
+        LocalVersionManager.saveInstalledDatabaseVersion(context, DatabaseConstants.TIMETABLE_DATABASE_NAME, 1)
+        LocalVersionManager.saveInstalledDatabaseVersion(context, DatabaseConstants.COMMUNITY_DATABASE_NAME, 2)
+        LocalVersionManager.saveRemoteVersions(context, info)
+        LocalVersionManager.saveLastUpdateCheckTime(context, 1234L)
+        scenario.onActivity {
+            manager = AppUpdateManager(it, downloadApp = { error("Unexpected APK download") },
+                fetchVersions = { if (fetched.incrementAndGet() == 1) null else info },
+                installDatabase = { name, version, _ ->
+                    installed.add(name)
+                    LocalVersionManager.saveInstalledDatabaseVersion(context, name, version)
+                    true
+                })
+            manager.showAvailableUpdates({}, {})
+        }
+        awaitCheck(scenario, manager)
+        onView(withText(com.sanchari.bus.R.string.updates_list_title)).inRoot(isDialog()).check(matches(isDisplayed()))
+        onView(withId(com.sanchari.bus.R.id.appUpdateRow)).inRoot(isDialog()).check(matches(not(isDisplayed())))
+        onView(withId(com.sanchari.bus.R.id.communityUpdateRow)).inRoot(isDialog()).check(matches(not(isDisplayed())))
+        onView(withId(com.sanchari.bus.R.id.updateTimetable)).inRoot(isDialog()).perform(click())
+        awaitCheck(scenario, manager)
+        assertEquals(2, fetched.get())
+        assertEquals(listOf(DatabaseConstants.TIMETABLE_DATABASE_NAME), installed.toList())
+        assertEquals(1234L, LocalVersionManager.getLastUpdateCheckTime(context))
+    }
+
+    @Test
+    fun updateListLaterChangesNothing() = fixture { scenario ->
+        lateinit var manager: AppUpdateManager
+        LocalVersionManager.saveInstalledDatabaseVersion(context, DatabaseConstants.TIMETABLE_DATABASE_NAME, 1)
+        scenario.onActivity {
+            manager = AppUpdateManager(it, downloadApp = { error("Unexpected APK download") },
+                fetchVersions = { info },
+                installDatabase = { _, _, _ -> error("Later must not install") })
+            manager.showAvailableUpdates({}, {})
+        }
+        awaitCheck(scenario, manager)
+        clickDialogButton(com.sanchari.bus.R.string.updates_later)
+        onView(withText(com.sanchari.bus.R.string.updates_list_title)).check(doesNotExist())
+        assertTrue(LocalVersionManager.updateAvailability(context).timetable)
     }
 
     @Test
@@ -150,14 +240,13 @@ class AppUpdateManagerTest {
             manager = AppUpdateManager(it, downloadApp = { downloaded = it },
                 fetchVersions = { info.copy(app = app) },
                 installDatabase = { _, _, _ -> installed.incrementAndGet(); true })
-            manager.showUpdateOptions(1, 1, {}, {})
+            manager.showAppUpdateOptions(1, 1, {}, {})
         }
-        clickDialogButton(com.sanchari.bus.R.string.update_app)
         onView(withText(com.sanchari.bus.R.string.update_google_play)).inRoot(isDialog()).check(matches(isDisplayed()))
         clickDialogButton(com.sanchari.bus.R.string.apk_download)
         awaitCheck(scenario, manager)
         assertEquals(0, installed.get())
-        assertTrue(LocalVersionManager.isUpdateAvailable(context))
+        assertTrue(LocalVersionManager.updateAvailability(context).app)
         assertEquals(1234L, LocalVersionManager.getLastUpdateCheckTime(context))
         onView(withText(containsString("New Bus Timetable"))).check(doesNotExist())
         clickDialogButton(com.sanchari.bus.R.string.apk_download)
@@ -189,9 +278,8 @@ class AppUpdateManagerTest {
                 manager = AppUpdateManager(it, downloadApp = { error("Unexpected APK download") },
                     fetchVersions = { info.copy(app = AppVersion(BuildConfig.VERSION_CODE + 1, "fixture")) },
                     installDatabase = { _, _, _ -> true })
-                manager.showUpdateOptions(1, 1, {}, {})
+                manager.showAppUpdateOptions(1, 1, {}, {})
             }
-            clickDialogButton(com.sanchari.bus.R.string.update_app)
             clickDialogButton(com.sanchari.bus.R.string.update_google_play)
             assertTrue("Manual update should open Google Play", firstOpened.await(5, TimeUnit.SECONDS))
             runCheck(scenario, manager)
@@ -396,9 +484,8 @@ class AppUpdateManagerTest {
         try {
             scenario.onActivity {
                 AppUpdateManager(it, downloadApp = { error("Unexpected APK download") })
-                    .showUpdateOptions(1, 1, {}, {})
+                    .showAppUpdateOptions(1, 1, {}, {})
             }
-            clickDialogButton(com.sanchari.bus.R.string.update_app)
             clickDialogButton(com.sanchari.bus.R.string.update_google_play)
             assertTrue("The browser listing should open", opened.await(5, TimeUnit.SECONDS))
             assertEquals(2, requests.size)
@@ -469,6 +556,24 @@ class AppUpdateManagerTest {
     }
 
     @Test
+    fun dueAutomaticCheckFindsAppUpdateWithDatabaseAutomationOff() = fixture { scenario ->
+        LocalVersionManager.setAutoDatabaseUpdatesEnabled(context, false)
+        LocalVersionManager.saveLastUpdateCheckTime(context, currentTime - 604800000L)
+        lateinit var manager: AppUpdateManager
+        scenario.onActivity {
+            manager = AppUpdateManager(it, downloadApp = { error("Unexpected APK download") },
+                fetchVersions = {
+                    ServerVersionInfo(DatabaseVersion(1, "fixture"), DatabaseVersion(1, "fixture"),
+                        AppVersion(BuildConfig.VERSION_CODE + 1, "fixture"))
+                }, now = { currentTime })
+        }
+        runCheck(scenario, manager, force = false)
+        assertTrue(LocalVersionManager.updateAvailability(context).app)
+        assertEquals(currentTime, LocalVersionManager.getLastUpdateCheckTime(context))
+        onView(withText("Later")).inRoot(isDialog()).perform(click())
+    }
+
+    @Test
     fun automaticDataUpdatesDoNotAskAndKeepApkConfirmationAndBadge() = fixture { scenario ->
         val installed = AtomicInteger()
         val refreshed = AtomicInteger()
@@ -480,7 +585,7 @@ class AppUpdateManagerTest {
         runCheck(scenario, manager, force = false, complete = { refreshed.incrementAndGet() })
         assertEquals(2, installed.get())
         assertEquals(1, refreshed.get())
-        assertTrue(LocalVersionManager.isUpdateAvailable(context))
+        assertTrue(LocalVersionManager.updateAvailability(context).app)
         onView(withText(containsString("New App Version"))).inRoot(isDialog()).check(matches(isDisplayed()))
         onView(withText(containsString("New Bus Timetable"))).check(doesNotExist())
         onView(withText("Later")).inRoot(isDialog()).perform(click())
@@ -492,11 +597,15 @@ class AppUpdateManagerTest {
         val refreshed = AtomicInteger()
         lateinit var manager: AppUpdateManager
         scenario.onActivity { manager = AppUpdateManager(it, downloadApp = { error("Unexpected APK download") }, fetchVersions = { info },
-            installDatabase = { _, _, _ -> installed.incrementAndGet(); true }) }
+            installDatabase = { name, version, _ ->
+                installed.incrementAndGet()
+                LocalVersionManager.saveInstalledDatabaseVersion(context, name, version)
+                true
+            }) }
         runCheck(scenario, manager, complete = { refreshed.incrementAndGet() })
         assertEquals(2, installed.get())
         assertEquals(1, refreshed.get())
-        assertFalse(LocalVersionManager.isUpdateAvailable(context))
+        assertFalse(LocalVersionManager.updateAvailability(context).any)
         assertTrue(LocalVersionManager.getLastUpdateCheckTime(context) > 0L)
         onView(withText("Updates Available")).check(doesNotExist())
     }
@@ -518,11 +627,21 @@ class AppUpdateManagerTest {
     fun partialSuccessRefreshesDataKeepsBadgeAndAllowsRetry() = fixture { scenario ->
         val refreshed = AtomicInteger()
         lateinit var manager: AppUpdateManager
+        LocalVersionManager.saveInstalledDatabaseVersion(context, DatabaseConstants.TIMETABLE_DATABASE_NAME, 1)
+        LocalVersionManager.saveInstalledDatabaseVersion(context, DatabaseConstants.COMMUNITY_DATABASE_NAME, 1)
         scenario.onActivity { manager = AppUpdateManager(it, downloadApp = { error("Unexpected APK download") }, fetchVersions = { info },
-            installDatabase = { name, _, _ -> name.startsWith("Timetable") }) }
+            installDatabase = { name, version, _ ->
+                (name == DatabaseConstants.TIMETABLE_DATABASE_NAME).also { success ->
+                    if (success) LocalVersionManager.saveInstalledDatabaseVersion(context, name, version)
+                }
+            }) }
         runCheck(scenario, manager, complete = { refreshed.incrementAndGet() })
         assertEquals(1, refreshed.get())
-        assertTrue(LocalVersionManager.isUpdateAvailable(context))
+        val remaining = LocalVersionManager.updateAvailability(context)
+        assertFalse(remaining.timetable)
+        assertTrue(remaining.community)
+        assertFalse(remaining.showHomeAction(autoDatabaseUpdates = true))
+        assertTrue(remaining.showHomeAction(autoDatabaseUpdates = false))
         assertEquals(0L, LocalVersionManager.getLastUpdateCheckTime(context))
         onView(withText("Updates Available")).check(doesNotExist())
     }

@@ -9,12 +9,12 @@ plugins {
 
 android {
     namespace = "com.sanchari.bus"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.sanchari.bus"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 13
         versionName = "13"
 

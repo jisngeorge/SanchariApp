@@ -5,6 +5,10 @@ import android.content.SharedPreferences
 import android.database.sqlite.SQLiteDatabase
 import android.util.Log
 import androidx.core.content.edit
+import com.sanchari.bus.BuildConfig
+import com.sanchari.bus.data.model.RemoteVersions
+import com.sanchari.bus.data.model.ServerVersionInfo
+import com.sanchari.bus.data.model.UpdateAvailability
 
 object LocalVersionManager {
 
@@ -15,7 +19,10 @@ object LocalVersionManager {
     private const val KEY_DYNAMIC_COMMUNITY_URL = "dynamic_community_url"
     private const val KEY_LAST_UPDATE_CHECK = "last_update_check_timestamp"
     private const val KEY_LATEST_APP_URL = "latest_app_url"
-    private const val KEY_IS_UPDATE_AVAILABLE = "is_update_available"
+    private const val KEY_LEGACY_UPDATE_AVAILABLE = "is_update_available"
+    private const val KEY_REMOTE_APP = "remote_app_version"
+    private const val KEY_REMOTE_TIMETABLE = "remote_timetable_version"
+    private const val KEY_REMOTE_COMMUNITY = "remote_community_version"
     private const val KEY_IS_FIRST_RUN = "is_first_run"
     private const val KEY_AUTO_DATABASE_UPDATES = "auto_database_updates"
 
@@ -120,12 +127,38 @@ object LocalVersionManager {
         getPrefs(context).edit { putString(KEY_LATEST_APP_URL, url) }
     }
 
-    fun isUpdateAvailable(context: Context): Boolean {
-        return getPrefs(context).getBoolean(KEY_IS_UPDATE_AVAILABLE, false)
+    internal fun remoteVersions(context: Context): RemoteVersions = getPrefs(context).let {
+        RemoteVersions(
+            app = it.getInt(KEY_REMOTE_APP, 0),
+            timetable = it.getInt(KEY_REMOTE_TIMETABLE, 0),
+            community = it.getInt(KEY_REMOTE_COMMUNITY, 0)
+        )
     }
 
-    fun setUpdateAvailable(context: Context, isAvailable: Boolean) {
-        getPrefs(context).edit { putBoolean(KEY_IS_UPDATE_AVAILABLE, isAvailable) }
+    internal fun updateAvailability(context: Context): UpdateAvailability = remoteVersions(context).let {
+        UpdateAvailability(
+            app = it.app > BuildConfig.VERSION_CODE,
+            timetable = it.timetable > getTimetableDbVersion(context),
+            community = it.community > getCommunityDbVersion(context)
+        )
+    }
+
+    internal fun migrateUpdateAvailability(context: Context) {
+        val prefs = getPrefs(context)
+        if (prefs.contains(KEY_LEGACY_UPDATE_AVAILABLE)) {
+            prefs.edit {
+                remove(KEY_LEGACY_UPDATE_AVAILABLE)
+                if (!prefs.contains(KEY_REMOTE_APP)) remove(KEY_LAST_UPDATE_CHECK)
+            }
+        }
+    }
+
+    internal fun saveRemoteVersions(context: Context, info: ServerVersionInfo) {
+        getPrefs(context).edit {
+            putInt(KEY_REMOTE_APP, info.app?.versionCode ?: 0)
+            putInt(KEY_REMOTE_TIMETABLE, info.timetable.version)
+            putInt(KEY_REMOTE_COMMUNITY, info.community.version)
+        }
     }
 
     fun autoDatabaseUpdatesEnabled(context: Context): Boolean =

@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/home_background"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/brand_header"
+        app:navigationContentDescription="@string/navigate_up"
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:navigationIconTint="@android:color/white"
+        app:title="@string/home_menu_settings"
+        app:titleTextColor="@android:color/white" />
+
+    <ScrollView
+        android:id="@+id/settingsScroll"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                style="@style/SettingsHeading"
+                android:text="@string/settings_updates_heading" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/SettingsCard">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="8dp">
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/autoDatabaseUpdates"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:clickable="true"
+                        android:drawablePadding="16dp"
+                        android:focusable="true"
+                        android:minHeight="56dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:switchPadding="12dp"
+                        android:text="@string/home_settings_auto_updates"
+                        android:textAppearance="?attr/textAppearanceBody1"
+                        app:drawableStartCompat="@drawable/ic_database"
+                        app:drawableTint="@color/brand_primary"
+                        app:thumbTint="@color/settings_switch_thumb"
+                        app:trackTint="@color/settings_switch_track"
+                        app:useMaterialThemeColors="false" />
+
+                    <TextView
+                        android:id="@+id/checkAppUpdate"
+                        style="@style/SettingsRow"
+                        android:text="@string/home_settings_update_app"
+                        app:drawableStartCompat="@drawable/ic_home_update"
+                        app:drawableTint="@color/action_green" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                style="@style/SettingsHeading"
+                android:layout_marginTop="16dp"
+                android:text="@string/settings_about_heading" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/SettingsCard">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="8dp">
+
+                    <TextView
+                        android:id="@+id/appVersion"
+                        style="@style/SettingsRow"
+                        app:drawableStartCompat="@drawable/ic_info"
+                        app:drawableTint="@color/brand_primary" />
+
+                    <TextView
+                        android:id="@+id/versionCode"
+                        style="@style/SettingsRow"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:longClickable="true"
+                        app:drawableStartCompat="@drawable/ic_info"
+                        app:drawableTint="@color/brand_primary" />
+
+                    <TextView
+                        android:id="@+id/timetableVersion"
+                        style="@style/SettingsRow"
+                        app:drawableStartCompat="@drawable/ic_database"
+                        app:drawableTint="@color/brand_primary" />
+
+                    <TextView
+                        android:id="@+id/communityVersion"
+                        style="@style/SettingsRow"
+                        app:drawableStartCompat="@drawable/ic_database"
+                        app:drawableTint="@color/brand_primary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

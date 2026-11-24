@@ -25,7 +25,7 @@ flows. Do not infer backend approval rules or spreadsheet layout from the client
 - Kotlin serialization for configuration/version models; `org.json` for contribution payloads.
 - Gradle Kotlin DSL and version catalog in `gradle\libs.versions.toml`.
   Current versions: Gradle 8.13, AGP 8.13.2, Kotlin 2.0.21.
-- Android minimum SDK 24; compile/target SDK 36; Java/Kotlin compilation target 11.
+- Android minimum SDK 24; compile SDK 36, target SDK 37; Java/Kotlin compilation target 11.
   Android Studio selects Temurin JDK 21 to run Gradle. Use a full JDK 21 for
   command-line builds as well; the compilation target remains 11.
 
@@ -87,7 +87,7 @@ names, and local user schema version. There are three distinct databases:
 - `UserDatabaseHelper` currently uses schema version 2; its version-1-to-2 migration
   adds `SubmissionLog`.
 - `LocalVersionManager` uses `SanchariBusPrefs` SharedPreferences for database
-  content versions, dynamic endpoint URLs, first-run state, update availability,
+  content versions, dynamic endpoint URLs, first-run state, last known remote versions,
   last successful manifest check, and the latest APK link.
 
 Database **content versions** come from `SELECT version FROM DbVersion LIMIT 1`.
@@ -105,24 +105,32 @@ introduction on first run, then initializes data on `Dispatchers.IO`:
 2. It launches `UploadManager.retryPendingUploads` without blocking the rest of initialization.
 3. It loads stop autocomplete options and local recent views, then checks for updates.
 
-The main page is a compact, scrollable search workspace: title and three-dot menu,
+The main page is a compact, scrollable search workspace: title, navigation menu,
 route-search card, bus-name input, labelled Add Bus and Drafts actions, then a
-compact vertical Recent Services list retaining all five
+compact vertical Recent Searches list retaining all five
 entries without a repeated viewed-recently caption. Each full-width row has at least
 a 48dp touch target, with full names available to accessibility and long-press tooltips.
 Search and important actions stay above the fold on a standard 360x800dp phone.
 The page scrolls when needed for recent entries, smaller screens, large fonts,
 keyboard input or inline errors.
 Important actions share a row normally and stack on narrow screens or large fonts.
-Preserve its original wording;
-do not add headings, taglines, descriptions or an icon beside the app title.
+Preserve its original wording; do not add headings, taglines or descriptions.
 Wildcard/clear controls retain separate 48dp targets; swapping stops does not
 submit a search. Add Bus has a green icon; Drafts uses a labelled button with the
 history icon and still opens both drafts and submission history.
-The overflow labels are Update, Auto update DB, Share, Message admin and Version;
-Auto update DB retains the persisted database-update toggle. Update availability uses a green highlight
-and an accessible description on the menu button without changing the Update label.
+The full-width blue home header has a centered white app title and a white
+menu button. The menu opens a modal drawer with a blue (`brand_header`) body and
+a white header showing the Sanchari icon and title. Every item has a white icon:
+Check DB updates, Settings, Share, and Message admin. Back closes the drawer first.
+Settings is a dedicated `SettingsActivity` page: a persisted sliding switch for
+database automation, Check for app update, and version information (app version,
+version code, timetable/community content versions). Long-pressing the version
+code opens the read-only `DebugActivity` diagnostics page, which excludes the
+UUID, contacts and payload contents. The green top-right up arrow appears only
+for a known app update or a known database update with automation off.
 Home surfaces and outlines adapt to light/dark mode; content grows with text size.
+The app theme is MaterialComponents, not Material 3: use tinted `SwitchMaterial`
+for switches; Material 3 `MaterialSwitch` renders an invisible track/thumb here.
 
 `BusSearchHandler` delegates SQL work to `SearchManager`. Route search matches
 source and destination location names and requires source `stopOrder` to precede
@@ -618,19 +626,23 @@ The parser ignores unknown keys. Both database entries are required.
 `versions` and `communityData` can redirect future requests; `app.url` updates
 the stored APK/share link.
 
-`AppUpdateManager` throttles automatic checks to seven days. Manual checks bypass
-that interval; the timestamp is saved only after a successful manifest fetch.
+`AppUpdateManager` checks for app and database updates on app open when seven
+days have elapsed since the last successful all-updates check, even with
+database automation off. Manual checks bypass that interval.
 It compares each remote database content version to the local preference value
-and compares remote APK `versionCode` to `BuildConfig.VERSION_CODE`. The home page
-has a persisted, default-enabled "Automatically update timetable and community
-data" checkbox. Enabled checks (including manual checks) download newer database
+and compares remote APK `versionCode` to `BuildConfig.VERSION_CODE`. It caches
+remote versions separately and derives availability against the installed versions;
+failed checks retain the last known versions. Legacy combined availability triggers
+a fresh check instead of guessing the update type. Settings has a persisted,
+default-enabled "Automatically update timetable and community data" switch.
+Enabled checks (including manual checks) download newer database
 snapshots without asking; disabled checks retain the Download/Later prompt.
 Downloads can use mobile data. APK updates always require confirmation, independently
 of database updates; the parsed `mandatory` flag is not enforced. This is an app-open
 check, not scheduled background work. Checks/downloads are serialized per activity
 and cancelled on pause. Failed/interrupted database downloads reset the check
 timestamp so the next app-open check can retry. Partial success refreshes suggestions
-and preserves the update indicator for any remaining database or APK update.
+and preserves availability for remaining updates, subject to the home icon's visibility rule.
 
 `DatabaseManager.downloadAndReplaceDatabase` serializes snapshot downloads, stages
 each in a unique file in the database directory, and verifies SQLite integrity,
@@ -641,10 +653,16 @@ cancellation before publication and failed renames preserve the installed snapsh
 Timetable helpers/cache are reset around publication, and the verified content
 version is persisted. User data, drafts and pending uploads are never replaced.
 
-Update offers Check DB updates and App update separately. Check DB updates handles
-only timetable/community snapshots; App update offers Google Play or Download APK,
-whose manifest check handles only the app. Scoped checks preserve the combined
-update indicator and do not postpone the automatic all-updates check.
+The drawer's Check DB updates checks both snapshots; Settings' Check for app
+update offers Google Play or Download APK, whose manifest check handles only the
+app. Tapping the update arrow re-checks the manifest (without postponing the
+automatic check); on failure it says so and lists the last known updates. Its
+popup lists each available app/timetable/community update with its own action
+(Google Play and APK icons for the app, a database icon and Update button for each
+snapshot) and a Later button. Per-item actions reuse the fetched manifest, or
+fetch it again when the list came from cached versions, and install only the
+selected item. Scoped checks preserve availability
+for all update types and do not postpone the automatic all-updates check.
 Available APK update prompts also offer Google Play.
 The store app is preferred, with the Play listing in a browser as fallback.
 `ApkDownloadManager` downloads to a unique temporary cache file, then opens the
