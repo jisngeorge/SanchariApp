@@ -22,32 +22,31 @@ object CommunityDataManager {
      */
     @SuppressLint("Range")
     fun getBusRating(context: Context, serviceId: String): BusRating? {
-        val dbHelper = CommunityDatabaseHelper(context)
-        val db = dbHelper.readableDatabase
         var busRating: BusRating? = null
 
         try {
-            db.query(
-                DatabaseConstants.BusRatingTable.TABLE_NAME,
-                null, // all columns
-                "${DatabaseConstants.BusRatingTable.COLUMN_SERVICE_ID} = ?", // selection
-                arrayOf(serviceId), // selectionArgs
-                null, null, null, "1"
-            ).use { cursor ->
-                if (cursor.moveToFirst()) {
-                    busRating = BusRating(
-                        serviceId = cursor.getString(cursor.getColumnIndex(DatabaseConstants.BusRatingTable.COLUMN_SERVICE_ID)),
-                        avgPunctuality = cursor.getFloat(cursor.getColumnIndex(DatabaseConstants.BusRatingTable.COLUMN_AVG_PUNCTUALITY)),
-                        avgDrive = cursor.getFloat(cursor.getColumnIndex(DatabaseConstants.BusRatingTable.COLUMN_AVG_DRIVE)),
-                        avgBehaviour = cursor.getFloat(cursor.getColumnIndex(DatabaseConstants.BusRatingTable.COLUMN_AVG_BEHAVIOUR)),
-                        ratingCount = cursor.getInt(cursor.getColumnIndex(DatabaseConstants.BusRatingTable.COLUMN_RATING_COUNT))
-                    )
+            CommunityDatabaseHelper(context).use { dbHelper ->
+                val db = dbHelper.readableDatabase
+                db.query(
+                    DatabaseConstants.BusRatingTable.TABLE_NAME,
+                    null, // all columns
+                    "${DatabaseConstants.BusRatingTable.COLUMN_SERVICE_ID} = ?", // selection
+                    arrayOf(serviceId), // selectionArgs
+                    null, null, null, "1"
+                ).use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        busRating = BusRating(
+                            serviceId = cursor.getString(cursor.getColumnIndex(DatabaseConstants.BusRatingTable.COLUMN_SERVICE_ID)),
+                            avgPunctuality = cursor.getFloat(cursor.getColumnIndex(DatabaseConstants.BusRatingTable.COLUMN_AVG_PUNCTUALITY)),
+                            avgDrive = cursor.getFloat(cursor.getColumnIndex(DatabaseConstants.BusRatingTable.COLUMN_AVG_DRIVE)),
+                            avgBehaviour = cursor.getFloat(cursor.getColumnIndex(DatabaseConstants.BusRatingTable.COLUMN_AVG_BEHAVIOUR)),
+                            ratingCount = cursor.getInt(cursor.getColumnIndex(DatabaseConstants.BusRatingTable.COLUMN_RATING_COUNT))
+                        )
+                    }
                 }
             }
         } catch (e: SQLiteException) {
             Log.e(TAG, "Error getting bus rating for $serviceId", e)
-        } finally {
-            db.close()
         }
         return busRating
     }
@@ -58,41 +57,40 @@ object CommunityDataManager {
      */
     @SuppressLint("Range")
     fun getComments(context: Context, serviceId: String): List<UserComment> {
-        val dbHelper = CommunityDatabaseHelper(context)
-        val db = dbHelper.readableDatabase
         val comments = mutableListOf<UserComment>()
 
         try {
-            db.query(
-                DatabaseConstants.UserCommentTable.TABLE_NAME,
-                null, // all columns
-                "${DatabaseConstants.UserCommentTable.COLUMN_SERVICE_ID} = ?", // selection
-                arrayOf(serviceId), // selectionArgs
-                null, null,
-                "${DatabaseConstants.UserCommentTable.COLUMN_COMMENT_DATE} DESC" // Order by newest first
-            ).use { cursor ->
-                // Get column indices once
-                val commentIdIndex = cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_COMMENT_ID)
-                val serviceIdIndex = cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_SERVICE_ID)
-                val usernameIndex = cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_USERNAME)
-                val commentTextIndex = cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_COMMENT_TEXT)
-                val commentDateIndex = cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_COMMENT_DATE)
+            CommunityDatabaseHelper(context).use { dbHelper ->
+                val db = dbHelper.readableDatabase
+                db.query(
+                    DatabaseConstants.UserCommentTable.TABLE_NAME,
+                    null, // all columns
+                    "${DatabaseConstants.UserCommentTable.COLUMN_SERVICE_ID} = ?", // selection
+                    arrayOf(serviceId), // selectionArgs
+                    null, null,
+                    "${DatabaseConstants.UserCommentTable.COLUMN_COMMENT_DATE} DESC" // Order by newest first
+                ).use { cursor ->
+                    // Get column indices once
+                    val commentIdIndex = cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_COMMENT_ID)
+                    val serviceIdIndex = cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_SERVICE_ID)
+                    val usernameIndex = cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_USERNAME)
+                    val commentTextIndex = cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_COMMENT_TEXT)
+                    val commentDateIndex = cursor.getColumnIndex(DatabaseConstants.UserCommentTable.COLUMN_COMMENT_DATE)
 
-                while (cursor.moveToNext()) {
-                    val comment = UserComment(
-                        commentId = cursor.getInt(commentIdIndex),
-                        serviceId = cursor.getString(serviceIdIndex),
-                        username = cursor.getString(usernameIndex),
-                        commentText = cursor.getString(commentTextIndex),
-                        commentDate = cursor.getLong(commentDateIndex)
-                    )
-                    comments.add(comment)
+                    while (cursor.moveToNext()) {
+                        val comment = UserComment(
+                            commentId = cursor.getInt(commentIdIndex),
+                            serviceId = cursor.getString(serviceIdIndex),
+                            username = cursor.getString(usernameIndex),
+                            commentText = cursor.getString(commentTextIndex),
+                            commentDate = cursor.getLong(commentDateIndex)
+                        )
+                        comments.add(comment)
+                    }
                 }
             }
         } catch (e: SQLiteException) {
             Log.e(TAG, "Error getting comments for $serviceId", e)
-        } finally {
-            db.close()
         }
         return comments
     }

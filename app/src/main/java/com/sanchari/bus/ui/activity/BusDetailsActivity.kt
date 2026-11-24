@@ -18,8 +18,6 @@ import com.sanchari.bus.ui.helper.StopMapActions
 import com.sanchari.bus.ui.adapter.CommentAdapter
 import com.sanchari.bus.data.manager.CommunityDataManager
 import com.sanchari.bus.data.manager.SearchManager
-import com.sanchari.bus.data.model.User
-import com.sanchari.bus.data.manager.UserDataManager
 import com.sanchari.bus.databinding.ActivityBusDetailsBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -39,9 +37,6 @@ class BusDetailsActivity : AppCompatActivity() {
     // Refactored Manager
     private lateinit var submissionHandler: BusSubmissionHandler
     private lateinit var stopMapActions: StopMapActions
-
-    // Store the user's details for pre-filling the form
-    private var currentUser: User? = null
 
     companion object {
         private const val EXTRA_BUS_SERVICE = "EXTRA_BUS_SERVICE"
@@ -92,7 +87,6 @@ class BusDetailsActivity : AppCompatActivity() {
         // Load all data
         loadBusStops()
         loadCommunityData()
-        loadLocalUserData()
 
         // Setup button listeners
         binding.buttonAddRating.setOnClickListener {
@@ -231,19 +225,6 @@ class BusDetailsActivity : AppCompatActivity() {
                     binding.commentsRecyclerView.visibility = View.VISIBLE
                     binding.textViewNoComments.visibility = View.GONE
                     commentAdapter.updateComments(comments)
-                }
-            }
-        }
-    }
-
-    private fun loadLocalUserData() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                currentUser = UserDataManager.getUser(applicationContext)
-            } catch (e: android.database.sqlite.SQLiteException) {
-                Log.e("BusDetailsActivity", "Contributor identity unavailable", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@BusDetailsActivity, com.sanchari.bus.R.string.contributor_load_failed, Toast.LENGTH_LONG).show()
                 }
             }
         }

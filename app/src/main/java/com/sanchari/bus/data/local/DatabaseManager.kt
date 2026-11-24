@@ -36,11 +36,16 @@ object DatabaseManager {
             initializeAppConfig(context)
 
             // 2. Initialize DBs
-            copyDatabaseFromAssets(context, DatabaseConstants.TIMETABLE_DATABASE_NAME)
-            copyDatabaseFromAssets(context, DatabaseConstants.COMMUNITY_DATABASE_NAME)
+            val copiedTimetable = copyDatabaseFromAssets(context, DatabaseConstants.TIMETABLE_DATABASE_NAME)
+            val copiedCommunity = copyDatabaseFromAssets(context, DatabaseConstants.COMMUNITY_DATABASE_NAME)
 
-            // 3. Sync versions from the files to SharedPrefs
-            LocalVersionManager.syncVersionsFromDbFiles(context)
+            // 3. Sync versions from the files to SharedPrefs only when freshly copied or unset
+            if (copiedTimetable || copiedCommunity ||
+                LocalVersionManager.getTimetableDbVersion(context) <= 0 ||
+                LocalVersionManager.getCommunityDbVersion(context) <= 0
+            ) {
+                LocalVersionManager.syncVersionsFromDbFiles(context)
+            }
         }
     }
 
@@ -180,12 +185,12 @@ object DatabaseManager {
         }
     }
 
-    private suspend fun copyDatabaseFromAssets(context: Context, dbName: String) {
-        withContext(Dispatchers.IO) {
+    private suspend fun copyDatabaseFromAssets(context: Context, dbName: String): Boolean {
+        return withContext(Dispatchers.IO) {
             val dbPath = context.getDatabasePath(dbName)
 
             if (dbPath.exists()) {
-                return@withContext
+                return@withContext false
             }
 
             dbPath.parentFile?.mkdirs()
@@ -200,10 +205,11 @@ object DatabaseManager {
                     }
                 }
                 Log.i(TAG, "Successfully copied database $dbName from assets.")
-
+                true
             } catch (e: IOException) {
                 Log.e(TAG, "Failed to copy database $dbName from assets", e)
                 if (dbPath.exists()) dbPath.delete()
+                false
             }
         }
     }

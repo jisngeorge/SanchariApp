@@ -14,14 +14,18 @@ data class RouteSearchStatistics(
     }
 
     companion object {
-        private val clockTime = Regex("([01][0-9]|2[0-3]):[0-5][0-9]")
+        fun fromServices(services: List<BusService>): RouteSearchStatistics =
+            fromServiceSequence(services.asSequence(), services.size)
 
-        fun fromServices(services: List<BusService>): RouteSearchStatistics {
+        fun fromResults(results: List<RouteSearchResult>): RouteSearchStatistics =
+            fromServiceSequence(results.asSequence().map { it.service }, results.size)
+
+        private fun fromServiceSequence(services: Sequence<BusService>, totalCount: Int): RouteSearchStatistics {
             val statistics = JourneyDurationStatistics.fromDurations(
-                services.asSequence().mapNotNull(::journeyMinutes)
+                services.mapNotNull(::journeyMinutes)
             )
             return RouteSearchStatistics(
-                totalCount = services.size,
+                totalCount = totalCount,
                 timedCount = statistics.sampleCount,
                 averageMinutes = statistics.meanMinutes,
                 medianMinutes = statistics.medianMinutes,
@@ -41,8 +45,16 @@ data class RouteSearchStatistics(
         }
 
         fun parseMinutes(time: String): Int? {
-            if (!clockTime.matches(time)) return null
-            return time.substring(0, 2).toInt() * 60 + time.substring(3, 5).toInt()
+            if (time.length != 5 || time[2] != ':') return null
+            val h1 = time[0] - '0'
+            val h2 = time[1] - '0'
+            val m1 = time[3] - '0'
+            val m2 = time[4] - '0'
+            if (h1 !in 0..9 || h2 !in 0..9 || m1 !in 0..9 || m2 !in 0..9) return null
+            val hour = h1 * 10 + h2
+            val minute = m1 * 10 + m2
+            if (hour > 23 || minute > 59) return null
+            return hour * 60 + minute
         }
     }
 }

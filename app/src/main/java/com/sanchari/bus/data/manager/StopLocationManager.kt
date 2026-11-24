@@ -19,10 +19,10 @@ class StopLocationManager(private val context: Context) {
     }
 
     fun locationsForName(name: String): List<StopLocation> {
-        val matches = SearchManager.getStopLocations(context).filter {
-            it.name.equals(name.trim(), ignoreCase = true)
-        }
-        return matches.filter { it.name == name.trim() }.ifEmpty { matches }
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return emptyList()
+        val matches = SearchManager.getStopLocationsByName(context, trimmed)
+        return matches.filter { it.name == trimmed }.ifEmpty { matches }
     }
 
     fun locationById(id: Int): StopLocation? = SearchManager.getStopLocationById(context, id)

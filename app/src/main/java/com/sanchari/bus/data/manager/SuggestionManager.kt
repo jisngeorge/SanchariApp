@@ -8,6 +8,8 @@ import androidx.core.text.bold
 import androidx.core.text.buildSpannedString
 import com.sanchari.bus.R
 import com.sanchari.bus.data.local.DatabaseConstants
+import com.sanchari.bus.data.local.TimetableDatabaseHelper
+import com.sanchari.bus.data.model.GeoPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -20,6 +22,9 @@ class SuggestionManager(private val context: Context) {
         val totalServiceCount: Int,
         val newOptionCount: Int
     )
+
+    private fun validCoordinate(lat: Double, lng: Double): Boolean =
+        !(lat == 0.0 && lng == 0.0) && GeoPoint.fromValues(lat, lng) != null
 
     /**
      * Finds nearby stops and returns them as a formatted string ready for the popup.
@@ -35,48 +40,52 @@ class SuggestionManager(private val context: Context) {
             return@withContext context.getString(R.string.nearby_database_missing)
         }
 
-        val db = SQLiteDatabase.openDatabase(
-            dbFile.absolutePath,
-            null,
-            SQLiteDatabase.OPEN_READONLY
-        )
+        val appDbFile = context.applicationContext.getDatabasePath(DatabaseConstants.TIMETABLE_DATABASE_NAME)
+        val useSharedHelper = dbFile.absolutePath == appDbFile.absolutePath
+        val db = if (useSharedHelper) {
+            TimetableDatabaseHelper.getInstance(context).readableDatabase
+        } else {
+            SQLiteDatabase.openDatabase(
+                dbFile.absolutePath,
+                null,
+                SQLiteDatabase.OPEN_READONLY
+            )
+        }
 
         val foundSourceStops = mutableListOf<StopResult>()
         val foundDestStops = mutableListOf<StopResult>()
 
         try {
             // 1. Get Lat/Lng of the SOURCE stop
-            var sourceLat = 0.0
-            var sourceLng = 0.0
-            val sourceCursor = db.rawQuery(
+            var sourceLat = Double.NaN
+            var sourceLng = Double.NaN
+            db.rawQuery(
                 "SELECT latitude, longitude FROM Stop WHERE locationName = ? LIMIT 1",
                 arrayOf(fromLocation)
-            )
-
-            if (sourceCursor.moveToFirst()) {
-                sourceLat = sourceCursor.getDouble(0)
-                sourceLng = sourceCursor.getDouble(1)
+            ).use { sourceCursor ->
+                if (sourceCursor.moveToFirst()) {
+                    sourceLat = sourceCursor.getDouble(0)
+                    sourceLng = sourceCursor.getDouble(1)
+                }
             }
-            sourceCursor.close()
 
             // 1b. Get Lat/Lng of the DESTINATION stop
-            var destLat = 0.0
-            var destLng = 0.0
-            val destCursor = db.rawQuery(
+            var destLat = Double.NaN
+            var destLng = Double.NaN
+            db.rawQuery(
                 "SELECT latitude, longitude FROM Stop WHERE locationName = ? LIMIT 1",
                 arrayOf(toLocation)
-            )
-
-            if (destCursor.moveToFirst()) {
-                destLat = destCursor.getDouble(0)
-                destLng = destCursor.getDouble(1)
+            ).use { destCursor ->
+                if (destCursor.moveToFirst()) {
+                    destLat = destCursor.getDouble(0)
+                    destLng = destCursor.getDouble(1)
+                }
             }
-            destCursor.close()
 
-            if (sourceLat == 0.0 && sourceLng == 0.0) {
+            if (!validCoordinate(sourceLat, sourceLng)) {
                 return@withContext context.getString(R.string.nearby_coordinates_missing, fromLocation)
             }
-            if (destLat == 0.0 && destLng == 0.0) {
+            if (!validCoordinate(destLat, destLng)) {
                 return@withContext context.getString(R.string.nearby_coordinates_missing, toLocation)
             }
 
@@ -127,33 +136,35 @@ class SuggestionManager(private val context: Context) {
 
             val sourceCandidateCursor = db.rawQuery(sourceCandidateQuery, arrayOf(toLocation, fromLocation, toLocation))
 
-            val sourceDistCache = mutableMapOf<String, CachedDistances>()
+            val sourceDistCache = mutableMapOf<String, CachedDistances?>()
             val validSourceMap = mutableMapOf<String, MutableSet<String>>()
 
-            while (sourceCandidateCursor.moveToNext()) {
-                val candidateName = sourceCandidateCursor.getString(0)
-                val candidateLat = sourceCandidateCursor.getDouble(1)
-                val candidateLng = sourceCandidateCursor.getDouble(2)
-                val serviceId = sourceCandidateCursor.getString(3)
+            sourceCandidateCursor.use { cursor ->
+                while (cursor.moveToNext()) {
+                    val candidateName = cursor.getString(0)
+                    val candidateLat = cursor.getDouble(1)
+                    val candidateLng = cursor.getDouble(2)
+                    val serviceId = cursor.getString(3)
 
-                val distances = sourceDistCache.getOrPut(candidateName) {
-                    Location.distanceBetween(candidateLat, candidateLng, sourceLat, sourceLng, distanceResults)
-                    val distToSource = distanceResults[0] / 1000.0f
+                    val distances = sourceDistCache.getOrPut(candidateName) {
+                        if (!validCoordinate(candidateLat, candidateLng)) return@getOrPut null
+                        Location.distanceBetween(candidateLat, candidateLng, sourceLat, sourceLng, distanceResults)
+                        val distToSource = distanceResults[0] / 1000.0f
 
-                    Location.distanceBetween(candidateLat, candidateLng, destLat, destLng, distanceResults)
-                    val distToDest = distanceResults[0] / 1000.0f
+                        Location.distanceBetween(candidateLat, candidateLng, destLat, destLng, distanceResults)
+                        val distToDest = distanceResults[0] / 1000.0f
 
-                    CachedDistances(distToSource, distToDest)
-                }
+                        CachedDistances(distToSource, distToDest)
+                    } ?: continue
 
-                // Rule 1: Alternate stop must be within radius (trip distance) of the original start
-                // Rule 2: Distance from alternate stop to destination must be <= 1.5x original trip distance
-                if (distances.distToSource <= dynamicRadiusKm && distances.distToDest <= maxAllowedTripDistanceKm) {
-                    val services = validSourceMap.getOrPut(candidateName) { mutableSetOf() }
-                    services.add(serviceId)
+                    // Rule 1: Alternate stop must be within radius (trip distance) of the original start
+                    // Rule 2: Distance from alternate stop to destination must be <= 1.5x original trip distance
+                    if (distances.distToSource <= dynamicRadiusKm && distances.distToDest <= maxAllowedTripDistanceKm) {
+                        val services = validSourceMap.getOrPut(candidateName) { mutableSetOf() }
+                        services.add(serviceId)
+                    }
                 }
             }
-            sourceCandidateCursor.close()
 
             for ((candidateName, candidateServices) in validSourceMap) {
                 val newOptionCount = candidateServices.count { it !in directServiceIds }
@@ -185,33 +196,35 @@ class SuggestionManager(private val context: Context) {
 
             val destCandidateCursor = db.rawQuery(destCandidateQuery, arrayOf(fromLocation, toLocation, fromLocation))
 
-            val destDistCache = mutableMapOf<String, CachedDistances>()
+            val destDistCache = mutableMapOf<String, CachedDistances?>()
             val validDestMap = mutableMapOf<String, MutableSet<String>>()
 
-            while (destCandidateCursor.moveToNext()) {
-                val candidateName = destCandidateCursor.getString(0)
-                val candidateLat = destCandidateCursor.getDouble(1)
-                val candidateLng = destCandidateCursor.getDouble(2)
-                val serviceId = destCandidateCursor.getString(3)
+            destCandidateCursor.use { cursor ->
+                while (cursor.moveToNext()) {
+                    val candidateName = cursor.getString(0)
+                    val candidateLat = cursor.getDouble(1)
+                    val candidateLng = cursor.getDouble(2)
+                    val serviceId = cursor.getString(3)
 
-                val distances = destDistCache.getOrPut(candidateName) {
-                    Location.distanceBetween(candidateLat, candidateLng, sourceLat, sourceLng, distanceResults)
-                    val distToSource = distanceResults[0] / 1000.0f
+                    val distances = destDistCache.getOrPut(candidateName) {
+                        if (!validCoordinate(candidateLat, candidateLng)) return@getOrPut null
+                        Location.distanceBetween(candidateLat, candidateLng, sourceLat, sourceLng, distanceResults)
+                        val distToSource = distanceResults[0] / 1000.0f
 
-                    Location.distanceBetween(candidateLat, candidateLng, destLat, destLng, distanceResults)
-                    val distToDest = distanceResults[0] / 1000.0f
+                        Location.distanceBetween(candidateLat, candidateLng, destLat, destLng, distanceResults)
+                        val distToDest = distanceResults[0] / 1000.0f
 
-                    CachedDistances(distToSource, distToDest)
-                }
+                        CachedDistances(distToSource, distToDest)
+                    } ?: continue
 
-                // Rule 1: Alternate stop must be within radius (trip distance) of the original destination
-                // Rule 2: Distance from start to alternate destination must be <= 1.5x original trip distance
-                if (distances.distToDest <= dynamicRadiusKm && distances.distToSource <= maxAllowedTripDistanceKm) {
-                    val services = validDestMap.getOrPut(candidateName) { mutableSetOf() }
-                    services.add(serviceId)
+                    // Rule 1: Alternate stop must be within radius (trip distance) of the original destination
+                    // Rule 2: Distance from start to alternate destination must be <= 1.5x original trip distance
+                    if (distances.distToDest <= dynamicRadiusKm && distances.distToSource <= maxAllowedTripDistanceKm) {
+                        val services = validDestMap.getOrPut(candidateName) { mutableSetOf() }
+                        services.add(serviceId)
+                    }
                 }
             }
-            destCandidateCursor.close()
 
             for ((candidateName, candidateServices) in validDestMap) {
                 val newOptionCount = candidateServices.count { it !in directServiceIds }
@@ -231,7 +244,7 @@ class SuggestionManager(private val context: Context) {
             Log.e("SuggestionManager", "Error calculating alternative stops", e)
             return@withContext context.getString(R.string.nearby_suggestions_error)
         } finally {
-            db.close()
+            if (!useSharedHelper) db.close()
         }
 
         formatSuggestions(fromLocation, toLocation, foundSourceStops, foundDestStops)

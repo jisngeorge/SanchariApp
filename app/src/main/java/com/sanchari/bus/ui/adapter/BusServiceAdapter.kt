@@ -23,15 +23,31 @@ class BusServiceAdapter(
     private val onItemClick: (BusService) -> Unit
 ) : ListAdapter<RouteSearchResult, BusServiceAdapter.BusServiceViewHolder>(ServiceDiff) {
     private var slowResults: Set<RouteSearchResult> = emptySet()
+    private var precomputedList: List<RouteSearchResult>? = null
+    private var precomputedStatistics: RouteSearchStatistics? = null
     private object WarningChanged
+
+    fun submitResults(
+        results: List<RouteSearchResult>,
+        statistics: RouteSearchStatistics?,
+        commitCallback: Runnable? = null
+    ) {
+        precomputedList = results
+        precomputedStatistics = statistics
+        submitList(results, commitCallback)
+    }
 
     override fun onCurrentListChanged(
         previousList: List<RouteSearchResult>,
         currentList: List<RouteSearchResult>
     ) {
-        val updated = if (showEndpoints) null else {
-            RouteSearchStatistics.fromServices(currentList.map { it.service })
+        val updated = when {
+            showEndpoints -> null
+            precomputedList === currentList -> precomputedStatistics
+            else -> RouteSearchStatistics.fromResults(currentList)
         }
+        precomputedList = null
+        precomputedStatistics = null
         val previousSlow = slowResults
         slowResults = if (updated == null) emptySet() else {
             currentList.filterTo(HashSet()) { it.service.isRunning && updated.isSlow(it.service) }

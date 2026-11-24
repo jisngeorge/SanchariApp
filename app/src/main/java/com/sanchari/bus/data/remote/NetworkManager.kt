@@ -8,7 +8,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -21,6 +20,7 @@ import okio.buffer
 import okio.sink
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 object NetworkManager {
 
@@ -29,6 +29,12 @@ object NetworkManager {
     // By lazy ensures that OkHttpClient and Json serializers are ONLY initialized
     // when first needed, on the background thread, avoiding UI freezing on first access.
     private val client by lazy { OkHttpClient() }
+    private val downloadClient by lazy {
+        client.newBuilder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .build()
+    }
     private val jsonParser by lazy { Json { ignoreUnknownKeys = true } }
 
     /**
@@ -36,85 +42,94 @@ object NetworkManager {
      * Returns TRUE if successful (HTTP 200), FALSE otherwise.
      */
     suspend fun uploadDataToGoogleSheet(context: Context, jsonPayload: String): Boolean {
-        return withContext(Dispatchers.IO) {
-            // 1. Get URL
-            val defaultUrl = "https://script.google.com/macros/s/YOUR_DEFAULT_SCRIPT_ID/exec"
-            val dynamicUrl = LocalVersionManager.getCommunityUrl(context)
+        val url = LocalVersionManager.getCommunityUrl(context)
+        if (url.isNullOrBlank()) {
+            Log.e(TAG, "No community upload URL found in configuration.")
+            return false
+        }
 
-            val url = if (!dynamicUrl.isNullOrBlank()) dynamicUrl else defaultUrl
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val body = jsonPayload.toRequestBody(mediaType)
+        val request = Request.Builder()
+            .url(url)
+            .post(body)
+            .build()
 
-            // 2. Prepare Request
-            val mediaType = "application/json; charset=utf-8".toMediaType()
-            val body = jsonPayload.toRequestBody(mediaType)
-
-            val request = Request.Builder()
-                .url(url)
-                .post(body)
-                .build()
-
-            // 3. Execute
-            try {
-                client.newCall(request).execute().use { response ->
-                    if (response.isSuccessful) {
-                        Log.i(TAG, "Upload successful: ${response.code}")
-                        return@withContext true
-                    } else {
-                        Log.e(TAG, "Upload failed: ${response.code} - ${response.message}")
-                        return@withContext false
+        return coroutineScope {
+            val call = client.newCall(request)
+            val upload = async(Dispatchers.IO) {
+                try {
+                    call.execute().use { response ->
+                        if (response.isSuccessful) {
+                            Log.i(TAG, "Upload successful: ${response.code}")
+                            true
+                        } else {
+                            Log.e(TAG, "Upload failed: ${response.code} - ${response.message}")
+                            false
+                        }
                     }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Network error during upload", e)
+                    false
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Network error during upload", e)
-                return@withContext false
+            }
+            try {
+                upload.await()
+            } finally {
+                if (!isActive) call.cancel()
             }
         }
     }
 
     suspend fun fetchVersionInfo(context: Context): ServerVersionInfo? {
-        return withContext(Dispatchers.IO) {
+        val targetUrl = LocalVersionManager.getVersionsUrl(context)
+        if (targetUrl.isNullOrBlank()) {
+            Log.e(TAG, "No versions URL found in configuration.")
+            return null
+        }
 
-            // Get URL from local config
-            val targetUrl = LocalVersionManager.getVersionsUrl(context)
+        Log.d(TAG, "Fetching version info from: $targetUrl")
+        val request = Request.Builder()
+            .url(targetUrl)
+            .build()
 
-            if (targetUrl.isNullOrBlank()) {
-                Log.e(TAG, "No versions URL found in configuration.")
-                return@withContext null
-            }
+        return coroutineScope {
+            val call = client.newCall(request)
+            val fetch = async(Dispatchers.IO) {
+                try {
+                    call.execute().use { response ->
+                        if (!response.isSuccessful) {
+                            handleUnsuccessfulResponse(response)
+                            return@async null
+                        }
 
-            Log.d(TAG, "Fetching version info from: $targetUrl")
+                        val responseBody = response.body
+                        if (responseBody == null) {
+                            Log.e(TAG, "Response body was null for version.json")
+                            return@async null
+                        }
 
-            val request = Request.Builder()
-                .url(targetUrl)
-                .build()
-
-            try {
-                client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        handleUnsuccessfulResponse(response)
-                        return@withContext null
+                        parseJson(responseBody.string())
                     }
-
-                    val responseBody = response.body
-                    if (responseBody == null) {
-                        Log.e(TAG, "Response body was null for version.json")
-                        return@withContext null
-                    }
-
-                    return@withContext parseJson(responseBody.string())
+                } catch (e: IOException) {
+                    Log.e(TAG, "Network failure when fetching version.json", e)
+                    null
+                } catch (e: Exception) {
+                    Log.e(TAG, "Unexpected error fetching version.json", e)
+                    null
                 }
-            } catch (e: IOException) {
-                Log.e(TAG, "Network failure when fetching version.json", e)
-                return@withContext null
-            } catch (e: Exception) {
-                Log.e(TAG, "Unexpected error fetching version.json", e)
-                return@withContext null
+            }
+            try {
+                fetch.await()
+            } finally {
+                if (!isActive) call.cancel()
             }
         }
     }
 
     suspend fun downloadFile(url: String, targetFile: File): Boolean {
         return coroutineScope {
-            val call = client.newCall(Request.Builder().url(url).build())
+            val call = downloadClient.newCall(Request.Builder().url(url).build())
             val download = async(Dispatchers.IO) {
                 try {
                     call.execute().use { response ->

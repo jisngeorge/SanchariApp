@@ -245,8 +245,10 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         busSearchHandler.resumeSuggestions()
         stopLocationHandler.onResume()
-        refreshRecentSearches()
-        if (dataInitialized) checkAutomaticUpdates()
+        if (dataInitialized) {
+            refreshRecentSearches()
+            checkAutomaticUpdates()
+        }
     }
 
     override fun onPause() {

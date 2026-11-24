@@ -319,7 +319,7 @@ class SuggestEditActivity : AppCompatActivity() {
         binding.recyclerViewStopsEditor.smoothScrollToPosition(newPos)
     }
 
-    private fun setInitialLoading(loading: Boolean) {
+    internal fun setInitialLoading(loading: Boolean) {
         initialLoading = loading
         listOf(binding.buttonAddStop, binding.buttonReverseStops,
             binding.buttonSaveDraft, binding.btnHistory, binding.editTextServiceName,

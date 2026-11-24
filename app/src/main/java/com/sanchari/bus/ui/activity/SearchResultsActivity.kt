@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.sanchari.bus.R
 import com.sanchari.bus.data.manager.RouteResultsManager
 import com.sanchari.bus.data.manager.RouteResultsManager.SortOrder
+import com.sanchari.bus.data.manager.SearchManager
 import com.sanchari.bus.data.manager.SuggestionManager
 import com.sanchari.bus.data.manager.UserDataManager
 import com.sanchari.bus.data.model.RouteSearchStatistics
@@ -29,7 +30,10 @@ import com.sanchari.bus.ui.helper.StopMapActions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Calendar
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 class SearchResultsActivity : AppCompatActivity() {
 
@@ -43,12 +47,25 @@ class SearchResultsActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_ROUTE_RESULTS = "EXTRA_ROUTE_RESULTS"
+        const val EXTRA_ROUTE_RESULTS_KEY = "EXTRA_ROUTE_RESULTS_KEY"
         const val EXTRA_FROM_STOP = "EXTRA_FROM_STOP"
         const val EXTRA_TO_STOP = "EXTRA_TO_STOP"
         const val EXTRA_FROM_STOP_ID = "EXTRA_FROM_STOP_ID"
         const val EXTRA_TO_STOP_ID = "EXTRA_TO_STOP_ID"
+        const val INLINE_RESULTS_LIMIT = 300
         private const val STATE_SORT_ORDER = "sort_order"
         private const val STATE_SELECTED_TYPES = "selected_types"
+        private val pendingResultsCache = ConcurrentHashMap<String, List<RouteSearchResult>>()
+
+        fun putCachedResults(results: List<RouteSearchResult>): String {
+            if (pendingResultsCache.size > 4) pendingResultsCache.clear()
+            val token = UUID.randomUUID().toString()
+            pendingResultsCache[token] = results
+            return token
+        }
+
+        private fun getCachedResults(token: String): List<RouteSearchResult>? =
+            pendingResultsCache[token]
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,14 +82,15 @@ class SearchResultsActivity : AppCompatActivity() {
             return
         }
         searchMode = RouteSearchMode.fromStops(fromStop, toStop)
-        val results = getParcelableArrayList<RouteSearchResult>(EXTRA_ROUTE_RESULTS)
-        if (results.isNullOrEmpty()) {
+        val cacheKey = intent.getStringExtra(EXTRA_ROUTE_RESULTS_KEY)
+        val inlineResults = getParcelableArrayList<RouteSearchResult>(EXTRA_ROUTE_RESULTS)
+        val initialResults = inlineResults ?: cacheKey?.let(::getCachedResults)
+        if (initialResults.isNullOrEmpty() && cacheKey == null) {
             Log.e("SearchResults", "No search results passed to activity.")
             Toast.makeText(this, "No results found.", Toast.LENGTH_LONG).show()
             finish()
             return
         }
-        allResults = results
         selectedTypes = savedInstanceState?.getStringArrayList(STATE_SELECTED_TYPES)?.toSet()
         sortOrder = SortOrder.entries.firstOrNull {
             it.name == savedInstanceState?.getString(STATE_SORT_ORDER)
@@ -89,12 +107,29 @@ class SearchResultsActivity : AppCompatActivity() {
         }
         setupMenu(fromStop, toStop)
         setupRecyclerView()
-        renderResults()
+
+        if (!initialResults.isNullOrEmpty()) {
+            allResults = initialResults
+            renderResults()
+        } else {
+            lifecycleScope.launch {
+                val reloaded = withContext(Dispatchers.IO) {
+                    SearchManager.findRouteResults(applicationContext, fromStop, toStop)
+                }
+                if (reloaded.isEmpty()) {
+                    Toast.makeText(this@SearchResultsActivity, "No results found.", Toast.LENGTH_LONG).show()
+                    finish()
+                    return@launch
+                }
+                allResults = reloaded
+                renderResults()
+            }
+        }
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 while (true) {
-                    if (sortOrder == SortOrder.NEXT_DEPARTURE) renderResults()
+                    if (sortOrder == SortOrder.NEXT_DEPARTURE && allResults.isNotEmpty()) renderResults()
                     delay(60_000L - System.currentTimeMillis() % 60_000L)
                 }
             }
@@ -195,19 +230,22 @@ class SearchResultsActivity : AppCompatActivity() {
         val results = RouteResultsManager.applySearchOptions(
             allResults, selectedTypes, sortOrder, currentMinutes, searchMode
         )
-        adapter.submitList(results) {
+        val statistics = if (searchMode == RouteSearchMode.FIXED_ROUTE) {
+            RouteSearchStatistics.fromResults(results)
+        } else null
+        adapter.submitResults(results, statistics) {
             if (resetScroll) binding.searchResultsRecyclerView.scrollToPosition(0)
         }
         binding.emptyResults.isVisible = results.isEmpty()
         binding.searchResultsRecyclerView.isVisible = results.isNotEmpty()
-        updateResultsSummary(results)
+        updateResultsSummary(results, statistics)
         binding.toolbar.menu.findItem(R.id.action_filter_bus_type).apply {
             setTitle(if (selectedTypes != null) R.string.filter_bus_types_active else R.string.filter_bus_types)
         }
     }
 
-    private fun updateResultsSummary(results: List<RouteSearchResult>) {
-        if (searchMode != RouteSearchMode.FIXED_ROUTE) {
+    private fun updateResultsSummary(results: List<RouteSearchResult>, statistics: RouteSearchStatistics?) {
+        if (searchMode != RouteSearchMode.FIXED_ROUTE || statistics == null) {
             val summary = getString(R.string.wildcard_results_summary, results.size)
             binding.resultsSummary.text = summary
             binding.resultsSummary.contentDescription = getString(
@@ -216,7 +254,6 @@ class SearchResultsActivity : AppCompatActivity() {
             TooltipCompat.setTooltipText(binding.resultsSummary, getString(R.string.wildcard_results_note))
             return
         }
-        val statistics = RouteSearchStatistics.fromServices(results.map { it.service })
         fun durationLabel(minutes: Int?): String = if (minutes == null) {
             getString(R.string.statistics_unavailable)
         } else if (minutes < 60) {

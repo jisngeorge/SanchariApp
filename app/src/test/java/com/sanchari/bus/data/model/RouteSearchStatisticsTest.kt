@@ -144,6 +144,23 @@ class RouteSearchStatisticsTest {
         assertEquals(720, statistics.averageMinutes)
     }
 
+    @Test
+    fun fromResultsMatchesFromServicesAndRejectsNonAsciiDigits() {
+        val results = listOf(
+            RouteSearchResult(service("a", "08:00", "09:00"), "A", "B", 1, 2),
+            RouteSearchResult(service("b", "09:00", "09:30"), "A", "B", 3, 4),
+            RouteSearchResult(service("arabic", "٠٨:٠٠", "٠٩:٠٠"), "A", "B", 5, 6)
+        )
+
+        val fromResults = RouteSearchStatistics.fromResults(results)
+        val fromServices = RouteSearchStatistics.fromServices(results.map { it.service })
+
+        assertEquals(fromServices, fromResults)
+        assertEquals(3, fromResults.totalCount)
+        assertEquals(2, fromResults.timedCount)
+        assertEquals(45, fromResults.averageMinutes)
+    }
+
     private fun service(
         id: String,
         from: String,

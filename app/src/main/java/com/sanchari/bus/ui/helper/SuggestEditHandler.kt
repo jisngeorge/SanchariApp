@@ -62,12 +62,18 @@ class SuggestEditHandler(
     }
 
     fun loadDraftByFileName(fileName: String) {
-        val drafts = DraftManager.getDrafts(activity)
-        val draft = drafts.find { it.fileName == fileName }
-        if (draft != null) {
-            loadDraftIntoUI(draft)
-        } else {
-            Toast.makeText(activity, "Draft not found.", Toast.LENGTH_SHORT).show()
+        val suggestActivity = activity as SuggestEditActivity
+        suggestActivity.setInitialLoading(true)
+        activity.lifecycleScope.launch {
+            val draft = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                DraftManager.getDraftByFileName(activity.applicationContext, fileName)
+            }
+            suggestActivity.setInitialLoading(false)
+            if (draft != null) {
+                loadDraftIntoUI(draft)
+            } else {
+                Toast.makeText(activity, "Draft not found.", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

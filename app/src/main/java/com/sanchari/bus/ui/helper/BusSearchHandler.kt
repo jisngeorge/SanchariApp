@@ -157,9 +157,9 @@ class BusSearchHandler(
     }
 
     internal fun setStopSuggestions(suggestions: List<String>) {
-        stopNames = suggestions.toSet()
-        stopNamesIgnoreCase = suggestions.associateBy { it.lowercase(Locale.ROOT) }
         if (loadedStopSuggestions != suggestions) {
+            stopNames = suggestions.toSet()
+            stopNamesIgnoreCase = suggestions.associateBy { it.lowercase(Locale.ROOT) }
             loadedStopSuggestions = suggestions.toList()
             binding.fromAutocomplete.setAdapter(
                 ArrayAdapter(activity, R.layout.simple_dropdown_item_1line, suggestions)
@@ -356,7 +356,14 @@ class BusSearchHandler(
                 } else {
                     Log.i(TAG, "Found ${results.size} routes. Launching SearchResultsActivity.")
                     val intent = Intent(activity, SearchResultsActivity::class.java).apply {
-                        putParcelableArrayListExtra(SearchResultsActivity.EXTRA_ROUTE_RESULTS, ArrayList(results))
+                        if (results.size <= SearchResultsActivity.INLINE_RESULTS_LIMIT) {
+                            putParcelableArrayListExtra(SearchResultsActivity.EXTRA_ROUTE_RESULTS, ArrayList(results))
+                        } else {
+                            putExtra(
+                                SearchResultsActivity.EXTRA_ROUTE_RESULTS_KEY,
+                                SearchResultsActivity.putCachedResults(results)
+                            )
+                        }
                         putExtra(SearchResultsActivity.EXTRA_FROM_STOP, canonicalFrom)
                         putExtra(SearchResultsActivity.EXTRA_TO_STOP, canonicalTo)
                         addSearchMetadata(this, canonicalFrom, canonicalTo)

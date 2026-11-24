@@ -105,6 +105,18 @@ object DraftManager {
     }
 
     /**
+     * Reads a single draft file by name without scanning the whole drafts directory.
+     */
+    @Synchronized
+    fun getDraftByFileName(context: Context, fileName: String): SavedDraft? {
+        if (fileName.isBlank() || fileName.contains('/') || fileName.contains('\\')) return null
+        val dir = context.getDir(DRAFTS_DIR, Context.MODE_PRIVATE)
+        val file = File(dir, fileName)
+        if (!file.exists() && !File(dir, "$fileName.bak").exists()) return null
+        return readDraftFile(file)
+    }
+
+    /**
      * Reads all drafts, parses the JSON to extract the Name, Type, and First Stop,
      * and returns a list formatted for the UI.
      */
@@ -119,41 +131,41 @@ object DraftManager {
             }
         }?.distinctBy { it.name } ?: return emptyList()
 
-        return files.mapNotNull { file ->
-            try {
-                val json = AtomicFile(file).openRead().bufferedReader(Charsets.UTF_8).use { it.readText() }
-                val root = JSONObject(json)
-                val service = root.getJSONObject("service")
+        return files.mapNotNull(::readDraftFile)
+            .sortedByDescending { it.lastModifiedTime } // Sort by actual modification time since filenames are now UUIDs
+    }
 
-                val name = service.optString("name", "Unnamed Bus").takeIf { it.isNotBlank() } ?: "Unnamed Bus"
-                val type = service.optString("type", "Unknown Type").takeIf { it.isNotBlank() } ?: "Unknown Type"
+    private fun readDraftFile(file: File): SavedDraft? = try {
+        val json = AtomicFile(file).openRead().bufferedReader(Charsets.UTF_8).use { it.readText() }
+        val root = JSONObject(json)
+        val service = root.getJSONObject("service")
 
-                val stopsArray = root.optJSONArray("stops")
-                val firstStop = if (stopsArray != null && stopsArray.length() > 0) {
-                    stopsArray.getJSONObject(0).optString("locationName", "Unknown Stop").takeIf { it.isNotBlank() } ?: "Unknown Stop"
-                } else {
-                    "No stops"
-                }
+        val name = service.optString("name", "Unnamed Bus").takeIf { it.isNotBlank() } ?: "Unnamed Bus"
+        val type = service.optString("type", "Unknown Type").takeIf { it.isNotBlank() } ?: "Unknown Type"
 
-                // Display name sticks to the current approach
-                val displayName = "$name ($type) - Starts: $firstStop"
-                val draftId = root.optString("draftId", file.nameWithoutExtension)
+        val stopsArray = root.optJSONArray("stops")
+        val firstStop = if (stopsArray != null && stopsArray.length() > 0) {
+            stopsArray.getJSONObject(0).optString("locationName", "Unknown Stop").takeIf { it.isNotBlank() } ?: "Unknown Stop"
+        } else {
+            "No stops"
+        }
 
-                SavedDraft(
-                    draftId = draftId,
-                    fileName = file.name,
-                    jsonPayload = json,
-                    displayName = displayName,
-                    lastModifiedTime = file.lastModified()
-                )
-            } catch (e: IOException) {
-                Log.e(TAG, "Failed to read draft", e)
-                null
-            } catch (e: JSONException) {
-                Log.e(TAG, "Failed to parse draft", e)
-                null
-            }
-        }.sortedByDescending { it.lastModifiedTime } // Sort by actual modification time since filenames are now UUIDs
+        val displayName = "$name ($type) - Starts: $firstStop"
+        val draftId = root.optString("draftId", file.nameWithoutExtension)
+
+        SavedDraft(
+            draftId = draftId,
+            fileName = file.name,
+            jsonPayload = json,
+            displayName = displayName,
+            lastModifiedTime = file.lastModified()
+        )
+    } catch (e: IOException) {
+        Log.e(TAG, "Failed to read draft", e)
+        null
+    } catch (e: JSONException) {
+        Log.e(TAG, "Failed to parse draft", e)
+        null
     }
 
     /**

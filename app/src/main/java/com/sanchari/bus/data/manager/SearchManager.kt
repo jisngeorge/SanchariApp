@@ -40,15 +40,26 @@ object SearchManager {
     fun getStopLocationById(context: Context, id: Int): StopLocation? =
         getStopLocations(installedDb(context), id).singleOrNull()
 
-    internal fun getStopLocations(database: SQLiteDatabase, id: Int? = null): List<StopLocation> {
+    fun getStopLocationsByName(context: Context, name: String): List<StopLocation> =
+        getStopLocations(installedDb(context), name = name.trim())
+
+    internal fun getStopLocations(
+        database: SQLiteDatabase,
+        id: Int? = null,
+        name: String? = null
+    ): List<StopLocation> {
         val stop = DatabaseConstants.StopTable
-        val selection = if (id != null) " WHERE ${stop.COLUMN_STOP_ID} = ?" else ""
+        val (selection, args) = when {
+            id != null -> " WHERE ${stop.COLUMN_STOP_ID} = ?" to arrayOf(id.toString())
+            name != null -> " WHERE ${stop.COLUMN_LOCATION_NAME} = ? COLLATE NOCASE" to arrayOf(name)
+            else -> "" to null
+        }
         val result = mutableListOf<StopLocation>()
         database.rawQuery(
             "SELECT ${stop.COLUMN_STOP_ID}, ${stop.COLUMN_LOCATION_NAME}, " +
                 "${stop.COLUMN_LATITUDE}, ${stop.COLUMN_LONGITUDE} FROM ${stop.TABLE_NAME}$selection " +
                 "ORDER BY ${stop.COLUMN_LOCATION_NAME}, ${stop.COLUMN_STOP_ID}",
-            id?.let { arrayOf(it.toString()) }
+            args
         ).use { cursor ->
             while (cursor.moveToNext()) {
                 val latitude = numericCoordinate(cursor, 2) ?: continue
