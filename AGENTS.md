@@ -38,6 +38,9 @@ red not-running and amber slow-service warning colours.
 Keep the system status bar visible so users can read the clock. Its background
 uses `home_background`, with dark icons in light mode and light icons in dark mode,
 including on Android versions that enforce a transparent edge-to-edge status bar.
+Keep the window background and `android:colorPrimaryDark` matched to
+`home_background`; the home DrawerLayout reads the latter to paint its status-bar
+backdrop independently of `android:statusBarColor`.
 
 All paths below are relative to the repository root. Kotlin source lives under
 `app\src\main\java\com\sanchari\bus`.

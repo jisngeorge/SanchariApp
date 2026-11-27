@@ -5,10 +5,14 @@ import android.content.Intent
 import android.app.Activity
 import android.app.Instrumentation
 import android.graphics.Rect
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.SystemClock
 import android.view.View
 import android.widget.AdapterView
 import androidx.core.content.ContextCompat
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.graphics.ColorUtils
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -54,6 +58,47 @@ import java.util.concurrent.atomic.AtomicInteger
 
 @RunWith(AndroidJUnit4::class)
 class MainPageActivityTest {
+    @Test
+    fun statusBarRemainsReadableInBothThemesAcrossRecreationAndDrawerChanges() = isolatedHome {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val previousMode = AppCompatDelegate.getDefaultNightMode()
+        try {
+            for (mode in listOf(AppCompatDelegate.MODE_NIGHT_NO, AppCompatDelegate.MODE_NIGHT_YES)) {
+                instrumentation.runOnMainSync { AppCompatDelegate.setDefaultNightMode(mode) }
+                ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+                    await(scenario) {
+                        ViewCompat.getRootWindowInsets(it.root)?.isVisible(
+                            WindowInsetsCompat.Type.statusBars()) == true
+                    }
+                    fun assertReadable() {
+                        scenario.onActivity { activity ->
+                            val decor = activity.window.decorView
+                            assertTrue(requireNotNull(ViewCompat.getRootWindowInsets(decor))
+                                .isVisible(WindowInsetsCompat.Type.statusBars()))
+                            val lightIcons = !WindowCompat.getInsetsController(activity.window, decor)
+                                .isAppearanceLightStatusBars
+                            assertEquals(mode == AppCompatDelegate.MODE_NIGHT_YES, lightIcons)
+                            val backdrop = mainBinding(activity).homeDrawer.statusBarBackgroundDrawable
+                            val background = (backdrop as ColorDrawable).color
+                            assertEquals(ContextCompat.getColor(activity, R.color.home_background), background)
+                            assertTrue(ColorUtils.calculateContrast(
+                                if (lightIcons) Color.WHITE else Color.BLACK, background) >= 4.5)
+                        }
+                    }
+                    assertReadable()
+                    scenario.onActivity {
+                        mainBinding(it).homeDrawer.openDrawer(mainBinding(it).homeNavigation, false)
+                    }
+                    assertReadable()
+                    scenario.recreate()
+                    assertReadable()
+                }
+            }
+        } finally {
+            instrumentation.runOnMainSync { AppCompatDelegate.setDefaultNightMode(previousMode) }
+        }
+    }
+
     @Test
     fun populatedStopFieldsShowClearImmediatelyOnFocusAndClearOnlyThatField() = isolatedHome {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->

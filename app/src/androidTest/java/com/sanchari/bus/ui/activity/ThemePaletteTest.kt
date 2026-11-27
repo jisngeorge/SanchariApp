@@ -12,6 +12,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.res.use
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.children
+import androidx.drawerlayout.widget.DrawerLayout
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.android.material.appbar.AppBarLayout
@@ -66,6 +67,11 @@ class ThemePaletteTest {
                     R.layout.activity_confirm to R.id.buttonApplySuggestion
                 )) {
                     val view = LayoutInflater.from(context).inflate(layout, parent, false)
+                    if (view is DrawerLayout) {
+                        assertEquals("The drawer must not paint a dark scrim behind dark status icons",
+                            ContextCompat.getColor(context, R.color.home_background),
+                            backgroundColor(requireNotNull(view.statusBarBackgroundDrawable)))
+                    }
                     val button = view.findViewById<MaterialButton>(buttonId)
                     assertEquals(green, button.backgroundTintList?.getColorForState(button.drawableState, 0))
                     assertEquals(onGreen, button.currentTextColor)
@@ -98,11 +104,14 @@ class ThemePaletteTest {
                 context.obtainStyledAttributes(intArrayOf(
                     android.R.attr.statusBarColor,
                     android.R.attr.windowLightStatusBar,
-                    android.R.attr.windowFullscreen
+                    android.R.attr.windowFullscreen,
+                    android.R.attr.windowBackground
                 )).use {
                     val background = ContextCompat.getColor(context, R.color.home_background)
                     val lightStatusBar = it.getBoolean(1, false)
                     assertEquals(background, it.getColor(0, 0))
+                    assertEquals("Transparent status bars must have a theme-matched backdrop",
+                        background, it.getColor(3, 0))
                     assertEquals(night == Configuration.UI_MODE_NIGHT_NO, lightStatusBar)
                     assertTrue(ColorUtils.calculateContrast(
                         if (lightStatusBar) Color.BLACK else Color.WHITE, background
